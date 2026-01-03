@@ -1,15 +1,42 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# ====================
+# Logs
+# ====================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# dependencies
+# ====================
+# Dependency directories
+# ====================
 node_modules/
 
-# Expo
-.expo/
+# ====================
+# Build output (Node.js, Frontend)
+# ====================
 dist/
+dist-ssr/
+build/
+out/
 web-build/
+
+# ====================
+# Expo
+# ====================
+.expo/
 expo-env.d.ts
 
-# Native
+# ====================
+# Metro
+# ====================
+.metro-health-check*
+
+# ====================
+# Native / Mobile secrets & keys
+# ====================
 .kotlin/
 *.orig.*
 *.jks
@@ -17,27 +44,64 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
-
-# Metro
-.metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
-.DS_Store
 *.pem
 
-# local env files
+# ====================
+# Local environment files
+# ====================
+*.local
+.env
+.env.*
 .env*.local
 
-# typescript
+# ====================
+# TypeScript
+# ====================
 *.tsbuildinfo
 
-app-example
+# ====================
+# IntelliJ IDEA
+# ====================
+.idea/
+*.iml
+*.iws
 
-# generated native folders
+# ====================
+# Editor directories and files
+# ====================
+.vscode/
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ====================
+# Build output (Java/Maven)
+# ====================
+target/
+*.class
+
+# ====================
+# Ignore properties file
+# ====================
+src/main/resources/application-dev.properties
+
+# ====================
+# Generated native folders
+# ====================
 /ios
 /android
+
+# ====================
+# OS generated files
+# ====================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ====================
+# Misc
+# ====================
+app-example
