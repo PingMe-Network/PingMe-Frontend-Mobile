@@ -53,6 +53,7 @@ expo-env.d.ts
 .env
 .env.*
 .env*.local
+nativewind-env.d.ts
 
 # ====================
 # TypeScript
