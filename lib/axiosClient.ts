@@ -6,7 +6,7 @@ import type { ApiResponse } from "@/types/base/apiResponse";
 import type { MobileAuthResponse } from "@/types/authentication";
 
 // 1. Cấu hình cơ bản
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
 
 const axiosClient = axios.create({
   baseURL: BASE_URL,
