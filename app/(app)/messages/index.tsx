@@ -1,0 +1,15 @@
+import { View, Text } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+export default function MessagesScreen() {
+  return (
+    <SafeAreaView className="flex-1 bg-white">
+      <View className="flex-1 items-center justify-center px-6">
+        <Text className="text-2xl font-bold text-gray-800 mb-2">Tin nhan</Text>
+        <Text className="text-gray-500 text-center">
+          Danh sach tin nhan se hien thi o day
+        </Text>
+      </View>
+    </SafeAreaView>
+  );
+}

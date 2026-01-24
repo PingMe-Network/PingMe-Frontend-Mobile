@@ -3,15 +3,15 @@ import type { ApiResponse } from "@/types/base/apiResponse";
 import type { LoginRequest, MobileAuthResponse } from "@/types/authentication";
 import { getSessionMetaRequest } from "@/utils/sessionMetaHandler";
 
-export const loginMobileApi = (data: LoginRequest) => {
-  const metaData = getSessionMetaRequest();
+export const loginMobileApi = async (data: LoginRequest) => {
+  const metaData = await getSessionMetaRequest();
 
   return axiosClient.post<ApiResponse<MobileAuthResponse>>(
     "/auth/mobile/login",
     {
       ...data,
       submitSessionMetaRequest: metaData,
-    }
+    },
   );
 };
 
