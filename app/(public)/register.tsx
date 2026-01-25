@@ -72,6 +72,12 @@ export default function RegisterScreen() {
     }
   };
 
+  const genderLabels = {
+    OTHER: "Khác",
+    MALE: "Nam",
+    FEMALE: "Nữ",
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -122,11 +128,7 @@ export default function RegisterScreen() {
               activeOpacity={0.7}
             >
               <Text className="text-base text-gray-900">
-                {gender === "MALE"
-                  ? "Nam"
-                  : gender === "FEMALE"
-                    ? "Nữ"
-                    : "Khác"}
+                {genderLabels[gender]}
               </Text>
               <Ionicons
                 name={showGenderDropdown ? "chevron-up" : "chevron-down"}
@@ -138,9 +140,9 @@ export default function RegisterScreen() {
             {showGenderDropdown && (
               <View className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
                 {[
+                  { label: "Khác", value: "OTHER" },
                   { label: "Nam", value: "MALE" },
                   { label: "Nữ", value: "FEMALE" },
-                  { label: "Khác", value: "OTHER" },
                 ].map((item) => (
                   <TouchableOpacity
                     key={item.value}

@@ -17,9 +17,12 @@ export const Button = ({
     const isPrimary = variant === "primary";
 
     const baseStyle = "p-4 rounded-xl flex-row justify-center items-center";
-    const bgStyle = isPrimary
-        ? (isLoading || disabled ? "bg-blue-400" : "bg-blue-600")
-        : "bg-transparent border border-blue-600";
+    let bgStyle;
+    if (isPrimary) {
+        bgStyle = isLoading || disabled ? "bg-blue-400" : "bg-blue-600";
+    } else {
+        bgStyle = "bg-transparent border border-blue-600";
+    }
 
     const textStyle = isPrimary ? "text-white" : "text-blue-600";
 
