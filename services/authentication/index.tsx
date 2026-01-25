@@ -1,6 +1,6 @@
 import axiosClient from "@/lib/axiosClient";
 import type { ApiResponse } from "@/types/base/apiResponse";
-import type { LoginRequest, MobileAuthResponse } from "@/types/authentication";
+import type { LoginRequest, MobileAuthResponse, RegisterRequest } from "@/types/authentication";
 import { getSessionMetaRequest } from "@/utils/sessionMetaHandler";
 
 export const loginMobileApi = async (data: LoginRequest) => {
@@ -13,6 +13,10 @@ export const loginMobileApi = async (data: LoginRequest) => {
       submitSessionMetaRequest: metaData,
     },
   );
+};
+
+export const registerApi = (data: RegisterRequest) => {
+  return axiosClient.post<ApiResponse<void>>("/auth/register", data);
 };
 
 export const logoutApi = () => {

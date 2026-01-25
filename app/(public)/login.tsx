@@ -2,15 +2,15 @@ import { useState } from "react";
 import {
   Text,
   View,
-  TextInput,
-  TouchableOpacity,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
 } from "react-native";
 import { Link, router } from "expo-router";
 import { useAppDispatch, useAppSelector } from "@/features/store";
 import { loginThunk } from "@/features/slices/authThunk";
+import { InputField } from "@/components/ui/InputField";
+import { Button } from "@/components/ui/Button";
 
 export default function LoginScreen() {
   const dispatch = useAppDispatch();
@@ -61,11 +61,9 @@ export default function LoginScreen() {
         )}
 
         {/* Input Email */}
-        <Text className="mb-2 font-medium text-gray-700">Email</Text>
-        <TextInput
-          className="border border-gray-300 rounded-xl p-4 mb-4 bg-gray-50 text-base"
+        <InputField
+          label="Email"
           placeholder="Nhập email của bạn"
-          placeholderTextColor="#9CA3AF"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -73,31 +71,21 @@ export default function LoginScreen() {
         />
 
         {/* Input Password */}
-        <Text className="mb-2 font-medium text-gray-700">Mật khẩu</Text>
-        <TextInput
-          className="border border-gray-300 rounded-xl p-4 mb-6 bg-gray-50 text-base"
+        <InputField
+          label="Mật khẩu"
           placeholder="Nhập mật khẩu"
-          placeholderTextColor="#9CA3AF"
           value={password}
           onChangeText={setPassword}
-          secureTextEntry
+          isPassword
+          className="mb-6"
         />
 
         {/* Login Button */}
-        <TouchableOpacity
-          className={`p-4 rounded-xl flex-row justify-center items-center ${
-            isLoading ? "bg-blue-400" : "bg-blue-600"
-          }`}
+        <Button
+          title="Đăng nhập"
           onPress={handleLogin}
-          disabled={isLoading}
-          activeOpacity={0.8}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text className="text-white font-semibold text-lg">Đăng nhập</Text>
-          )}
-        </TouchableOpacity>
+          isLoading={isLoading}
+        />
 
         {/* Register Link */}
         <View className="flex-row justify-center mt-6">

@@ -3,7 +3,7 @@ import type {
   CurrentUserSessionResponse,
   MobileAuthResponse,
 } from "@/types/authentication";
-import { loginThunk, logoutThunk } from "./authThunk";
+import { loginThunk, logoutThunk, registerThunk } from "./authThunk";
 
 interface AuthState {
   user: CurrentUserSessionResponse | null;
@@ -64,6 +64,19 @@ const authSlice = createSlice({
       state.accessToken = action.payload.accessToken;
     });
     builder.addCase(loginThunk.rejected, (state, action) => {
+      state.isLoading = false;
+      state.error = action.payload as string;
+    });
+
+    // --- Xử lý Register ---
+    builder.addCase(registerThunk.pending, (state) => {
+      state.isLoading = true;
+      state.error = null;
+    });
+    builder.addCase(registerThunk.fulfilled, (state) => {
+      state.isLoading = false;
+    });
+    builder.addCase(registerThunk.rejected, (state, action) => {
       state.isLoading = false;
       state.error = action.payload as string;
     });

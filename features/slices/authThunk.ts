@@ -1,6 +1,6 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
-import { loginMobileApi, logoutApi } from "@/services/authentication";
-import type { LoginRequest, MobileAuthResponse } from "@/types/authentication";
+import { loginMobileApi, logoutApi, registerApi } from "@/services/authentication";
+import type { LoginRequest, MobileAuthResponse, RegisterRequest } from "@/types/authentication";
 import { saveTokens, clearTokens } from "@/utils/storage";
 import { getErrorMessage } from "@/utils/errorMessageHandler";
 
@@ -17,6 +17,20 @@ export const loginThunk = createAsyncThunk<MobileAuthResponse, LoginRequest>(
       await saveTokens(data.accessToken, data.refreshToken);
 
       return data;
+    } catch (error: any) {
+      return rejectWithValue(getErrorMessage(error));
+    }
+  },
+);
+
+// =========================================================
+// THUNK REGISTER
+// =========================================================
+export const registerThunk = createAsyncThunk<void, RegisterRequest>(
+  "auth/register",
+  async (payload, { rejectWithValue }) => {
+    try {
+      await registerApi(payload);
     } catch (error: any) {
       return rejectWithValue(getErrorMessage(error));
     }
