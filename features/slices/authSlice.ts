@@ -1,13 +1,9 @@
-import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type {
-  CurrentUserSessionResponse,
-  MobileAuthResponse,
-} from "@/types/authentication";
+import { createSlice } from "@reduxjs/toolkit";
+import type { CurrentUserSessionResponse } from "@/types/authentication";
 import { loginThunk, logoutThunk, registerThunk } from "./authThunk";
 
 interface AuthState {
   user: CurrentUserSessionResponse | null;
-  accessToken: string | null;
   isLoggedIn: boolean;
   isLoading: boolean;
   error: string | null;
@@ -15,7 +11,6 @@ interface AuthState {
 
 const initialState: AuthState = {
   user: null,
-  accessToken: null,
   isLoggedIn: false,
   isLoading: false,
   error: null,
@@ -24,33 +19,7 @@ const initialState: AuthState = {
 const authSlice = createSlice({
   name: "auth",
   initialState,
-  reducers: {
-    updateTokenManually: (state, action: PayloadAction<MobileAuthResponse>) => {
-      state.accessToken = action.payload.accessToken;
-      // Backend MobileAuthResponse có trả về userSession mới
-      if (action.payload.userSession) {
-        state.user = action.payload.userSession;
-      }
-    },
-
-    // Action này dùng lúc mở App: Check storage có token thì set lại state
-    setAuthData: (
-      state,
-      action: PayloadAction<{
-        user: CurrentUserSessionResponse | null;
-        token: string;
-      }>
-    ) => {
-      state.user = action.payload.user;
-      state.accessToken = action.payload.token;
-      state.isLoggedIn = true;
-    },
-
-    // Reset lỗi
-    clearError: (state) => {
-      state.error = null;
-    },
-  },
+  reducers: {},
   extraReducers: (builder) => {
     // --- Xử lý Login ---
     builder.addCase(loginThunk.pending, (state) => {
@@ -61,7 +30,6 @@ const authSlice = createSlice({
       state.isLoading = false;
       state.isLoggedIn = true;
       state.user = action.payload.userSession;
-      state.accessToken = action.payload.accessToken;
     });
     builder.addCase(loginThunk.rejected, (state, action) => {
       state.isLoading = false;
@@ -84,12 +52,9 @@ const authSlice = createSlice({
     // --- Xử lý Logout ---
     builder.addCase(logoutThunk.fulfilled, (state) => {
       state.user = null;
-      state.accessToken = null;
       state.isLoggedIn = false;
     });
   },
 });
 
-export const { updateTokenManually, setAuthData, clearError } =
-  authSlice.actions;
 export default authSlice.reducer;
