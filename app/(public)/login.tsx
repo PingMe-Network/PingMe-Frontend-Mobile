@@ -44,13 +44,13 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1 bg-white"
+      className="flex-1 bg-background-dark"
     >
       <View className="flex-1 justify-center px-6">
         {/* Header */}
         <View className="items-center mb-10">
-          <Text className="text-3xl font-bold text-blue-600">PingMe</Text>
-          <Text className="text-gray-500 mt-2">Chào mừng trở lại</Text>
+          <Text className="text-3xl font-bold text-primary">PingMe</Text>
+          <Text className="text-gray-400 mt-2">Chào mừng trở lại</Text>
         </View>
 
         {/* Error Message */}
@@ -60,7 +60,13 @@ export default function LoginScreen() {
           </View>
         )}
 
-        {/* Input Email */}
+        {/* Input Text Color needs adjustment inside Component or passed via props, but for now we rely on InputField default or update it globally. 
+           Let's proactively update InputField component first to handle dark mode if needed, or pass className. 
+           Actually, let's update InputField to support dark mode styles since this is a global change. 
+           For now, let's pass text-white to Inputs if possible, or just accept light inputs on dark bg. 
+           Designing "Dark Mode" inputs usually means dark bg for input too.
+           Let's assume we will update InputField component to look good on dark.
+        */}
         <InputField
           label="Email"
           placeholder="Nhập email của bạn"
@@ -89,10 +95,10 @@ export default function LoginScreen() {
 
         {/* Register Link */}
         <View className="flex-row justify-center mt-6">
-          <Text className="text-gray-600">Chua co tai khoan? </Text>
+          <Text className="text-gray-400">Chua co tai khoan? </Text>
           <Link href={"/(public)/register" as never} asChild>
             <TouchableOpacity>
-              <Text className="text-blue-600 font-semibold">Dang ky ngay</Text>
+              <Text className="text-primary font-semibold">Dang ky ngay</Text>
             </TouchableOpacity>
           </Link>
         </View>

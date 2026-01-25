@@ -1,15 +1,31 @@
-import { View, Text } from "react-native";
+import { View, Text, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAppSelector } from "@/features/store";
+import { useTabBarHeight } from "@/hooks/useTabBarHeight";
 
 export default function ContactsScreen() {
+  const { mode } = useAppSelector((state) => state.theme);
+  const isDark = mode === "dark";
+  const tabBarHeight = useTabBarHeight();
+
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <View className="flex-1 items-center justify-center px-6">
-        <Text className="text-2xl font-bold text-gray-800 mb-2">Danh ba</Text>
-        <Text className="text-gray-500 text-center">
-          Danh sach lien he se hien thi o day
-        </Text>
-      </View>
+    <SafeAreaView className={`flex-1 ${isDark ? "bg-background-dark" : "bg-background-light"}`}>
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: tabBarHeight + 20 }}
+        className="px-6"
+        showsVerticalScrollIndicator={false}
+        decelerationRate="fast"
+        scrollEventThrottle={16}
+        bounces={true}
+        overScrollMode="never"
+      >
+        <View className="flex-1 items-center justify-center">
+          <Text className={`text-2xl font-bold mb-2 ${isDark ? "text-white" : "text-midnight-velvet"}`}>Danh ba</Text>
+          <Text className={`text-center ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+            Danh sach lien he se hien thi o day
+          </Text>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

@@ -1,4 +1,5 @@
 import { Text, TouchableOpacity, ActivityIndicator, type TouchableOpacityProps } from "react-native";
+import { Colors } from "@/constants/Colors";
 
 interface ButtonProps extends TouchableOpacityProps {
     title: string;
@@ -16,15 +17,15 @@ export const Button = ({
 }: ButtonProps) => {
     const isPrimary = variant === "primary";
 
-    const baseStyle = "p-4 rounded-xl flex-row justify-center items-center";
+    const baseStyle = "p-4 rounded-custom flex-row justify-center items-center";
     let bgStyle;
     if (isPrimary) {
-        bgStyle = isLoading || disabled ? "bg-blue-400" : "bg-blue-600";
+        bgStyle = isLoading || disabled ? "bg-primary/70" : "bg-primary";
     } else {
-        bgStyle = "bg-transparent border border-blue-600";
+        bgStyle = "bg-transparent border border-primary";
     }
 
-    const textStyle = isPrimary ? "text-white" : "text-blue-600";
+    const textStyle = isPrimary ? "text-white" : "text-primary";
 
     return (
         <TouchableOpacity
@@ -34,7 +35,7 @@ export const Button = ({
             {...props}
         >
             {isLoading ? (
-                <ActivityIndicator color={isPrimary ? "#fff" : "#2563EB"} />
+                <ActivityIndicator color={isPrimary ? Colors.background.light : Colors.primary} />
             ) : (
                 <Text className={`${textStyle} font-semibold text-lg`}>{title}</Text>
             )}
