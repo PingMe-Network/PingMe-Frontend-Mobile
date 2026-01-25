@@ -2,22 +2,29 @@ import { useState } from "react";
 import {
   Text,
   View,
-  TextInput,
   TouchableOpacity,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
 } from "react-native";
 import { Link, router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useAppDispatch, useAppSelector } from "@/features/store";
+import { registerThunk } from "@/features/slices/authThunk";
+import { InputField } from "@/components/ui/InputField";
+import { Button } from "@/components/ui/Button";
 
 export default function RegisterScreen() {
+  const dispatch = useAppDispatch();
+  const { isLoading } = useAppSelector((state) => state.auth);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showGenderDropdown, setShowGenderDropdown] = useState(false);
+  const [gender, setGender] = useState<"MALE" | "FEMALE" | "OTHER">("MALE");
 
   const handleRegister = async () => {
     setErrorMessage(null);
@@ -32,13 +39,43 @@ export default function RegisterScreen() {
       return;
     }
 
-    setIsLoading(true);
+    try {
+      await dispatch(
+        registerThunk({
+          email,
+          name: fullName,
+          password,
+          gender, // Gửi gender lên API
+        })
+      ).unwrap();
 
-    // TODO: Implement register API call
-    setTimeout(() => {
-      setIsLoading(false);
-      router.replace("/(public)/login" as never);
-    }, 1500);
+      // Xử lý thông báo thành công đa nền tảng
+      if (Platform.OS === "web") {
+        (globalThis as any).alert("Đăng ký thành công! Vui lòng đăng nhập.");
+        router.replace("/(public)/login" as never);
+      } else {
+        Alert.alert(
+          "Đăng ký thành công",
+          "Tài khoản của bạn đã được tạo. Vui lòng đăng nhập.",
+          [
+            {
+              text: "OK",
+              onPress: () => router.replace("/(public)/login" as never),
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      setErrorMessage(
+        typeof error === "string" ? error : "Đăng ký thất bại. Vui lòng thử lại."
+      );
+    }
+  };
+
+  const genderLabels = {
+    OTHER: "Khác",
+    MALE: "Nam",
+    FEMALE: "Nữ",
   };
 
   return (
@@ -47,10 +84,10 @@ export default function RegisterScreen() {
       className="flex-1 bg-white"
     >
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
+        contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
       >
-        <View className="flex-1 justify-center px-6 py-10">
+        <View className="px-6 py-10 w-full max-w-lg mx-auto">
           {/* Header */}
           <View className="items-center mb-8">
             <Text className="text-3xl font-bold text-blue-600">PingMe</Text>
@@ -65,66 +102,96 @@ export default function RegisterScreen() {
           )}
 
           {/* Input Full Name */}
-          <Text className="mb-2 font-medium text-gray-700">Họ và tên</Text>
-          <TextInput
-            className="border border-gray-300 rounded-xl p-4 mb-4 bg-gray-50 text-base"
+          <InputField
+            label="Họ và tên"
             placeholder="Nhập họ và tên"
-            placeholderTextColor="#9CA3AF"
             value={fullName}
             onChangeText={setFullName}
           />
 
           {/* Input Email */}
-          <Text className="mb-2 font-medium text-gray-700">Email</Text>
-          <TextInput
-            className="border border-gray-300 rounded-xl p-4 mb-4 bg-gray-50 text-base"
+          <InputField
+            label="Email"
             placeholder="Nhập email của bạn"
-            placeholderTextColor="#9CA3AF"
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
           />
 
+          {/* Gender Selection */}
+          <Text className="mb-2 font-medium text-gray-700">Giới tính</Text>
+          <View className="mb-4 relative z-50">
+            <TouchableOpacity
+              className="border border-gray-300 rounded-xl p-4 bg-gray-50 flex-row justify-between items-center"
+              onPress={() => setShowGenderDropdown(!showGenderDropdown)}
+              activeOpacity={0.7}
+            >
+              <Text className="text-base text-gray-900">
+                {genderLabels[gender]}
+              </Text>
+              <Ionicons
+                name={showGenderDropdown ? "chevron-up" : "chevron-down"}
+                size={20}
+                color="#6B7280"
+              />
+            </TouchableOpacity>
+
+            {showGenderDropdown && (
+              <View className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                {[
+                  { label: "Khác", value: "OTHER" },
+                  { label: "Nam", value: "MALE" },
+                  { label: "Nữ", value: "FEMALE" },
+                ].map((item) => (
+                  <TouchableOpacity
+                    key={item.value}
+                    className={`p-4 border-b border-gray-100 last:border-0 ${gender === item.value ? "bg-blue-50" : ""
+                      }`}
+                    onPress={() => {
+                      setGender(item.value as any);
+                      setShowGenderDropdown(false);
+                    }}
+                  >
+                    <Text
+                      className={`${gender === item.value
+                        ? "text-blue-600 font-semibold"
+                        : "text-gray-700"
+                        }`}
+                    >
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+
           {/* Input Password */}
-          <Text className="mb-2 font-medium text-gray-700">Mật khẩu</Text>
-          <TextInput
-            className="border border-gray-300 rounded-xl p-4 mb-4 bg-gray-50 text-base"
+          <InputField
+            label="Mật khẩu"
             placeholder="Nhập mật khẩu"
-            placeholderTextColor="#9CA3AF"
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
+            isPassword
           />
 
           {/* Input Confirm Password */}
-          <Text className="mb-2 font-medium text-gray-700">
-            Xác nhận mật khẩu
-          </Text>
-          <TextInput
-            className="border border-gray-300 rounded-xl p-4 mb-6 bg-gray-50 text-base"
+          <InputField
+            label="Xác nhận mật khẩu"
             placeholder="Nhập lại mật khẩu"
-            placeholderTextColor="#9CA3AF"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
-            secureTextEntry
+            isPassword
+            className="mb-6"
           />
 
           {/* Register Button */}
-          <TouchableOpacity
-            className={`p-4 rounded-xl flex-row justify-center items-center ${
-              isLoading ? "bg-blue-400" : "bg-blue-600"
-            }`}
+          <Button
+            title="Đăng ký"
             onPress={handleRegister}
-            disabled={isLoading}
-            activeOpacity={0.8}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text className="text-white font-semibold text-lg">Đăng ký</Text>
-            )}
-          </TouchableOpacity>
+            isLoading={isLoading}
+          />
 
           {/* Login Link */}
           <View className="flex-row justify-center mt-6">
