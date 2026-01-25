@@ -10,14 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Platform, View } from "react-native";
 import { useAppSelector } from "@/features/store";
 import { Colors } from "@/constants/Colors";
-
-// Standalone component for TabBarBackground
-const TabBarBackground = ({ iosBlurClass }: { iosBlurClass: string }) => {
-  if (Platform.OS === "ios") {
-    return <View className={`flex-1 ${iosBlurClass}`} />;
-  }
-  return null;
-};
+import { TabBarBackground } from "@/components/ui/TabBarBackground";
 
 export default function AppLayout() {
   const { mode } = useAppSelector((state) => state.theme);
