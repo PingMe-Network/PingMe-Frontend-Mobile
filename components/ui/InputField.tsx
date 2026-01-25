@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, type TextInputProps } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Colors } from "@/constants/Colors";
 
 interface InputFieldProps extends TextInputProps {
     label?: string;
@@ -22,13 +23,13 @@ export const InputField = ({
 
     return (
         <View className="mb-4">
-            {label && <Text className="mb-2 font-medium text-gray-700">{label}</Text>}
+            {label && <Text className="mb-2 font-medium text-gray-300">{label}</Text>}
 
             <View className="relative">
                 <TextInput
-                    className={`border rounded-xl p-4 bg-gray-50 text-base ${error ? "border-red-500 bg-red-50" : "border-gray-300"
+                    className={`border rounded-custom p-4 bg-gray-900 text-white text-base ${error ? "border-red-500 bg-red-900/10" : "border-gray-700"
                         } ${isPassword ? "pr-12" : ""} ${className || ""}`}
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={Colors.text.gray}
                     secureTextEntry={isSecure}
                     {...props}
                 />
@@ -42,13 +43,13 @@ export const InputField = ({
                         <Ionicons
                             name={showPassword ? "eye-off" : "eye"}
                             size={24}
-                            color="#6B7280"
+                            color={Colors.text.gray}
                         />
                     </TouchableOpacity>
                 )}
             </View>
 
-            {error && <Text className="mt-1 text-sm text-red-500">{error}</Text>}
+            {error && <Text className="mt-1 text-sm text-red-400">{error}</Text>}
         </View>
     );
 };

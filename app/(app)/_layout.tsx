@@ -1,4 +1,5 @@
 import { Tabs } from "expo-router";
+import { useCallback } from "react";
 import {
   MessageCircle,
   Users,
@@ -6,27 +7,84 @@ import {
   Film,
   CircleUserRound,
 } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Platform } from "react-native";
+import { useAppSelector } from "@/features/store";
+import { Colors } from "@/constants/Colors";
+import { TabBarBackground } from "@/components/ui/TabBarBackground";
 
 export default function AppLayout() {
+  const { mode } = useAppSelector((state) => state.theme);
+  const insets = useSafeAreaInsets();
+  const isDark = mode === "dark";
+  const bottomPadding = insets.bottom > 0 ? insets.bottom : 20;
+  const tabBarHeight = 65 + bottomPadding;
+
+  // Helper to determine tab bar background color
+  const getTabBarBackground = () => {
+    if (Platform.OS === "ios") {
+      if (isDark) {
+        return "rgba(28, 25, 27, 0.85)";
+      }
+      return "rgba(255, 249, 250, 0.85)";
+    }
+
+    if (isDark) {
+      return Colors.background.dark;
+    }
+    return Colors.background.light;
+  };
+
+  const getTabBarInactiveColor = () => {
+    if (isDark) {
+      return Colors.tabBar.inactiveDark;
+    }
+    return Colors.tabBar.inactiveLight;
+  };
+
+  const getIosBlurClass = () => {
+    if (isDark) {
+      return "bg-black/80";
+    }
+    return "bg-white/90";
+  }
+
+  const colors = {
+    tabBarBackground: getTabBarBackground(),
+    tabBarActive: Colors.primary,
+    tabBarInactive: getTabBarInactiveColor(),
+    iosBlur: getIosBlurClass(),
+  };
+
+  const renderTabBarBackground = useCallback(() => (
+    <TabBarBackground iosBlurClass={colors.iosBlur} />
+  ), [colors.iosBlur]);
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#2563EB",
-        tabBarInactiveTintColor: "#9CA3AF",
+        tabBarActiveTintColor: colors.tabBarActive,
+        tabBarInactiveTintColor: colors.tabBarInactive,
+        tabBarLabelPosition: "below-icon",
         tabBarStyle: {
-          backgroundColor: "#FFFFFF",
-          borderTopWidth: 1,
-          borderTopColor: "#E5E7EB",
-          paddingTop: 8,
-          paddingBottom: 8,
-          height: 70,
+          backgroundColor: colors.tabBarBackground,
+          borderTopWidth: 0,
+          elevation: 0,
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: tabBarHeight,
+          paddingTop: 10,
+          paddingBottom: bottomPadding,
         },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: "500",
           marginTop: 4,
         },
+        tabBarBackground: renderTabBarBackground,
       }}
     >
       <Tabs.Screen

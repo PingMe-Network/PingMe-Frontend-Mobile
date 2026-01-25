@@ -14,6 +14,7 @@ import { useAppDispatch, useAppSelector } from "@/features/store";
 import { registerThunk } from "@/features/slices/authThunk";
 import { InputField } from "@/components/ui/InputField";
 import { Button } from "@/components/ui/Button";
+import { Colors } from "@/constants/Colors";
 
 export default function RegisterScreen() {
   const dispatch = useAppDispatch();
@@ -81,7 +82,7 @@ export default function RegisterScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1 bg-white"
+      className="flex-1 bg-background-dark"
     >
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingBottom: 40 }}
@@ -90,8 +91,8 @@ export default function RegisterScreen() {
         <View className="px-6 py-10 w-full max-w-lg mx-auto">
           {/* Header */}
           <View className="items-center mb-8">
-            <Text className="text-3xl font-bold text-blue-600">PingMe</Text>
-            <Text className="text-gray-500 mt-2">Tạo tài khoản mới</Text>
+            <Text className="text-3xl font-bold text-primary">PingMe</Text>
+            <Text className="text-gray-400 mt-2">Tạo tài khoản mới</Text>
           </View>
 
           {/* Error Message */}
@@ -120,25 +121,25 @@ export default function RegisterScreen() {
           />
 
           {/* Gender Selection */}
-          <Text className="mb-2 font-medium text-gray-700">Giới tính</Text>
+          <Text className="mb-2 font-medium text-gray-300">Giới tính</Text>
           <View className="mb-4 relative z-50">
             <TouchableOpacity
-              className="border border-gray-300 rounded-xl p-4 bg-gray-50 flex-row justify-between items-center"
+              className="border border-gray-700 rounded-custom p-4 bg-gray-900 flex-row justify-between items-center"
               onPress={() => setShowGenderDropdown(!showGenderDropdown)}
               activeOpacity={0.7}
             >
-              <Text className="text-base text-gray-900">
+              <Text className="text-base text-white">
                 {genderLabels[gender]}
               </Text>
               <Ionicons
                 name={showGenderDropdown ? "chevron-up" : "chevron-down"}
                 size={20}
-                color="#6B7280"
+                color={Colors.text.gray}
               />
             </TouchableOpacity>
 
             {showGenderDropdown && (
-              <View className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+              <View className="absolute top-full left-0 right-0 mt-2 bg-gray-900 border border-gray-800 rounded-custom shadow-lg z-50 overflow-hidden">
                 {[
                   { label: "Khác", value: "OTHER" },
                   { label: "Nam", value: "MALE" },
@@ -146,7 +147,7 @@ export default function RegisterScreen() {
                 ].map((item) => (
                   <TouchableOpacity
                     key={item.value}
-                    className={`p-4 border-b border-gray-100 last:border-0 ${gender === item.value ? "bg-blue-50" : ""
+                    className={`p-4 border-b border-gray-800 last:border-0 ${gender === item.value ? "bg-primary/20" : ""
                       }`}
                     onPress={() => {
                       setGender(item.value as any);
@@ -155,8 +156,8 @@ export default function RegisterScreen() {
                   >
                     <Text
                       className={`${gender === item.value
-                        ? "text-blue-600 font-semibold"
-                        : "text-gray-700"
+                        ? "text-primary font-semibold"
+                        : "text-gray-300"
                         }`}
                     >
                       {item.label}
@@ -195,10 +196,10 @@ export default function RegisterScreen() {
 
           {/* Login Link */}
           <View className="flex-row justify-center mt-6">
-            <Text className="text-gray-600">Đa co tai khoan? </Text>
+            <Text className="text-gray-400">Đa co tai khoan? </Text>
             <Link href={"/(public)/login" as never} asChild>
               <TouchableOpacity>
-                <Text className="text-blue-600 font-semibold">Dang nhap</Text>
+                <Text className="text-primary font-semibold">Dang nhap</Text>
               </TouchableOpacity>
             </Link>
           </View>
