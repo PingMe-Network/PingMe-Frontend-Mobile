@@ -1,6 +1,14 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
-import { loginMobileApi, logoutApi, registerApi } from "@/services/authentication";
-import type { LoginRequest, MobileAuthResponse, RegisterRequest } from "@/types/authentication";
+import {
+  loginMobileApi,
+  logoutApi,
+  registerApi,
+} from "@/services/authentication";
+import type {
+  LoginRequest,
+  MobileAuthResponse,
+  RegisterRequest,
+} from "@/types/authentication";
 import { saveTokens, clearTokens } from "@/utils/storage";
 import { getErrorMessage } from "@/utils/errorMessageHandler";
 
@@ -45,6 +53,7 @@ export const logoutThunk = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       await logoutApi();
+      await clearTokens();
     } catch (error) {
       console.log("Logout API warning:", error);
     } finally {
