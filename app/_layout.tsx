@@ -1,5 +1,5 @@
 import { Slot, useRouter, useSegments } from "expo-router";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useCallback } from "react";
 import { Provider } from "react-redux";
 import { View, ActivityIndicator } from "react-native";
 import { store, persistor, useAppSelector } from "@/features/store";
