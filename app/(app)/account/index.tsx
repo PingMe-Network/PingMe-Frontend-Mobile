@@ -60,8 +60,8 @@ export default function AccountScreen() {
         {/* General Settings */}
         <View className="mb-6">
           <Text className={`font-medium mb-2 ${isDark ? "text-gray-400" : "text-gray-600"}`}>Cài đặt chung</Text>
-          {["Thông báo", "Quyền riêng tư", "Ngôn ngữ", "Trợ giúp", "Về chúng tôi"].map((item, index) => (
-            <View key={index} className={`${isDark ? "bg-white/5 border-white/10" : "bg-white border-gray-100 shadow-sm"} border rounded-custom p-4 mb-3`}>
+          {["Thông báo", "Quyền riêng tư", "Ngôn ngữ", "Trợ giúp", "Về chúng tôi"].map((item) => (
+            <View key={item} className={`${isDark ? "bg-white/5 border-white/10" : "bg-white border-gray-100 shadow-sm"} border rounded-custom p-4 mb-3`}>
               <Text className={isDark ? "text-white" : "text-midnight-velvet"}>{item}</Text>
             </View>
           ))}

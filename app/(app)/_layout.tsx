@@ -11,26 +11,55 @@ import { Platform, View } from "react-native";
 import { useAppSelector } from "@/features/store";
 import { Colors } from "@/constants/Colors";
 
+// Standalone component for TabBarBackground
+const TabBarBackground = ({ iosBlurClass }: { iosBlurClass: string }) => {
+  if (Platform.OS === "ios") {
+    return <View className={`flex-1 ${iosBlurClass}`} />;
+  }
+  return null;
+};
+
 export default function AppLayout() {
   const { mode } = useAppSelector((state) => state.theme);
-  const insets = useSafeAreaInsets(); // Get safe area insets
+  const insets = useSafeAreaInsets();
   const isDark = mode === "dark";
-
-  // Dynamic height calculation
-  // Base height 60 + bottom inset (or 10px min padding if no inset like some Androids)
-  // Dynamic height calculation
-  // Base content height 65 + bottom inset (or 20px padding for devices without home indicator)
   const bottomPadding = insets.bottom > 0 ? insets.bottom : 20;
   const tabBarHeight = 65 + bottomPadding;
 
-  // Define colors based on theme
+  // Helper to determine tab bar background color
+  const getTabBarBackground = () => {
+    if (Platform.OS === "ios") {
+      if (isDark) {
+        return "rgba(28, 25, 27, 0.85)";
+      }
+      return "rgba(255, 249, 250, 0.85)";
+    }
+
+    if (isDark) {
+      return Colors.background.dark;
+    }
+    return Colors.background.light;
+  };
+
+  const getTabBarInactiveColor = () => {
+    if (isDark) {
+      return Colors.tabBar.inactiveDark;
+    }
+    return Colors.tabBar.inactiveLight;
+  };
+
+  const getIosBlurClass = () => {
+    if (isDark) {
+      return "bg-black/80";
+    }
+    return "bg-white/90";
+  }
+
   const colors = {
-    tabBarBackground: isDark
-      ? (Platform.OS === "ios" ? "rgba(28, 25, 27, 0.85)" : Colors.background.dark)
-      : (Platform.OS === "ios" ? "rgba(255, 249, 250, 0.85)" : Colors.background.light),
+    tabBarBackground: getTabBarBackground(),
     tabBarActive: Colors.primary,
-    tabBarInactive: isDark ? Colors.tabBar.inactiveDark : Colors.tabBar.inactiveLight,
-    iosBlur: isDark ? "bg-black/80" : "bg-white/90",
+    tabBarInactive: getTabBarInactiveColor(),
+    iosBlur: getIosBlurClass(),
   };
 
   return (
@@ -57,11 +86,7 @@ export default function AppLayout() {
           fontWeight: "500",
           marginTop: 4,
         },
-        tabBarBackground: () => (
-          Platform.OS === "ios" ? (
-            <View className={`flex-1 ${colors.iosBlur}`} />
-          ) : undefined
-        ),
+        tabBarBackground: () => <TabBarBackground iosBlurClass={colors.iosBlur} />,
       }}
     >
       <Tabs.Screen
