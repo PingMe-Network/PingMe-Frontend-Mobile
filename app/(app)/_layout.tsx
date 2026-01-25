@@ -1,4 +1,5 @@
 import { Tabs } from "expo-router";
+import { useCallback } from "react";
 import {
   MessageCircle,
   Users,
@@ -7,7 +8,7 @@ import {
   CircleUserRound,
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Platform, View } from "react-native";
+import { Platform } from "react-native";
 import { useAppSelector } from "@/features/store";
 import { Colors } from "@/constants/Colors";
 import { TabBarBackground } from "@/components/ui/TabBarBackground";
@@ -55,6 +56,10 @@ export default function AppLayout() {
     iosBlur: getIosBlurClass(),
   };
 
+  const renderTabBarBackground = useCallback(() => (
+    <TabBarBackground iosBlurClass={colors.iosBlur} />
+  ), [colors.iosBlur]);
+
   return (
     <Tabs
       screenOptions={{
@@ -79,7 +84,7 @@ export default function AppLayout() {
           fontWeight: "500",
           marginTop: 4,
         },
-        tabBarBackground: () => <TabBarBackground iosBlurClass={colors.iosBlur} />,
+        tabBarBackground: renderTabBarBackground,
       }}
     >
       <Tabs.Screen
