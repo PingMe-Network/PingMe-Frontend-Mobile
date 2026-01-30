@@ -1,17 +1,20 @@
-import { createSlice } from "@reduxjs/toolkit";
-import type { CurrentUserSessionResponse } from "@/types/authentication";
-import { loginThunk, logoutThunk, registerThunk } from "./authThunk";
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import type {
+  CurrentUserSessionResponse,
+  MobileAuthResponse,
+} from "@/types/authentication";
+import { getCurrentUserSession, loginThunk, logoutThunk } from "./authThunk";
 
 interface AuthState {
-  user: CurrentUserSessionResponse | null;
-  isLoggedIn: boolean;
+  userSession: CurrentUserSessionResponse;
+  isLogin: boolean;
   isLoading: boolean;
   error: string | null;
 }
 
 const initialState: AuthState = {
-  user: null,
-  isLoggedIn: false,
+  userSession: {} as CurrentUserSessionResponse,
+  isLogin: false,
   isLoading: false,
   error: null,
 };
@@ -19,42 +22,79 @@ const initialState: AuthState = {
 const authSlice = createSlice({
   name: "auth",
   initialState,
-  reducers: {},
+  reducers: {
+    updateUserSession(state, action: PayloadAction<MobileAuthResponse>) {
+      state.userSession = action.payload.userSession;
+    },
+  },
   extraReducers: (builder) => {
-    // --- Xử lý Login ---
+    // ================
+    // LOGIN
+    // ================
+
     builder.addCase(loginThunk.pending, (state) => {
       state.isLoading = true;
       state.error = null;
     });
+
     builder.addCase(loginThunk.fulfilled, (state, action) => {
+      state.userSession = action.payload.userSession;
       state.isLoading = false;
-      state.isLoggedIn = true;
-      state.user = action.payload.userSession;
-    });
-    builder.addCase(loginThunk.rejected, (state, action) => {
-      state.isLoading = false;
-      state.error = action.payload as string;
+      state.isLogin = true;
     });
 
-    // --- Xử lý Register ---
-    builder.addCase(registerThunk.pending, (state) => {
+    builder.addCase(loginThunk.rejected, (state, action) => {
+      state.isLoading = false;
+      state.error = action.payload ?? null;
+    });
+
+    // ================
+    // LOGOUT
+    // ================
+    builder.addCase(logoutThunk.pending, (state) => {
       state.isLoading = true;
       state.error = null;
     });
-    builder.addCase(registerThunk.fulfilled, (state) => {
+
+    builder.addCase(logoutThunk.fulfilled, (state) => {
+      state.userSession = {} as CurrentUserSessionResponse;
+
+      state.isLogin = false;
       state.isLoading = false;
     });
-    builder.addCase(registerThunk.rejected, (state, action) => {
+
+    builder.addCase(logoutThunk.rejected, (state, action) => {
+      state.userSession = {} as CurrentUserSessionResponse;
+
+      state.isLogin = false;
       state.isLoading = false;
       state.error = action.payload as string;
     });
 
-    // --- Xử lý Logout ---
-    builder.addCase(logoutThunk.fulfilled, (state) => {
-      state.user = null;
-      state.isLoggedIn = false;
+    // ================
+    // GET CURRENT SESSION
+    // ================
+    builder.addCase(getCurrentUserSession.pending, (state) => {
+      state.isLoading = true;
+      state.error = null;
+    });
+
+    builder.addCase(
+      getCurrentUserSession.fulfilled,
+      (state, action: PayloadAction<CurrentUserSessionResponse>) => {
+        state.userSession = action.payload;
+
+        state.isLogin = true;
+        state.isLoading = false;
+      },
+    );
+
+    builder.addCase(getCurrentUserSession.rejected, (state, action) => {
+      state.isLoading = false;
+      state.error = action.payload as string;
     });
   },
 });
 
+export const { updateUserSession } = authSlice.actions;
 export default authSlice.reducer;

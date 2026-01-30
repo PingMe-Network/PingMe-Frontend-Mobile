@@ -2,11 +2,7 @@ import { Redirect } from "expo-router";
 import { useAppSelector } from "@/features/store";
 
 export default function Index() {
-  const { isLoggedIn } = useAppSelector((state) => state.auth);
+  const { isLogin } = useAppSelector((state) => state.auth);
 
-  if (isLoggedIn) {
-    return <Redirect href="/(app)/messages" />;
-  }
-
-  return <Redirect href="/(public)/login" />;
+  return <Redirect href={isLogin ? "/(app)/messages" : "/(public)/login"} />;
 }
