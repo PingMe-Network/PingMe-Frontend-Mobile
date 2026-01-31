@@ -3,7 +3,7 @@ import type {
   CurrentUserSessionResponse,
   MobileAuthResponse,
 } from "@/types/authentication";
-import { getCurrentUserSession, loginThunk, logoutThunk } from "./authThunk";
+import { getCurrentUserSession, loginThunk, logoutThunk, registerThunk } from "./authThunk";
 
 interface AuthState {
   userSession: CurrentUserSessionResponse;
@@ -67,6 +67,23 @@ const authSlice = createSlice({
       state.userSession = {} as CurrentUserSessionResponse;
 
       state.isLogin = false;
+      state.isLoading = false;
+      state.error = action.payload as string;
+    });
+
+    // ================
+    // REGISTER
+    // ================
+    builder.addCase(registerThunk.pending, (state) => {
+      state.isLoading = true;
+      state.error = null;
+    });
+
+    builder.addCase(registerThunk.fulfilled, (state) => {
+      state.isLoading = false;
+    });
+
+    builder.addCase(registerThunk.rejected, (state, action) => {
       state.isLoading = false;
       state.error = action.payload as string;
     });
