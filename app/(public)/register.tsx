@@ -7,6 +7,7 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Image,
 } from "react-native";
 import { Link, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -91,6 +92,10 @@ export default function RegisterScreen() {
         <View className="px-6 py-10 w-full max-w-lg mx-auto">
           {/* Header */}
           <View className="items-center mb-8">
+            <Image
+              source={require("../../assets/app/icon.png")}
+              className="w-28 h-28 mb-4 rounded-2xl"
+            />
             <Text className="text-3xl font-bold text-primary">PingMe</Text>
             <Text className="text-gray-400 mt-2">Tạo tài khoản mới</Text>
           </View>
@@ -196,10 +201,10 @@ export default function RegisterScreen() {
 
           {/* Login Link */}
           <View className="flex-row justify-center mt-6">
-            <Text className="text-gray-400">Đa co tai khoan? </Text>
+            <Text className="text-gray-400">Đã có tài khoản? </Text>
             <Link href={"/(public)/login" as never} asChild>
               <TouchableOpacity>
-                <Text className="text-primary font-semibold">Dang nhap</Text>
+                <Text className="text-primary font-semibold">Đăng nhập</Text>
               </TouchableOpacity>
             </Link>
           </View>

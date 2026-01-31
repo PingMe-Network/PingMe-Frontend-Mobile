@@ -5,6 +5,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  Image,
 } from "react-native";
 import { Link, router } from "expo-router";
 import { useAppDispatch, useAppSelector } from "@/features/store";
@@ -49,6 +50,10 @@ export default function LoginScreen() {
       <View className="flex-1 justify-center px-6">
         {/* Header */}
         <View className="items-center mb-10">
+          <Image
+            source={require("../../assets/app/icon.png")}
+            className="w-28 h-28 mb-4 rounded-2xl"
+          />
           <Text className="text-3xl font-bold text-primary">PingMe</Text>
           <Text className="text-gray-400 mt-2">Chào mừng trở lại</Text>
         </View>
@@ -95,10 +100,10 @@ export default function LoginScreen() {
 
         {/* Register Link */}
         <View className="flex-row justify-center mt-6">
-          <Text className="text-gray-400">Chua co tai khoan? </Text>
+          <Text className="text-gray-400">Chưa có tài khoản? </Text>
           <Link href={"/(public)/register" as never} asChild>
             <TouchableOpacity>
-              <Text className="text-primary font-semibold">Dang ky ngay</Text>
+              <Text className="text-primary font-semibold">Đăng ký ngay</Text>
             </TouchableOpacity>
           </Link>
         </View>
