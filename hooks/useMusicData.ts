@@ -32,7 +32,7 @@ export const useMusicData = (
     if (shouldFetch && !loading) {
       dispatch(fetchMusicData(limit));
     }
-  }, [forceRefresh]);
+  }, [forceRefresh, lastFetched, topSongs.length, loading, dispatch, limit]);
 
   return {
     topSongs,

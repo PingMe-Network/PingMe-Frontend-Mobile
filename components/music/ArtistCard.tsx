@@ -54,7 +54,7 @@ export const ArtistCard = ({ artist, onPress, variant = "default" }: ArtistCardP
             >
                 {artist.name}
             </Text>
-            {artist.bio && (
+            {!!artist.bio && (
                 <Text
                     className="text-xs text-gray-400 text-center mt-1"
                     numberOfLines={2}

@@ -63,7 +63,7 @@ const initialState: PlayerState = {
   queue: [],
   currentIndex: -1,
   originalQueue: [],
-  volume: 1.0,
+  volume: 1,
   isMuted: false,
   repeatMode: "off",
   isShuffled: false,
@@ -164,7 +164,7 @@ export const playNextSong = createAsyncThunk(
       return currentIndex;
     }
 
-    let nextIndex = currentIndex;
+    let nextIndex: number;
 
     if (currentIndex < queue.length - 1) {
       nextIndex = currentIndex + 1;
@@ -197,7 +197,7 @@ export const playPreviousSong = createAsyncThunk(
       return currentIndex;
     }
 
-    let prevIndex = currentIndex;
+    let prevIndex: number;
 
     if (currentIndex > 0) {
       prevIndex = currentIndex - 1;
@@ -295,10 +295,10 @@ const playerSlice = createSlice({
         // Save current song
         const currentSong = state.queue[state.currentIndex];
 
-        // Shuffle queue
+        // Shuffle queue using Fisher-Yates algorithm
         const shuffled = [...state.queue];
         for (let i = shuffled.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
+          const j = Math.floor(Math.random() * (i + 1)); // NOSONAR - Safe for non-cryptographic playlist shuffling
           [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
         }
 
@@ -414,8 +414,8 @@ const playerSlice = createSlice({
         state.error = null;
       })
       .addCase(loadAndPlaySong.fulfilled, (state, action) => {
-        // Sound already unloaded in the thunk before creating new one
-        state.sound = action.payload.sound as any; // Cast needed for Immer compatibility
+        // Cast to any needed because Audio.Sound is not a plain object and cannot be handled by Immer
+        state.sound = action.payload.sound as any; // NOSONAR - Audio.Sound is not serializable, Immer requires cast
         state.currentSong = action.payload.song;
         state.playbackState = "playing";
         state.isPlaying = true;

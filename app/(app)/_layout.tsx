@@ -15,6 +15,45 @@ import { pauseSong } from "@/features/slices/playerSlice";
 import { Colors } from "@/constants/Colors";
 import { TabBarBackground } from "@/components/ui/TabBarBackground";
 
+const MessagesIcon = ({ color, size }: { color: string; size: number }) => (
+  <MessageCircle size={size} color={color} />
+);
+
+const ContactsIcon = ({ color, size }: { color: string; size: number }) => (
+  <Users size={size} color={color} />
+);
+
+const MusicIcon = ({
+  color,
+  size,
+  isPlaying,
+  isMusicTab,
+  pulseAnim
+}: {
+  color: string;
+  size: number;
+  isPlaying: boolean;
+  isMusicTab: boolean;
+  pulseAnim: Animated.Value;
+}) => {
+  if (isPlaying && !isMusicTab) {
+    return (
+      <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+        <Ionicons name="musical-notes" size={size} color={Colors.primary} />
+      </Animated.View>
+    );
+  }
+  return <Music size={size} color={color} />;
+};
+
+const ReelsIcon = ({ color, size }: { color: string; size: number }) => (
+  <Film size={size} color={color} />
+);
+
+const AccountIcon = ({ color, size }: { color: string; size: number }) => (
+  <CircleUserRound size={size} color={color} />
+);
+
 export default function AppLayout() {
   const dispatch = useAppDispatch();
   const { mode } = useAppSelector((state) => state.theme);
@@ -103,84 +142,74 @@ export default function AppLayout() {
   ), [colors.iosBlur]);
 
   return (
-    <>
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarActiveTintColor: colors.tabBarActive,
-          tabBarInactiveTintColor: colors.tabBarInactive,
-          tabBarLabelPosition: "below-icon",
-          tabBarStyle: {
-            backgroundColor: colors.tabBarBackground,
-            borderTopWidth: 0,
-            elevation: 0,
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: tabBarHeight,
-            paddingTop: 10,
-            paddingBottom: bottomPadding,
-          },
-          tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: "500",
-            marginTop: 4,
-          },
-          tabBarBackground: renderTabBarBackground,
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: colors.tabBarActive,
+        tabBarInactiveTintColor: colors.tabBarInactive,
+        tabBarLabelPosition: "below-icon",
+        tabBarStyle: {
+          backgroundColor: colors.tabBarBackground,
+          borderTopWidth: 0,
+          elevation: 0,
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: tabBarHeight,
+          paddingTop: 10,
+          paddingBottom: bottomPadding,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "500",
+          marginTop: 4,
+        },
+        tabBarBackground: renderTabBarBackground,
+      }}
+    >
+      <Tabs.Screen
+        name="messages"
+        options={{
+          title: "Tin nhắn",
+          tabBarIcon: MessagesIcon,
         }}
-      >
-        <Tabs.Screen
-          name="messages"
-          options={{
-            title: "Tin nhắn",
-            tabBarIcon: ({ color, size }) => (
-              <MessageCircle size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="contacts"
-          options={{
-            title: "Danh bạ",
-            tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
-          }}
-        />
-        <Tabs.Screen
-          name="music"
-          options={{
-            title: "Âm nhạc",
-            tabBarIcon: ({ color, size }) => {
-              // Show animated icon when playing and NOT on music tab
-              if (isPlaying && !isMusicTab) {
-                return (
-                  <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-                    <Ionicons name="musical-notes" size={size} color={Colors.primary} />
-                  </Animated.View>
-                );
-              }
-              // Show normal icon when on music tab or not playing
-              return <Music size={size} color={color} />;
-            },
-          }}
-        />
-        <Tabs.Screen
-          name="reels"
-          options={{
-            title: "Thước Phim",
-            tabBarIcon: ({ color, size }) => <Film size={size} color={color} />,
-          }}
-        />
-        <Tabs.Screen
-          name="account"
-          options={{
-            title: "Tài khoản",
-            tabBarIcon: ({ color, size }) => (
-              <CircleUserRound size={size} color={color} />
-            ),
-          }}
-        />
-      </Tabs>
-    </>
+      />
+      <Tabs.Screen
+        name="contacts"
+        options={{
+          title: "Danh bạ",
+          tabBarIcon: ContactsIcon,
+        }}
+      />
+      <Tabs.Screen
+        name="music"
+        options={{
+          title: "Âm nhạc",
+          tabBarIcon: (props) => (
+            <MusicIcon
+              {...props}
+              isPlaying={isPlaying}
+              isMusicTab={isMusicTab}
+              pulseAnim={pulseAnim}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="reels"
+        options={{
+          title: "Thước Phim",
+          tabBarIcon: ReelsIcon,
+        }}
+      />
+      <Tabs.Screen
+        name="account"
+        options={{
+          title: "Tài khoản",
+          tabBarIcon: AccountIcon,
+        }}
+      />
+    </Tabs>
   );
 }

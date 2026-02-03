@@ -13,6 +13,41 @@ interface SongCardProps {
     variant?: "default" | "compact" | "list";
 }
 
+const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+};
+
+const FavoriteButton = ({ isFavorite, onToggle, variant = "default" }: { isFavorite: boolean; onToggle: () => void; variant?: "default" | "compact" }) => (
+    <TouchableOpacity
+        onPress={onToggle}
+        className={variant === "default" ? "bg-black/50 p-2 rounded-full" : "p-1"}
+    >
+        <Ionicons
+            name={isFavorite ? "heart" : "heart-outline"}
+            size={20}
+            color={isFavorite ? "#ef4444" : (variant === "default" ? "white" : "#9ca3af")}
+        />
+    </TouchableOpacity>
+);
+
+const SongInfo = ({ song, showArtist, isDark }: { song: SongResponseWithAllAlbum; showArtist: boolean; isDark: boolean }) => (
+    <View className="flex-1 ml-3">
+        <Text
+            className={`font-semibold ${isDark ? "text-white" : "text-gray-900"}`}
+            numberOfLines={1}
+        >
+            {song.title}
+        </Text>
+        {showArtist && song.mainArtist && (
+            <Text className="text-sm text-gray-400" numberOfLines={1}>
+                {song.mainArtist.name}
+            </Text>
+        )}
+    </View>
+);
+
 export const SongCard = ({
     song,
     onPress,
@@ -29,15 +64,7 @@ export const SongCard = ({
         ? favoriteSongIds.includes(song.id)
         : false;
 
-    const formatDuration = (seconds: number) => {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins}:${secs.toString().padStart(2, "0")}`;
-    };
-
-    const handleFavoriteToggle = () => {
-        dispatch(toggleFavorite(song.id));
-    };
+    const handleFavoriteToggle = () => dispatch(toggleFavorite(song.id));
 
     if (variant === "compact") {
         return (
@@ -51,29 +78,11 @@ export const SongCard = ({
                     source={{ uri: song.coverImageUrl || "https://via.placeholder.com/50" }}
                     className="w-12 h-12 rounded-md"
                 />
-                <View className="flex-1 ml-3">
-                    <Text
-                        className={`font-semibold ${isDark ? "text-white" : "text-gray-900"}`}
-                        numberOfLines={1}
-                    >
-                        {song.title}
-                    </Text>
-                    {showArtist && song.mainArtist && (
-                        <Text className="text-sm text-gray-400" numberOfLines={1}>
-                            {song.mainArtist.name}
-                        </Text>
-                    )}
-                </View>
+                <SongInfo song={song} showArtist={showArtist} isDark={isDark} />
                 <Text className="text-xs text-gray-400 mr-2">
                     {formatDuration(song.duration)}
                 </Text>
-                <TouchableOpacity onPress={handleFavoriteToggle} className="p-1">
-                    <Ionicons
-                        name={isFavorite ? "heart" : "heart-outline"}
-                        size={20}
-                        color={isFavorite ? "#ef4444" : "#9ca3af"}
-                    />
-                </TouchableOpacity>
+                <FavoriteButton isFavorite={isFavorite} onToggle={handleFavoriteToggle} variant="compact" />
             </TouchableOpacity>
         );
     }
@@ -90,19 +99,7 @@ export const SongCard = ({
                     source={{ uri: song.coverImageUrl || "https://via.placeholder.com/40" }}
                     className="w-10 h-10 rounded"
                 />
-                <View className="flex-1 ml-3">
-                    <Text
-                        className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}
-                        numberOfLines={1}
-                    >
-                        {song.title}
-                    </Text>
-                    {showArtist && song.mainArtist && (
-                        <Text className="text-xs text-gray-400" numberOfLines={1}>
-                            {song.mainArtist.name}
-                        </Text>
-                    )}
-                </View>
+                <SongInfo song={song} showArtist={showArtist} isDark={isDark} />
                 <Text className="text-xs text-gray-400 mx-2">
                     {formatDuration(song.duration)}
                 </Text>
@@ -128,16 +125,7 @@ export const SongCard = ({
                     resizeMode="cover"
                 />
                 <View className="absolute top-2 right-2 flex-row gap-2">
-                    <TouchableOpacity
-                        onPress={handleFavoriteToggle}
-                        className="bg-black/50 p-2 rounded-full"
-                    >
-                        <Ionicons
-                            name={isFavorite ? "heart" : "heart-outline"}
-                            size={20}
-                            color={isFavorite ? "#ef4444" : "white"}
-                        />
-                    </TouchableOpacity>
+                    <FavoriteButton isFavorite={isFavorite} onToggle={handleFavoriteToggle} variant="default" />
                     {onMorePress && (
                         <TouchableOpacity
                             onPress={onMorePress}

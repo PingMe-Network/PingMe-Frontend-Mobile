@@ -10,6 +10,33 @@ interface PlaylistCardProps {
     variant?: "default" | "compact";
 }
 
+const PlaylistIcon = ({ size, isDark }: { size: number; isDark: boolean }) => (
+    <View
+        className={`rounded-${size === 12 ? 'md' : 'lg'} items-center justify-center ${isDark ? "bg-gray-700" : "bg-gray-200"
+            }`}
+        style={{ width: size * 4, height: size * 4 }}
+    >
+        <Ionicons
+            name="musical-notes"
+            size={size * 2}
+            color={isDark ? "#9ca3af" : "#6b7280"}
+        />
+    </View>
+);
+
+const PlaylistPrivacyBadge = ({ isPublic, size = "sm" }: { isPublic: boolean; size?: "sm" | "xs" }) => (
+    <View className="flex-row items-center">
+        <Ionicons
+            name={isPublic ? "globe-outline" : "lock-closed-outline"}
+            size={size === "sm" ? 14 : 12}
+            color="#9ca3af"
+        />
+        <Text className={`text-${size} text-gray-400 ml-1`}>
+            {isPublic ? (size === "sm" ? "Public Playlist" : "Public") : (size === "sm" ? "Private Playlist" : "Private")}
+        </Text>
+    </View>
+);
+
 export const PlaylistCard = ({
     playlist,
     onPress,
@@ -27,16 +54,7 @@ export const PlaylistCard = ({
                     }`}
                 activeOpacity={0.7}
             >
-                <View
-                    className={`w-12 h-12 rounded-md items-center justify-center ${isDark ? "bg-gray-700" : "bg-gray-200"
-                        }`}
-                >
-                    <Ionicons
-                        name="musical-notes"
-                        size={24}
-                        color={isDark ? "#9ca3af" : "#6b7280"}
-                    />
-                </View>
+                <PlaylistIcon size={12} isDark={isDark} />
                 <View className="flex-1 ml-3">
                     <Text
                         className={`font-semibold ${isDark ? "text-white" : "text-gray-900"}`}
@@ -44,16 +62,7 @@ export const PlaylistCard = ({
                     >
                         {playlist.name}
                     </Text>
-                    <View className="flex-row items-center mt-1">
-                        <Ionicons
-                            name={playlist.isPublic ? "globe-outline" : "lock-closed-outline"}
-                            size={12}
-                            color="#9ca3af"
-                        />
-                        <Text className="text-xs text-gray-400 ml-1">
-                            {playlist.isPublic ? "Public" : "Private"}
-                        </Text>
-                    </View>
+                    <PlaylistPrivacyBadge isPublic={playlist.isPublic} size="xs" />
                 </View>
                 {onMorePress && (
                     <TouchableOpacity onPress={onMorePress} className="p-2">
@@ -72,16 +81,7 @@ export const PlaylistCard = ({
             activeOpacity={0.8}
         >
             <View className="flex-row items-start justify-between mb-3">
-                <View
-                    className={`w-16 h-16 rounded-lg items-center justify-center ${isDark ? "bg-gray-700" : "bg-gray-200"
-                        }`}
-                >
-                    <Ionicons
-                        name="musical-notes"
-                        size={32}
-                        color={isDark ? "#9ca3af" : "#6b7280"}
-                    />
-                </View>
+                <PlaylistIcon size={16} isDark={isDark} />
                 {onMorePress && (
                     <TouchableOpacity onPress={onMorePress} className="p-1">
                         <Ionicons name="ellipsis-horizontal" size={24} color="#9ca3af" />
@@ -97,16 +97,7 @@ export const PlaylistCard = ({
                 {playlist.name}
             </Text>
 
-            <View className="flex-row items-center">
-                <Ionicons
-                    name={playlist.isPublic ? "globe-outline" : "lock-closed-outline"}
-                    size={14}
-                    color="#9ca3af"
-                />
-                <Text className="text-sm text-gray-400 ml-1">
-                    {playlist.isPublic ? "Public Playlist" : "Private Playlist"}
-                </Text>
-            </View>
+            <PlaylistPrivacyBadge isPublic={playlist.isPublic} size="sm" />
         </TouchableOpacity>
     );
 };

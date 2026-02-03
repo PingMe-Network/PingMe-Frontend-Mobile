@@ -15,6 +15,24 @@ import {
 } from "@/features/slices/playerSlice";
 import { useState } from "react";
 
+const formatTime = (millis: number) => {
+    const totalSeconds = Math.floor(millis / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+};
+
+const getRepeatIcon = (repeatMode: "off" | "one" | "all") => {
+    switch (repeatMode) {
+        case "one":
+            return "repeat-outline";
+        case "all":
+            return "repeat";
+        default:
+            return "repeat-outline";
+    }
+};
+
 export const FullPlayer = () => {
     const dispatch = useAppDispatch();
     const { mode } = useAppSelector((state) => state.theme);
@@ -36,13 +54,6 @@ export const FullPlayer = () => {
 
     if (!currentSong || isPlayerMinimized) return null;
 
-    const formatTime = (millis: number) => {
-        const totalSeconds = Math.floor(millis / 1000);
-        const minutes = Math.floor(totalSeconds / 60);
-        const seconds = totalSeconds % 60;
-        return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-    };
-
     const handlePlayPause = () => {
         if (isPlaying) {
             dispatch(pauseSong());
@@ -53,17 +64,6 @@ export const FullPlayer = () => {
 
     const handleSeek = (value: number) => {
         dispatch(seekTo(value));
-    };
-
-    const getRepeatIcon = () => {
-        switch (repeatMode) {
-            case "one":
-                return "repeat-outline";
-            case "all":
-                return "repeat";
-            default:
-                return "repeat-outline";
-        }
     };
 
     return (
@@ -159,9 +159,9 @@ export const FullPlayer = () => {
 
                         <TouchableOpacity onPress={() => dispatch(toggleRepeat())}>
                             <Ionicons
-                                name={getRepeatIcon()}
+                                name={getRepeatIcon(repeatMode)}
                                 size={24}
-                                color={repeatMode !== "off" ? "#3b82f6" : "#9ca3af"}
+                                color={repeatMode === "off" ? "#9ca3af" : "#3b82f6"}
                             />
                         </TouchableOpacity>
 

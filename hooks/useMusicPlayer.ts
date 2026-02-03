@@ -29,7 +29,7 @@ export const useMusicPlayer = () => {
       dispatch(
         setQueue({
           songs: queue,
-          startIndex: startIndex >= 0 ? startIndex : 0,
+          startIndex: Math.max(startIndex, 0),
         }),
       );
     }
