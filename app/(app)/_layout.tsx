@@ -54,6 +54,28 @@ const AccountIcon = ({ color, size }: { color: string; size: number }) => (
   <CircleUserRound size={size} color={color} />
 );
 
+const MusicTabIcon = ({
+  color,
+  size,
+  isPlaying,
+  isMusicTab,
+  pulseAnim
+}: {
+  color: string;
+  size: number;
+  isPlaying: boolean;
+  isMusicTab: boolean;
+  pulseAnim: Animated.Value;
+}) => (
+  <MusicIcon
+    color={color}
+    size={size}
+    isPlaying={isPlaying}
+    isMusicTab={isMusicTab}
+    pulseAnim={pulseAnim}
+  />
+);
+
 export default function AppLayout() {
   const dispatch = useAppDispatch();
   const { mode } = useAppSelector((state) => state.theme);
@@ -187,7 +209,7 @@ export default function AppLayout() {
         options={{
           title: "Âm nhạc",
           tabBarIcon: (props) => (
-            <MusicIcon
+            <MusicTabIcon
               {...props}
               isPlaying={isPlaying}
               isMusicTab={isMusicTab}

@@ -19,18 +19,24 @@ const formatDuration = (seconds: number) => {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
 };
 
-const FavoriteButton = ({ isFavorite, onToggle, variant = "default" }: { isFavorite: boolean; onToggle: () => void; variant?: "default" | "compact" }) => (
-    <TouchableOpacity
-        onPress={onToggle}
-        className={variant === "default" ? "bg-black/50 p-2 rounded-full" : "p-1"}
-    >
-        <Ionicons
-            name={isFavorite ? "heart" : "heart-outline"}
-            size={20}
-            color={isFavorite ? "#ef4444" : (variant === "default" ? "white" : "#9ca3af")}
-        />
-    </TouchableOpacity>
-);
+const FavoriteButton = ({ isFavorite, onToggle, variant = "default" }: { isFavorite: boolean; onToggle: () => void; variant?: "default" | "compact" }) => {
+    const heartColor = isFavorite
+        ? "#ef4444"
+        : (variant === "default" ? "white" : "#9ca3af");
+
+    return (
+        <TouchableOpacity
+            onPress={onToggle}
+            className={variant === "default" ? "bg-black/50 p-2 rounded-full" : "p-1"}
+        >
+            <Ionicons
+                name={isFavorite ? "heart" : "heart-outline"}
+                size={20}
+                color={heartColor}
+            />
+        </TouchableOpacity>
+    );
+};
 
 const SongInfo = ({ song, showArtist, isDark }: { song: SongResponseWithAllAlbum; showArtist: boolean; isDark: boolean }) => (
     <View className="flex-1 ml-3">

@@ -327,7 +327,7 @@ const playerSlice = createSlice({
           const originalIndex = state.queue.findIndex(
             (s) => s.id === currentSong.id,
           );
-          state.currentIndex = originalIndex !== -1 ? originalIndex : 0;
+          state.currentIndex = originalIndex === -1 ? 0 : originalIndex;
         }
       }
     },

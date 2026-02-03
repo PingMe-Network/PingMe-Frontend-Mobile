@@ -55,11 +55,7 @@ export const FullPlayer = () => {
     if (!currentSong || isPlayerMinimized) return null;
 
     const handlePlayPause = () => {
-        if (isPlaying) {
-            dispatch(pauseSong());
-        } else {
-            dispatch(playSong());
-        }
+        dispatch(isPlaying ? pauseSong() : playSong());
     };
 
     const handleSeek = (value: number) => {

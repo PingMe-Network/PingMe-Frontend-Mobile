@@ -24,18 +24,25 @@ const PlaylistIcon = ({ size, isDark }: { size: number; isDark: boolean }) => (
     </View>
 );
 
-const PlaylistPrivacyBadge = ({ isPublic, size = "sm" }: { isPublic: boolean; size?: "sm" | "xs" }) => (
-    <View className="flex-row items-center">
-        <Ionicons
-            name={isPublic ? "globe-outline" : "lock-closed-outline"}
-            size={size === "sm" ? 14 : 12}
-            color="#9ca3af"
-        />
-        <Text className={`text-${size} text-gray-400 ml-1`}>
-            {isPublic ? (size === "sm" ? "Public Playlist" : "Public") : (size === "sm" ? "Private Playlist" : "Private")}
-        </Text>
-    </View>
-);
+const PlaylistPrivacyBadge = ({ isPublic, size = "sm" }: { isPublic: boolean; size?: "sm" | "xs" }) => {
+    const iconSize = size === "sm" ? 14 : 12;
+    const label = isPublic
+        ? (size === "sm" ? "Public Playlist" : "Public")
+        : (size === "sm" ? "Private Playlist" : "Private");
+
+    return (
+        <View className="flex-row items-center">
+            <Ionicons
+                name={isPublic ? "globe-outline" : "lock-closed-outline"}
+                size={iconSize}
+                color="#9ca3af"
+            />
+            <Text className={`text-${size} text-gray-400 ml-1`}>
+                {label}
+            </Text>
+        </View>
+    );
+};
 
 export const PlaylistCard = ({
     playlist,
