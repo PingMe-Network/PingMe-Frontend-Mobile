@@ -1,5 +1,5 @@
-import { Tabs } from "expo-router";
-import { useCallback } from "react";
+import { Tabs, usePathname } from "expo-router";
+import { useCallback, useEffect, useRef } from "react";
 import {
   MessageCircle,
   Users,
@@ -7,18 +7,143 @@ import {
   Film,
   CircleUserRound,
 } from "lucide-react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Platform } from "react-native";
-import { useAppSelector } from "@/features/store";
+import { Platform, Animated, Easing } from "react-native";
+import { useAppSelector, useAppDispatch } from "@/features/store";
+import { pauseSong } from "@/features/slices/playerSlice";
 import { Colors } from "@/constants/Colors";
 import { TabBarBackground } from "@/components/ui/TabBarBackground";
 
+const MessagesIcon = ({ color, size }: { color: string; size: number }) => (
+  <MessageCircle size={size} color={color} />
+);
+
+const ContactsIcon = ({ color, size }: { color: string; size: number }) => (
+  <Users size={size} color={color} />
+);
+
+const MusicIcon = ({
+  color,
+  size,
+  isPlaying,
+  isMusicTab,
+  pulseAnim
+}: {
+  color: string;
+  size: number;
+  isPlaying: boolean;
+  isMusicTab: boolean;
+  pulseAnim: Animated.Value;
+}) => {
+  if (isPlaying && !isMusicTab) {
+    return (
+      <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+        <Ionicons name="musical-notes" size={size} color={Colors.primary} />
+      </Animated.View>
+    );
+  }
+  return <Music size={size} color={color} />;
+};
+
+const ReelsIcon = ({ color, size }: { color: string; size: number }) => (
+  <Film size={size} color={color} />
+);
+
+const AccountIcon = ({ color, size }: { color: string; size: number }) => (
+  <CircleUserRound size={size} color={color} />
+);
+
+const MusicTabIcon = ({
+  color,
+  size,
+  isPlaying,
+  isMusicTab,
+  pulseAnim
+}: {
+  color: string;
+  size: number;
+  isPlaying: boolean;
+  isMusicTab: boolean;
+  pulseAnim: Animated.Value;
+}) => (
+  <MusicIcon
+    color={color}
+    size={size}
+    isPlaying={isPlaying}
+    isMusicTab={isMusicTab}
+    pulseAnim={pulseAnim}
+  />
+);
+
+const MusicTabIconWithState = ({
+  color,
+  size,
+  isPlaying,
+  isMusicTab,
+  pulseAnim,
+}: {
+  color: string;
+  size: number;
+  isPlaying: boolean;
+  isMusicTab: boolean;
+  pulseAnim: Animated.Value;
+}) => (
+  <MusicTabIcon
+    color={color}
+    size={size}
+    isPlaying={isPlaying}
+    isMusicTab={isMusicTab}
+    pulseAnim={pulseAnim}
+  />
+);
+
 export default function AppLayout() {
+  const dispatch = useAppDispatch();
   const { mode } = useAppSelector((state) => state.theme);
+  const { isPlaying } = useAppSelector((state) => state.player);
+  const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const isDark = mode === "dark";
   const bottomPadding = insets.bottom > 0 ? insets.bottom : 20;
   const tabBarHeight = 65 + bottomPadding;
+
+  // Animation for music icon
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const isMusicTab = pathname?.includes('/music');
+  const isReelsTab = pathname?.includes('/reels');
+
+  // Pause music when switching to reels tab
+  useEffect(() => {
+    if (isReelsTab && isPlaying) {
+      dispatch(pauseSong());
+    }
+  }, [isReelsTab, isPlaying, dispatch]);
+
+  useEffect(() => {
+    if (isPlaying && !isMusicTab) {
+      // Start pulse animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.3,
+            duration: 500,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 500,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      // Reset animation
+      pulseAnim.setValue(1);
+    }
+  }, [isPlaying, isMusicTab, pulseAnim]);
 
   // Helper to determine tab bar background color
   const getTabBarBackground = () => {
@@ -60,6 +185,15 @@ export default function AppLayout() {
     <TabBarBackground iosBlurClass={colors.iosBlur} />
   ), [colors.iosBlur]);
 
+  const renderMusicTabIcon = useCallback((props: { color: string; size: number }) => (
+    <MusicTabIconWithState
+      {...props}
+      isPlaying={isPlaying}
+      isMusicTab={isMusicTab}
+      pulseAnim={pulseAnim}
+    />
+  ), [isPlaying, isMusicTab, pulseAnim]);
+
   return (
     <Tabs
       screenOptions={{
@@ -91,39 +225,35 @@ export default function AppLayout() {
         name="messages"
         options={{
           title: "Tin nhắn",
-          tabBarIcon: ({ color, size }) => (
-            <MessageCircle size={size} color={color} />
-          ),
+          tabBarIcon: MessagesIcon,
         }}
       />
       <Tabs.Screen
         name="contacts"
         options={{
           title: "Danh bạ",
-          tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
+          tabBarIcon: ContactsIcon,
         }}
       />
       <Tabs.Screen
         name="music"
         options={{
           title: "Âm nhạc",
-          tabBarIcon: ({ color, size }) => <Music size={size} color={color} />,
+          tabBarIcon: renderMusicTabIcon,
         }}
       />
       <Tabs.Screen
         name="reels"
         options={{
           title: "Thước Phim",
-          tabBarIcon: ({ color, size }) => <Film size={size} color={color} />,
+          tabBarIcon: ReelsIcon,
         }}
       />
       <Tabs.Screen
         name="account"
         options={{
           title: "Tài khoản",
-          tabBarIcon: ({ color, size }) => (
-            <CircleUserRound size={size} color={color} />
-          ),
+          tabBarIcon: AccountIcon,
         }}
       />
     </Tabs>
