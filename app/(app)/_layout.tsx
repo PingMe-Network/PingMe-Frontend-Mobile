@@ -76,6 +76,28 @@ const MusicTabIcon = ({
   />
 );
 
+const MusicTabIconWithState = ({
+  color,
+  size,
+  isPlaying,
+  isMusicTab,
+  pulseAnim,
+}: {
+  color: string;
+  size: number;
+  isPlaying: boolean;
+  isMusicTab: boolean;
+  pulseAnim: Animated.Value;
+}) => (
+  <MusicTabIcon
+    color={color}
+    size={size}
+    isPlaying={isPlaying}
+    isMusicTab={isMusicTab}
+    pulseAnim={pulseAnim}
+  />
+);
+
 export default function AppLayout() {
   const dispatch = useAppDispatch();
   const { mode } = useAppSelector((state) => state.theme);
@@ -163,6 +185,15 @@ export default function AppLayout() {
     <TabBarBackground iosBlurClass={colors.iosBlur} />
   ), [colors.iosBlur]);
 
+  const renderMusicTabIcon = useCallback((props: { color: string; size: number }) => (
+    <MusicTabIconWithState
+      {...props}
+      isPlaying={isPlaying}
+      isMusicTab={isMusicTab}
+      pulseAnim={pulseAnim}
+    />
+  ), [isPlaying, isMusicTab, pulseAnim]);
+
   return (
     <Tabs
       screenOptions={{
@@ -208,14 +239,7 @@ export default function AppLayout() {
         name="music"
         options={{
           title: "Âm nhạc",
-          tabBarIcon: (props) => (
-            <MusicTabIcon
-              {...props}
-              isPlaying={isPlaying}
-              isMusicTab={isMusicTab}
-              pulseAnim={pulseAnim}
-            />
-          ),
+          tabBarIcon: renderMusicTabIcon,
         }}
       />
       <Tabs.Screen

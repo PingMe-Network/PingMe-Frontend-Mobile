@@ -10,19 +10,23 @@ interface PlaylistCardProps {
     variant?: "default" | "compact";
 }
 
-const PlaylistIcon = ({ size, isDark }: { size: number; isDark: boolean }) => (
-    <View
-        className={`rounded-${size === 12 ? 'md' : 'lg'} items-center justify-center ${isDark ? "bg-gray-700" : "bg-gray-200"
-            }`}
-        style={{ width: size * 4, height: size * 4 }}
-    >
-        <Ionicons
-            name="musical-notes"
-            size={size * 2}
-            color={isDark ? "#9ca3af" : "#6b7280"}
-        />
-    </View>
-);
+const PlaylistIcon = ({ size, isDark }: { size: number; isDark: boolean }) => {
+    const borderRadius = size === 12 ? 'md' : 'lg';
+    const backgroundColor = isDark ? "bg-gray-700" : "bg-gray-200";
+
+    return (
+        <View
+            className={`rounded-${borderRadius} items-center justify-center ${backgroundColor}`}
+            style={{ width: size * 4, height: size * 4 }}
+        >
+            <Ionicons
+                name="musical-notes"
+                size={size * 2}
+                color={isDark ? "#9ca3af" : "#6b7280"}
+            />
+        </View>
+    );
+};
 
 const PlaylistPrivacyBadge = ({ isPublic, size = "sm" }: { isPublic: boolean; size?: "sm" | "xs" }) => {
     const iconSize = size === "sm" ? 14 : 12;

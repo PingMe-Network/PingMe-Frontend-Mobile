@@ -20,9 +20,14 @@ const formatDuration = (seconds: number) => {
 };
 
 const FavoriteButton = ({ isFavorite, onToggle, variant = "default" }: { isFavorite: boolean; onToggle: () => void; variant?: "default" | "compact" }) => {
-    const heartColor = isFavorite
-        ? "#ef4444"
-        : (variant === "default" ? "white" : "#9ca3af");
+    let heartColor: string;
+    if (isFavorite) {
+        heartColor = "#ef4444";
+    } else if (variant === "default") {
+        heartColor = "white";
+    } else {
+        heartColor = "#9ca3af";
+    }
 
     return (
         <TouchableOpacity

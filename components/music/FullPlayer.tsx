@@ -33,6 +33,9 @@ const getRepeatIcon = (repeatMode: "off" | "one" | "all") => {
     }
 };
 
+const getThemeColor = (isDark: boolean, darkColor: string, lightColor: string) =>
+    isDark ? darkColor : lightColor;
+
 export const FullPlayer = () => {
     const dispatch = useAppDispatch();
     const { mode } = useAppSelector((state) => state.theme);
@@ -80,7 +83,7 @@ export const FullPlayer = () => {
                         <Ionicons
                             name="chevron-down"
                             size={28}
-                            color={isDark ? "white" : "#1f2937"}
+                            color={getThemeColor(isDark, "white", "#1f2937")}
                         />
                     </TouchableOpacity>
 
@@ -92,7 +95,7 @@ export const FullPlayer = () => {
                         <Ionicons
                             name="ellipsis-horizontal"
                             size={24}
-                            color={isDark ? "white" : "#1f2937"}
+                            color={getThemeColor(isDark, "white", "#1f2937")}
                         />
                     </TouchableOpacity>
                 </View>
