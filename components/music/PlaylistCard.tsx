@@ -30,9 +30,13 @@ const PlaylistIcon = ({ size, isDark }: { size: number; isDark: boolean }) => {
 
 const PlaylistPrivacyBadge = ({ isPublic, size = "sm" }: { isPublic: boolean; size?: "sm" | "xs" }) => {
     const iconSize = size === "sm" ? 14 : 12;
-    const label = isPublic
-        ? (size === "sm" ? "Public Playlist" : "Public")
-        : (size === "sm" ? "Private Playlist" : "Private");
+    const isSmall = size === "sm";
+    let label = "";
+    if (isPublic) {
+        label = isSmall ? "Public Playlist" : "Public";
+    } else {
+        label = isSmall ? "Private Playlist" : "Private";
+    }
 
     return (
         <View className="flex-row items-center">
