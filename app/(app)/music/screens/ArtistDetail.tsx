@@ -46,7 +46,7 @@ export default function ArtistDetailScreen() {
 
                 // Extract artist info from first song
                 const firstSong = artistSongs[0];
-                if (firstSong.mainArtist && firstSong.mainArtist.id === artistId) {
+                if (firstSong.mainArtist?.id === artistId) {
                     setArtist({
                         id: firstSong.mainArtist.id,
                         name: firstSong.mainArtist.name,
