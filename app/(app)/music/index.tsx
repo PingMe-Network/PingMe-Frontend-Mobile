@@ -87,6 +87,18 @@ export default function MusicScreen() {
               >
                 <View className="flex-row gap-2">
                   {filters.map((filter) => {
+                    const isAll = filter.key === "all";
+                    const pillClass = isAll
+                      ? "bg-primary"
+                      : isDark
+                        ? "bg-gray-800"
+                        : "bg-gray-200";
+                    const textClass = isAll
+                      ? "text-white font-semibold"
+                      : isDark
+                        ? "text-white"
+                        : "text-gray-900";
+
                     return (
                       <TouchableOpacity
                         key={filter.key}
@@ -95,22 +107,9 @@ export default function MusicScreen() {
                             router.push(filter.route as any);
                           }
                         }}
-                        className={`px-4 py-2 rounded-full ${filter.key === "all"
-                          ? "bg-primary"
-                          : isDark
-                            ? "bg-gray-800"
-                            : "bg-gray-200"
-                          }`}
+                        className={`px-4 py-2 rounded-full ${pillClass}`}
                       >
-                        <Text
-                          className={
-                            filter.key === "all"
-                              ? "text-white font-semibold"
-                              : isDark
-                                ? "text-white"
-                                : "text-gray-900"
-                          }
-                        >
+                        <Text className={textClass}>
                           {filter.label}
                         </Text>
                       </TouchableOpacity>

@@ -35,7 +35,7 @@ export function HomeMusic({
     popularArtists,
     allGenres,
     onSongPress,
-}: HomeMusicProps) {
+}: Readonly<HomeMusicProps>) {
     const router = useRouter();
 
     const handleAlbumPress = (albumId: number) => {

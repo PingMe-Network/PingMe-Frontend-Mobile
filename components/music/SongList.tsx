@@ -34,6 +34,12 @@ export const SongList = ({
     const { mode } = useAppSelector((state) => state.theme);
     const isDark = mode === "dark";
 
+    const getSubtitle = (song: SongResponseWithAllAlbum) => {
+        if (showArtist && song.mainArtist) return song.mainArtist.name;
+        if (showAlbum && song.albums?.[0]) return song.albums[0].title;
+        return "";
+    };
+
     if (loading) {
         return (
             <View className="flex-1 items-center justify-center p-8">
@@ -82,15 +88,8 @@ export const SongList = ({
                             >
                                 {item.title}
                             </Text>
-                            <Text
-                                className="text-sm text-gray-400"
-                                numberOfLines={1}
-                            >
-                                {showArtist && item.mainArtist
-                                    ? item.mainArtist.name
-                                    : showAlbum && item.albums?.[0]
-                                        ? item.albums[0].title
-                                        : ""}
+                            <Text className="text-sm text-gray-400" numberOfLines={1}>
+                                {getSubtitle(item)}
                             </Text>
                         </View>
                         <TouchableOpacity
