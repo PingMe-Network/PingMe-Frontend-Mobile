@@ -53,12 +53,17 @@ export default function MusicScreen() {
         <ScrollView
           contentContainerStyle={{ flexGrow: 1, paddingBottom: tabBarHeight + 80 }}
           showsVerticalScrollIndicator={false}
+          stickyHeaderIndices={[0]}
+          bounces={false}
+          overScrollMode="never"
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
           {/* Header */}
-          <View className="px-6 pt-4 pb-2">
+          <View
+            className={`px-4 pt-4 pb-2 ${isDark ? "bg-background-dark" : "bg-background-light"}`}
+          >
             <View className="flex-row items-center justify-between">
               <Text
                 className={`text-2xl font-bold ${isDark ? "text-white" : "text-midnight-velvet"
@@ -89,13 +94,11 @@ export default function MusicScreen() {
                   {filters.map((filter) => {
                     const isAll = filter.key === "all";
 
-                    // Extract pill background color logic
                     const getPillBgColor = () => {
                       if (isAll) return "bg-primary";
                       return isDark ? "bg-gray-800" : "bg-gray-200";
                     };
 
-                    // Extract text color and style logic
                     const getTextClass = () => {
                       if (isAll) return "text-white font-semibold";
                       return isDark ? "text-white" : "text-gray-900";

@@ -22,8 +22,8 @@ export default function PlaylistsScreen() {
         >
             {/* Header */}
             <View className="flex-row items-center justify-between px-4 py-2 mb-4">
-                <View className="flex-row items-center">
-                    <TouchableOpacity onPress={() => router.back()} className="p-2">
+                <View className="flex-row items-center gap-2">
+                    <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2">
                         <Ionicons
                             name="chevron-back"
                             size={24}
@@ -31,13 +31,13 @@ export default function PlaylistsScreen() {
                         />
                     </TouchableOpacity>
                     <Text
-                        className={`text-lg font-bold ml-2 ${isDark ? "text-white" : "text-gray-900"
+                        className={`text-lg font-bold ${isDark ? "text-white" : "text-gray-900"
                             }`}
                     >
                         My Playlists
                     </Text>
                 </View>
-                <TouchableOpacity onPress={handleCreatePlaylist} className="p-2">
+                <TouchableOpacity onPress={handleCreatePlaylist} className="p-2 -mr-2">
                     <Ionicons
                         name="add-circle"
                         size={28}
