@@ -252,7 +252,14 @@ export default function FavoritesScreen() {
 
     const handleShufflePlay = () => {
         if (filteredSongs.length === 0) return;
-        const shuffled = [...filteredSongs].sort(() => Math.random() - 0.5);
+
+        // Fisher-Yates shuffle algorithm - proper and unbiased shuffling
+        const shuffled = [...filteredSongs];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+
         dispatch(setQueue({ songs: shuffled, startIndex: 0 }));
         dispatch(loadAndPlaySong(shuffled[0]));
         dispatch(setPlayerMinimized(true));
