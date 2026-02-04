@@ -4,12 +4,14 @@ import { useAppSelector, useAppDispatch } from "@/features/store";
 import { useTabBarHeight } from "@/hooks/useTabBarHeight";
 import { useEffect, useState } from "react";
 import { fetchMusicData } from "@/features/slices/musicSlice";
-import { SongCard, AlbumCard, ArtistCard, MiniPlayer, FullPlayer } from "@/components/music";
 import { Ionicons } from "@expo/vector-icons";
 import { loadAndPlaySong, setQueue, setPlayerMinimized } from "@/features/slices/playerSlice";
+import { useRouter } from "expo-router";
+import { HomeMusic } from "./screens/HomeMusic";
 
 export default function MusicScreen() {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const { mode } = useAppSelector((state) => state.theme);
   const isDark = mode === "dark";
   const tabBarHeight = useTabBarHeight();
@@ -37,6 +39,12 @@ export default function MusicScreen() {
     dispatch(setPlayerMinimized(true)); // Show MiniPlayer
   };
 
+  const filters: { key: string; label: string; route?: string }[] = [
+    { key: "all", label: "Tất cả" },
+    { key: "playlist", label: "Playlist", route: "/(app)/music/screens/Playlists" },
+    { key: "favorite", label: "Yêu thích", route: "/(app)/music/screens/Favorites" },
+  ];
+
   return (
     <View style={{ flex: 1 }}>
       <SafeAreaView
@@ -51,129 +59,84 @@ export default function MusicScreen() {
         >
           {/* Header */}
           <View className="px-6 pt-4 pb-2">
-            <Text
-              className={`text-3xl font-bold ${isDark ? "text-white" : "text-midnight-velvet"
-                }`}
-            >
-              Music
-            </Text>
-          </View>
-
-          {/* Top Songs Section */}
-          <View className="mt-4">
-            <View className="flex-row items-center justify-between px-6 mb-3">
+            <View className="flex-row items-center justify-between">
               <Text
-                className={`text-xl font-bold ${isDark ? "text-white" : "text-gray-900"
+                className={`text-2xl font-bold ${isDark ? "text-white" : "text-midnight-velvet"
                   }`}
               >
-                Top Songs
+                Ping Music
               </Text>
-              <TouchableOpacity>
-                <Text className="text-primary font-semibold">See All</Text>
+
+              <TouchableOpacity
+                className={`h-10 w-10 items-center justify-center rounded-full ${isDark ? "bg-gray-800" : "bg-gray-200"
+                  }`}
+              >
+                <Ionicons
+                  name="search"
+                  size={20}
+                  color={isDark ? "#ffffff" : "#111827"}
+                />
               </TouchableOpacity>
             </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View className="flex-row px-6 gap-4">
-                {topSongs.slice(0, 5).map((song, index) => (
-                  <View key={song.id} style={{ width: 180 }}>
-                    <SongCard
-                      song={song}
-                      onPress={() => handleSongPress(song, index)}
-                      variant="default"
-                    />
-                  </View>
-                ))}
-              </View>
-            </ScrollView>
+            <View className="mt-4 flex-row items-center">
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingRight: 12 }}
+              >
+                <View className="flex-row gap-2">
+                  {filters.map((filter) => {
+                    const isAll = filter.key === "all";
+
+                    // Extract pill background color logic
+                    const getPillBgColor = () => {
+                      if (isAll) return "bg-primary";
+                      return isDark ? "bg-gray-800" : "bg-gray-200";
+                    };
+
+                    // Extract text color and style logic
+                    const getTextClass = () => {
+                      if (isAll) return "text-white font-semibold";
+                      return isDark ? "text-white" : "text-gray-900";
+                    };
+
+                    const pillClass = getPillBgColor();
+                    const textClass = getTextClass();
+
+                    return (
+                      <TouchableOpacity
+                        key={filter.key}
+                        onPress={() => {
+                          if (filter.route) {
+                            router.push(filter.route as any);
+                          }
+                        }}
+                        className={`px-4 py-2 rounded-full ${pillClass}`}
+                      >
+                        <Text className={textClass}>
+                          {filter.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            </View>
           </View>
 
-          {/* Popular Albums Section */}
-          {popularAlbums.length > 0 && (
-            <View className="mt-6">
-              <View className="flex-row items-center justify-between px-6 mb-3">
-                <Text
-                  className={`text-xl font-bold ${isDark ? "text-white" : "text-gray-900"
-                    }`}
-                >
-                  Popular Albums
-                </Text>
-                <TouchableOpacity>
-                  <Text className="text-primary font-semibold">See All</Text>
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View className="flex-row px-6 gap-4">
-                  {popularAlbums.slice(0, 5).map((album) => (
-                    <View key={album.id} style={{ width: 160 }}>
-                      <AlbumCard
-                        album={album}
-                        variant="compact"
-                      />
-                    </View>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
-          )}
-
-          {/* Popular Artists Section */}
-          {popularArtists.length > 0 && (
-            <View className="mt-6">
-              <View className="flex-row items-center justify-between px-6 mb-3">
-                <Text
-                  className={`text-xl font-bold ${isDark ? "text-white" : "text-gray-900"
-                    }`}
-                >
-                  Popular Artists
-                </Text>
-                <TouchableOpacity>
-                  <Text className="text-primary font-semibold">See All</Text>
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View className="flex-row px-6 gap-4">
-                  {popularArtists.slice(0, 5).map((artist) => (
-                    <View key={artist.id} style={{ width: 140 }}>
-                      <ArtistCard
-                        artist={artist}
-                        variant="compact"
-                      />
-                    </View>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
-          )}
-
-          {/* Genres Section */}
-          {allGenres.length > 0 && (
-            <View className="mt-6 px-6">
-              <Text
-                className={`text-xl font-bold mb-3 ${isDark ? "text-white" : "text-gray-900"
-                  }`}
-              >
-                Browse by Genre
-              </Text>
-              <View className="flex-row flex-wrap gap-2">
-                {allGenres.map((genre) => (
-                  <TouchableOpacity
-                    key={genre.id}
-                    className={`px-4 py-2 rounded-full ${isDark ? "bg-gray-800" : "bg-gray-200"
-                      }`}
-                  >
-                    <Text
-                      className={isDark ? "text-white" : "text-gray-900"}
-                    >
-                      {genre.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
+          <HomeMusic
+            isDark={isDark}
+            activeFilter="all"
+            topSongs={topSongs}
+            favoriteSongs={topSongs}
+            userPlaylists={[]}
+            playlistsLoading={false}
+            popularAlbums={popularAlbums}
+            popularArtists={popularArtists}
+            allGenres={allGenres}
+            onSongPress={handleSongPress}
+          />
 
           {/* Empty State */}
           {!loading && topSongs.length === 0 && (
@@ -197,13 +160,6 @@ export default function MusicScreen() {
         </ScrollView>
       </SafeAreaView>
 
-      {/* MiniPlayer - positioned above TabBar */}
-      <View style={{ position: 'absolute', bottom: tabBarHeight, left: 0, right: 0 }}>
-        <MiniPlayer />
-      </View>
-
-      {/* FullPlayer Modal - can be opened from MiniPlayer */}
-      <FullPlayer />
     </View>
   );
 }
