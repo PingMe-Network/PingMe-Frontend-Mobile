@@ -1,8 +1,10 @@
+import type React from "react";
 import { View, Text, FlatList, ActivityIndicator, Image, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SongCard } from "./SongCard";
 import type { SongResponseWithAllAlbum } from "@/types/music";
 import { useAppSelector } from "@/features/store";
+import { useTabBarHeight } from "@/hooks/useTabBarHeight";
 
 interface SongListProps {
     songs: SongResponseWithAllAlbum[];
@@ -16,6 +18,8 @@ interface SongListProps {
     showArtist?: boolean;
     onScroll?: (event: any) => void;
     scrollEventThrottle?: number;
+    listHeaderComponent?: React.ReactElement | null;
+    contentContainerStyle?: any;
 }
 
 export const SongList = ({
@@ -30,9 +34,15 @@ export const SongList = ({
     showArtist = true,
     onScroll,
     scrollEventThrottle,
+    listHeaderComponent,
+    contentContainerStyle,
 }: SongListProps) => {
     const { mode } = useAppSelector((state) => state.theme);
     const isDark = mode === "dark";
+    const { currentSong, isPlayerMinimized } = useAppSelector((state) => state.player);
+    const tabBarHeight = useTabBarHeight();
+    const miniPlayerHeight = currentSong && isPlayerMinimized ? 76 : 0;
+    const listBottomPadding = tabBarHeight + miniPlayerHeight + 16;
 
     const getSubtitle = (song: SongResponseWithAllAlbum) => {
         if (showArtist && song.mainArtist) return song.mainArtist.name;
@@ -71,7 +81,7 @@ export const SongList = ({
                 renderItem={({ item, index }) => (
                     <TouchableOpacity
                         onPress={() => onSongPress?.(item, index)}
-                        className={`flex-row items-center px-4 py-3 ${isDark ? "border-gray-700" : "border-gray-200"} border-b`}
+                        className="flex-row items-center px-4 py-3"
                         activeOpacity={0.7}
                     >
                         <Image
@@ -104,7 +114,11 @@ export const SongList = ({
                         </TouchableOpacity>
                     </TouchableOpacity>
                 )}
-                contentContainerStyle={{ paddingBottom: 100 }}
+                ListHeaderComponent={listHeaderComponent}
+                contentContainerStyle={[
+                    { paddingBottom: listBottomPadding },
+                    contentContainerStyle,
+                ]}
             />
         );
     }
@@ -130,10 +144,11 @@ export const SongList = ({
                     />
                 </View>
             )}
+            ListHeaderComponent={listHeaderComponent}
             contentContainerStyle={
                 horizontal
-                    ? { paddingHorizontal: 16 }
-                    : { paddingBottom: 100 }
+                    ? [{ paddingHorizontal: 16 }, contentContainerStyle]
+                    : [{ paddingBottom: listBottomPadding }, contentContainerStyle]
             }
         />
     );

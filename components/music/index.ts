@@ -5,3 +5,6 @@ export { PlaylistCard } from "./PlaylistCard";
 export { MiniPlayer } from "./MiniPlayer";
 export { FullPlayer } from "./FullPlayer";
 export { SongList } from "./SongList";
+export { AlbumHeader } from "./AlbumHeader";
+export { FavoritesHeader } from "./FavoritesHeader";
+export { MusicScreenHeader } from "./MusicScreenHeader";

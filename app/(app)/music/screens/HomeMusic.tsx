@@ -57,7 +57,7 @@ export function HomeMusic({
         <>
             {(activeFilter === "all" || activeFilter === "favorite") && (
                 <View className="mt-4">
-                    <View className="flex-row items-center justify-between px-6 mb-3">
+                    <View className="flex-row items-center justify-between px-4 mb-3">
                         <Text
                             className={`text-xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}
                         >
@@ -69,7 +69,7 @@ export function HomeMusic({
                     </View>
 
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        <View className="flex-row px-6 gap-4">
+                        <View className="flex-row px-4 gap-4">
                             {(activeFilter === "favorite" ? favoriteSongs : topSongs)
                                 .slice(0, 5)
                                 .map((song, index) => (
@@ -88,7 +88,7 @@ export function HomeMusic({
 
             {activeFilter === "playlist" && (
                 <View className="mt-4">
-                    <View className="flex-row items-center justify-between px-6 mb-3">
+                    <View className="flex-row items-center justify-between px-4 mb-3">
                         <Text
                             className={`text-xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}
                         >
@@ -100,14 +100,14 @@ export function HomeMusic({
                     </View>
 
                     {userPlaylists.length === 0 && !playlistsLoading ? (
-                        <View className="px-6 py-6">
+                        <View className="px-4 py-6">
                             <Text className={isDark ? "text-gray-300" : "text-gray-500"}>
                                 Chưa có playlist nào.
                             </Text>
                         </View>
                     ) : (
                         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                            <View className="flex-row px-6 gap-4">
+                            <View className="flex-row px-4 gap-4">
                                 {userPlaylists.slice(0, 6).map((playlist) => (
                                     <View key={playlist.id} style={{ width: 180 }}>
                                         <PlaylistCard playlist={playlist} />
@@ -121,7 +121,7 @@ export function HomeMusic({
 
             {activeFilter === "all" && popularAlbums.length > 0 && (
                 <View className="mt-6">
-                    <View className="flex-row items-center justify-between px-6 mb-3">
+                    <View className="flex-row items-center justify-between px-4 mb-3">
                         <Text
                             className={`text-xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}
                         >
@@ -133,7 +133,7 @@ export function HomeMusic({
                     </View>
 
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        <View className="flex-row px-6 gap-4">
+                        <View className="flex-row px-4 gap-4">
                             {popularAlbums.slice(0, 5).map((album) => (
                                 <View key={album.id} style={{ width: 160 }}>
                                     <AlbumCard
@@ -150,7 +150,7 @@ export function HomeMusic({
 
             {activeFilter === "all" && popularArtists.length > 0 && (
                 <View className="mt-6">
-                    <View className="flex-row items-center justify-between px-6 mb-3">
+                    <View className="flex-row items-center justify-between px-4 mb-3">
                         <Text
                             className={`text-xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}
                         >
@@ -162,7 +162,7 @@ export function HomeMusic({
                     </View>
 
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        <View className="flex-row px-6 gap-4">
+                        <View className="flex-row px-4 gap-4">
                             {popularArtists.slice(0, 5).map((artist) => (
                                 <View key={artist.id} style={{ width: 140 }}>
                                     <ArtistCard artist={artist} variant="compact" />
@@ -174,7 +174,7 @@ export function HomeMusic({
             )}
 
             {activeFilter === "all" && allGenres.length > 0 && (
-                <View className="mt-6 px-6">
+                <View className="mt-6 px-4">
                     <Text
                         className={`text-xl font-bold mb-3 ${isDark ? "text-white" : "text-gray-900"}`}
                     >

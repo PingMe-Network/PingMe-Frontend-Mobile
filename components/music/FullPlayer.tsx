@@ -14,6 +14,7 @@ import {
     setVolume,
 } from "@/features/slices/playerSlice";
 import { useState } from "react";
+import { Colors } from "@/constants/Colors";
 
 const formatTime = (millis: number) => {
     const totalSeconds = Math.floor(millis / 1000);
@@ -32,9 +33,6 @@ const getRepeatIcon = (repeatMode: "off" | "one" | "all") => {
             return "repeat-outline";
     }
 };
-
-const getThemeColor = (isDark: boolean, darkColor: string, lightColor: string) =>
-    isDark ? darkColor : lightColor;
 
 export const FullPlayer = () => {
     const dispatch = useAppDispatch();
@@ -72,10 +70,11 @@ export const FullPlayer = () => {
             presentationStyle="fullScreen"
         >
             <View
-                className={`flex-1 ${isDark ? "bg-gray-900" : "bg-white"}`}
+                className="flex-1"
+                style={{ backgroundColor: isDark ? Colors.background.dark : Colors.background.light }}
             >
                 {/* Header */}
-                <View className="flex-row items-center justify-between p-4 pt-12">
+                <View className="flex-row items-center justify-between p-2 pt-12">
                     <TouchableOpacity
                         onPress={() => dispatch(setPlayerMinimized(true))}
                         className="p-2"
@@ -83,11 +82,14 @@ export const FullPlayer = () => {
                         <Ionicons
                             name="chevron-down"
                             size={28}
-                            color={getThemeColor(isDark, "white", "#1f2937")}
+                            color={isDark ? Colors.text.dark : Colors.text.light}
                         />
                     </TouchableOpacity>
 
-                    <Text className={`font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>
+                    <Text
+                        className="font-semibold"
+                        style={{ color: isDark ? Colors.text.dark : Colors.text.light }}
+                    >
                         Now Playing
                     </Text>
 
@@ -95,7 +97,7 @@ export const FullPlayer = () => {
                         <Ionicons
                             name="ellipsis-horizontal"
                             size={24}
-                            color={getThemeColor(isDark, "white", "#1f2937")}
+                            color={isDark ? Colors.text.dark : Colors.text.light}
                         />
                     </TouchableOpacity>
                 </View>
@@ -114,14 +116,18 @@ export const FullPlayer = () => {
                 {/* Song Info */}
                 <View className="px-8 mb-4">
                     <Text
-                        className={`text-2xl font-bold mb-2 ${isDark ? "text-white" : "text-gray-900"
-                            }`}
+                        className="text-2xl font-bold mb-2"
+                        style={{ color: isDark ? Colors.text.dark : Colors.text.light }}
                         numberOfLines={1}
                     >
                         {currentSong.title}
                     </Text>
                     {currentSong.mainArtist && (
-                        <Text className="text-lg text-gray-400" numberOfLines={1}>
+                        <Text
+                            className="text-lg"
+                            style={{ color: Colors.text.gray }}
+                            numberOfLines={1}
+                        >
                             {currentSong.mainArtist.name}
                         </Text>
                     )}
@@ -134,13 +140,17 @@ export const FullPlayer = () => {
                         minimumValue={0}
                         maximumValue={duration}
                         onSlidingComplete={handleSeek}
-                        minimumTrackTintColor="#3b82f6"
-                        maximumTrackTintColor={isDark ? "#374151" : "#d1d5db"}
-                        thumbTintColor="#3b82f6"
+                        minimumTrackTintColor={Colors.primary}
+                        maximumTrackTintColor={Colors.text.gray}
+                        thumbTintColor={Colors.primary}
                     />
                     <View className="flex-row justify-between">
-                        <Text className="text-xs text-gray-400">{formatTime(position)}</Text>
-                        <Text className="text-xs text-gray-400">{formatTime(duration)}</Text>
+                        <Text className="text-xs" style={{ color: Colors.text.gray }}>
+                            {formatTime(position)}
+                        </Text>
+                        <Text className="text-xs" style={{ color: Colors.text.gray }}>
+                            {formatTime(duration)}
+                        </Text>
                     </View>
                 </View>
 
@@ -152,7 +162,7 @@ export const FullPlayer = () => {
                             <Ionicons
                                 name="shuffle"
                                 size={24}
-                                color={isShuffled ? "#3b82f6" : "#9ca3af"}
+                                color={isShuffled ? Colors.primary : Colors.text.gray}
                             />
                         </TouchableOpacity>
 
@@ -160,7 +170,7 @@ export const FullPlayer = () => {
                             <Ionicons
                                 name={getRepeatIcon(repeatMode)}
                                 size={24}
-                                color={repeatMode === "off" ? "#9ca3af" : "#3b82f6"}
+                                color={repeatMode === "off" ? Colors.text.gray : Colors.primary}
                             />
                         </TouchableOpacity>
 
@@ -168,7 +178,7 @@ export const FullPlayer = () => {
                             <Ionicons
                                 name={isMuted ? "volume-mute" : "volume-high"}
                                 size={24}
-                                color="#9ca3af"
+                                color={Colors.text.gray}
                             />
                         </TouchableOpacity>
                     </View>
@@ -182,19 +192,19 @@ export const FullPlayer = () => {
                             <Ionicons
                                 name="play-skip-back"
                                 size={36}
-                                color={isDark ? "white" : "#1f2937"}
+                                color={isDark ? Colors.text.dark : Colors.text.light}
                             />
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             onPress={handlePlayPause}
-                            className={`w-20 h-20 rounded-full items-center justify-center ${isDark ? "bg-gray-800" : "bg-gray-100"
-                                }`}
+                            className="w-20 h-20 rounded-full items-center justify-center"
+                            style={{ backgroundColor: isDark ? Colors.background.dark : Colors.background.light }}
                         >
                             <Ionicons
                                 name={isPlaying ? "pause" : "play"}
                                 size={40}
-                                color={isDark ? "white" : "#1f2937"}
+                                color={isDark ? Colors.text.dark : Colors.text.light}
                             />
                         </TouchableOpacity>
 
@@ -205,7 +215,7 @@ export const FullPlayer = () => {
                             <Ionicons
                                 name="play-skip-forward"
                                 size={36}
-                                color={isDark ? "white" : "#1f2937"}
+                                color={isDark ? Colors.text.dark : Colors.text.light}
                             />
                         </TouchableOpacity>
                     </View>
@@ -219,9 +229,9 @@ export const FullPlayer = () => {
                             minimumValue={0}
                             maximumValue={1}
                             onValueChange={(value) => dispatch(setVolume(value))}
-                            minimumTrackTintColor="#3b82f6"
-                            maximumTrackTintColor={isDark ? "#374151" : "#d1d5db"}
-                            thumbTintColor="#3b82f6"
+                            minimumTrackTintColor={Colors.primary}
+                            maximumTrackTintColor={Colors.text.gray}
+                            thumbTintColor={Colors.primary}
                         />
                     </View>
                 )}

@@ -1,13 +1,13 @@
-import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppSelector, useAppDispatch } from "@/features/store";
-import { useLocalSearchParams, router } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { searchService } from "@/services/music";
-import { SongList } from "@/components/music";
-import { Ionicons } from "@expo/vector-icons";
+import { SongList, AlbumHeader } from "@/components/music";
 import type { SongResponseWithAllAlbum } from "@/types/music";
 import { loadAndPlaySong, setQueue } from "@/features/slices/playerSlice";
+import { Colors } from "@/constants/Colors";
 
 export default function AlbumDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -27,7 +27,6 @@ export default function AlbumDetailScreen() {
                 setLoading(true);
                 const albumSongs = await searchService.getSongsByAlbum(Number(id));
                 setSongs(albumSongs);
-
                 // Get album info from first song
                 if (albumSongs.length > 0 && albumSongs[0].albums?.[0]) {
                     setAlbum(albumSongs[0].albums[0]);
@@ -47,31 +46,16 @@ export default function AlbumDetailScreen() {
         dispatch(loadAndPlaySong(song));
     };
 
+    const coverImageUrl = songs[0]?.coverImageUrl;
+    const artistName = songs[0]?.mainArtist?.name;
+
     return (
         <SafeAreaView
             className={`flex-1 ${isDark ? "bg-background-dark" : "bg-background-light"}`}
         >
-            {/* Header */}
-            <View className="flex-row items-center px-4 py-2">
-                <TouchableOpacity onPress={() => router.back()} className="p-2">
-                    <Ionicons
-                        name="chevron-back"
-                        size={24}
-                        color={isDark ? "white" : "#1f2937"}
-                    />
-                </TouchableOpacity>
-                <Text
-                    className={`flex-1 text-lg font-bold ml-2 ${isDark ? "text-white" : "text-gray-900"
-                        }`}
-                    numberOfLines={1}
-                >
-                    {album?.title || "Album"}
-                </Text>
-            </View>
-
             {loading ? (
                 <View className="flex-1 items-center justify-center">
-                    <ActivityIndicator size="large" color="#3b82f6" />
+                    <ActivityIndicator size="large" color={Colors.primary} />
                 </View>
             ) : (
                 <SongList
@@ -79,6 +63,15 @@ export default function AlbumDetailScreen() {
                     onSongPress={handleSongPress}
                     variant="list"
                     showAlbum={false}
+                    listHeaderComponent={
+                        <AlbumHeader
+                            isDark={isDark}
+                            coverImageUrl={coverImageUrl}
+                            albumTitle={album?.title || "Album"}
+                            artistName={artistName}
+                            songCount={songs.length}
+                        />
+                    }
                 />
             )}
         </SafeAreaView>
