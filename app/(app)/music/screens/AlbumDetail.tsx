@@ -19,28 +19,28 @@ export default function AlbumDetailScreen() {
     const [loading, setLoading] = useState(true);
     const [album, setAlbum] = useState<any>(null);
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const loadAlbumData = async () => {
-        try {
-            setLoading(true);
-            const albumSongs = await searchService.getSongsByAlbum(Number(id));
-            setSongs(albumSongs);
-
-            // Get album info from first song
-            if (albumSongs.length > 0 && albumSongs[0].albums?.[0]) {
-                setAlbum(albumSongs[0].albums[0]);
-            }
-        } catch (error) {
-            console.error("Failed to load album:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
     useEffect(() => {
-        if (id) {
-            loadAlbumData();
-        }
-    }, [id, loadAlbumData]);
+        if (!id) return;
+
+        const loadAlbumData = async () => {
+            try {
+                setLoading(true);
+                const albumSongs = await searchService.getSongsByAlbum(Number(id));
+                setSongs(albumSongs);
+
+                // Get album info from first song
+                if (albumSongs.length > 0 && albumSongs[0].albums?.[0]) {
+                    setAlbum(albumSongs[0].albums[0]);
+                }
+            } catch (error) {
+                console.error("Failed to load album:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadAlbumData();
+    }, [id]);
 
     const handleSongPress = (song: SongResponseWithAllAlbum, index: number) => {
         dispatch(setQueue({ songs, startIndex: index }));
