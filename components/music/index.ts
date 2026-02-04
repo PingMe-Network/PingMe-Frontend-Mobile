@@ -8,3 +8,4 @@ export { SongList } from "./SongList";
 export { AlbumHeader } from "./AlbumHeader";
 export { FavoritesHeader } from "./FavoritesHeader";
 export { MusicScreenHeader } from "./MusicScreenHeader";
+export { ArtistHeader } from "./ArtistHeader";

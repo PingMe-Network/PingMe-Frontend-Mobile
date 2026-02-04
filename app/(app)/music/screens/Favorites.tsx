@@ -2,12 +2,12 @@ import { View, Text, TouchableOpacity, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppSelector, useAppDispatch } from "@/features/store";
 import { useFavorites } from "@/hooks/useFavorites";
+import { useShufflePlay } from "@/hooks/useShufflePlay";
 import { SongList, FavoritesHeader, MusicScreenHeader } from "@/components/music";
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { songApi } from "@/services/music";
 import type { SongResponseWithAllAlbum } from "@/types/music";
 import { loadAndPlaySong, setQueue, setPlayerMinimized } from "@/features/slices/playerSlice";
-import { getRandomInt } from "@/utils/random";
 
 
 const ErrorBanner = ({
@@ -56,7 +56,7 @@ export default function FavoritesScreen() {
     const dispatch = useAppDispatch();
     const isDark = mode === "dark";
     const { favorites, refetch } = useFavorites();
-
+    const { shuffleAndPlay } = useShufflePlay();
     const [favoriteSongs, setFavoriteSongs] = useState<SongResponseWithAllAlbum[]>([]);
     const [loadingSongs, setLoadingSongs] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
@@ -125,18 +125,6 @@ export default function FavoritesScreen() {
     };
 
 
-    const handleShufflePlay = () => {
-        if (filteredSongs.length === 0) return;
-        const shuffled = [...filteredSongs];
-        for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = getRandomInt(i + 1);
-            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-        }
-
-        dispatch(setQueue({ songs: shuffled, startIndex: 0 }));
-        dispatch(loadAndPlaySong(shuffled[0]));
-        dispatch(setPlayerMinimized(true));
-    };
 
     const handleScroll = (event: any) => {
         const currentScrollY = event.nativeEvent.contentOffset.y;
@@ -165,7 +153,7 @@ export default function FavoritesScreen() {
                 onClearSearch={() => setSearchQuery("")}
                 headerCover={headerCover}
                 songCount={favoriteSongs.length}
-                onShufflePlay={handleShufflePlay}
+                onShufflePlay={() => shuffleAndPlay(filteredSongs)}
                 onPlayAll={handlePlayAll}
             />
 
