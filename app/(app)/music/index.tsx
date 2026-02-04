@@ -88,16 +88,21 @@ export default function MusicScreen() {
                 <View className="flex-row gap-2">
                   {filters.map((filter) => {
                     const isAll = filter.key === "all";
-                    const pillClass = isAll
-                      ? "bg-primary"
-                      : isDark
-                        ? "bg-gray-800"
-                        : "bg-gray-200";
-                    const textClass = isAll
-                      ? "text-white font-semibold"
-                      : isDark
-                        ? "text-white"
-                        : "text-gray-900";
+
+                    // Extract pill background color logic
+                    const getPillBgColor = () => {
+                      if (isAll) return "bg-primary";
+                      return isDark ? "bg-gray-800" : "bg-gray-200";
+                    };
+
+                    // Extract text color and style logic
+                    const getTextClass = () => {
+                      if (isAll) return "text-white font-semibold";
+                      return isDark ? "text-white" : "text-gray-900";
+                    };
+
+                    const pillClass = getPillBgColor();
+                    const textClass = getTextClass();
 
                     return (
                       <TouchableOpacity

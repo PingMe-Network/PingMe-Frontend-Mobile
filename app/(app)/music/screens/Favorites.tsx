@@ -9,6 +9,7 @@ import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { songApi } from "@/services/music";
 import type { SongResponseWithAllAlbum } from "@/types/music";
 import { loadAndPlaySong, setQueue, setPlayerMinimized } from "@/features/slices/playerSlice";
+import { getRandomInt } from "@/utils/random";
 
 type HeaderProps = {
     isDark: boolean;
@@ -250,13 +251,12 @@ export default function FavoritesScreen() {
         dispatch(setPlayerMinimized(true));
     };
 
+
     const handleShufflePlay = () => {
         if (filteredSongs.length === 0) return;
-
-        // Fisher-Yates shuffle algorithm - proper and unbiased shuffling
         const shuffled = [...filteredSongs];
         for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
+            const j = getRandomInt(i + 1);
             [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
         }
 
