@@ -8,12 +8,14 @@ import { SongList, AlbumHeader } from "@/components/music";
 import type { SongResponseWithAllAlbum } from "@/types/music";
 import { loadAndPlaySong, setQueue } from "@/features/slices/playerSlice";
 import { Colors } from "@/constants/Colors";
+import { useShufflePlay } from "@/hooks/useShufflePlay";
 
 export default function AlbumDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const dispatch = useAppDispatch();
     const { mode } = useAppSelector((state) => state.theme);
     const isDark = mode === "dark";
+    const { shuffleAndPlay } = useShufflePlay();
 
     const [songs, setSongs] = useState<SongResponseWithAllAlbum[]>([]);
     const [loading, setLoading] = useState(true);
@@ -46,6 +48,12 @@ export default function AlbumDetailScreen() {
         dispatch(loadAndPlaySong(song));
     };
 
+    const handlePlayAll = () => {
+        if (songs.length === 0) return;
+        dispatch(setQueue({ songs, startIndex: 0 }));
+        dispatch(loadAndPlaySong(songs[0]));
+    };
+
     const coverImageUrl = songs[0]?.coverImageUrl;
     const artistName = songs[0]?.mainArtist?.name;
 
@@ -70,6 +78,8 @@ export default function AlbumDetailScreen() {
                             albumTitle={album?.title || "Album"}
                             artistName={artistName}
                             songCount={songs.length}
+                            onShufflePlay={() => shuffleAndPlay(songs)}
+                            onPlayAll={handlePlayAll}
                         />
                     }
                 />

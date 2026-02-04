@@ -9,6 +9,8 @@ export type AlbumHeaderProps = {
     albumTitle: string;
     artistName?: string;
     songCount: number;
+    onShufflePlay?: () => void;
+    onPlayAll?: () => void;
 };
 
 export function AlbumHeader({
@@ -17,6 +19,8 @@ export function AlbumHeader({
     albumTitle,
     artistName,
     songCount,
+    onShufflePlay,
+    onPlayAll,
 }: Readonly<AlbumHeaderProps>) {
     return (
         <View className="px-4 pt-2 pb-4">
@@ -110,12 +114,16 @@ export function AlbumHeader({
                 </View>
 
                 <View className="flex-row items-center gap-4">
-                    <TouchableOpacity className="h-12 w-12 items-center justify-center rounded-full">
+                    <TouchableOpacity
+                        className="h-12 w-12 items-center justify-center rounded-full"
+                        onPress={onShufflePlay}
+                    >
                         <Ionicons name="shuffle" size={22} color={Colors.primary} />
                     </TouchableOpacity>
                     <TouchableOpacity
                         className="h-14 w-14 items-center justify-center rounded-full"
                         style={{ backgroundColor: Colors.primary }}
+                        onPress={onPlayAll}
                     >
                         <Ionicons name="play" size={22} color="white" />
                     </TouchableOpacity>

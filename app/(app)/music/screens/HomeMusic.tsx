@@ -45,6 +45,13 @@ export function HomeMusic({
         });
     };
 
+    const handleArtistPress = (artistId: number) => {
+        router.push({
+            pathname: "/(app)/music/screens/ArtistDetail",
+            params: { id: artistId.toString() },
+        });
+    };
+
     const handleViewAllFavorites = () => {
         router.push("/(app)/music/screens/Favorites");
     };
@@ -165,7 +172,11 @@ export function HomeMusic({
                         <View className="flex-row px-4 gap-4">
                             {popularArtists.slice(0, 5).map((artist) => (
                                 <View key={artist.id} style={{ width: 140 }}>
-                                    <ArtistCard artist={artist} variant="compact" />
+                                    <ArtistCard
+                                        artist={artist}
+                                        variant="compact"
+                                        onPress={() => handleArtistPress(artist.id)}
+                                    />
                                 </View>
                             ))}
                         </View>
