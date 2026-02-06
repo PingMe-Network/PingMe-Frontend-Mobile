@@ -17,6 +17,7 @@ import {
 import { updateUserSession } from "@/features/slices/authSlice";
 import { getTokens } from "@/utils/storage";
 import { Colors } from "@/constants/Colors";
+import { AlertProvider } from "@/components/ui/AlertProvider";
 import "../global.css";
 
 // ===============================
@@ -98,7 +99,9 @@ export default function RootLayout() {
           </View>
         }
       >
-        <RootLayoutNav />
+        <AlertProvider>
+          <RootLayoutNav />
+        </AlertProvider>
       </PersistGate>
     </Provider>
   );

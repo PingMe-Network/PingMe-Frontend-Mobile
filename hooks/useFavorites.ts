@@ -21,11 +21,13 @@ export const useFavorites = () => {
   }, []);
 
   const isFavorite = (songId: number): boolean => {
-    return favoriteSongIds.has(songId);
+    return favoriteSongIds.includes(songId);
   };
 
   const toggle = async (songId: number) => {
     await dispatch(toggleFavorite(songId));
+    // Refetch to sync the favorites list
+    await dispatch(fetchFavorites());
   };
 
   const refetch = async () => {
