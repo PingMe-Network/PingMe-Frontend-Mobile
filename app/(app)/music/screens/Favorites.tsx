@@ -1,51 +1,24 @@
-import { View, Text, TouchableOpacity, Animated } from "react-native";
+import { Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppSelector, useAppDispatch } from "@/features/store";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useShufflePlay } from "@/hooks/useShufflePlay";
-import { SongList, FavoritesHeader, MusicScreenHeader } from "@/components/music";
+import { useSongActions } from "@/hooks/useSongActions";
+import { SongList, FavoritesHeader, MusicScreenHeader, SongOptionsModal, AddToPlaylistModal, AddSongToPlaylistModal } from "@/components/music";
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { songApi } from "@/services/music";
 import type { SongResponseWithAllAlbum } from "@/types/music";
 import { loadAndPlaySong, setQueue, setPlayerMinimized } from "@/features/slices/playerSlice";
+import { useAlert } from "@/components/ui/AlertProvider";
 
-
-const ErrorBanner = ({
-    message,
-    onRetry,
-    isDark,
-}: {
-    message: string | null;
-    onRetry: () => void;
-    isDark: boolean;
-}) => {
-    if (!message) return null;
-
-    return (
-        <View className={`px-4 py-2 ${isDark ? "bg-red-900" : "bg-red-100"}`}>
-            <View className="flex-row items-center justify-between">
-                <Text className={isDark ? "text-red-200" : "text-red-800"}>
-                    {message}
-                </Text>
-                <TouchableOpacity onPress={onRetry}>
-                    <Text className="text-primary font-semibold">Thử lại</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-    );
-};
 
 const fetchFavoriteSongs = async (favorites: { songId: number }[]) => {
     if (favorites.length === 0) return [];
 
     const songs: SongResponseWithAllAlbum[] = [];
     for (const fav of favorites) {
-        try {
-            const song = await songApi.getSongById(fav.songId);
-            songs.push(song as SongResponseWithAllAlbum);
-        } catch (err) {
-            console.warn(`Failed to load song ${fav.songId}:`, err);
-        }
+        const song = await songApi.getSongById(fav.songId);
+        songs.push(song as SongResponseWithAllAlbum);
     }
 
     return songs;
@@ -55,12 +28,29 @@ export default function FavoritesScreen() {
     const { mode } = useAppSelector((state) => state.theme);
     const dispatch = useAppDispatch();
     const isDark = mode === "dark";
-    const { favorites, refetch } = useFavorites();
+    const { favorites, toggle: toggleFavorite } = useFavorites();
     const { shuffleAndPlay } = useShufflePlay();
+    const { showAlert } = useAlert();
+
+    const {
+        selectedSong,
+        showOptionsModal,
+        showAddToPlaylistModal,
+        setShowOptionsModal,
+        setShowAddToPlaylistModal,
+        handleMorePress,
+        handleShare,
+        handleAddToPlaylist,
+        handleAddSongToPlaylist,
+        handleGoToAlbum,
+        handleGoToArtist,
+        playlists,
+    } = useSongActions();
+
     const [favoriteSongs, setFavoriteSongs] = useState<SongResponseWithAllAlbum[]>([]);
     const [loadingSongs, setLoadingSongs] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
-    const [error, setError] = useState<string | null>(null);
+    const [showAddSongModal, setShowAddSongModal] = useState(false);
     const scrollY = useRef(new Animated.Value(0)).current;
 
     const headerHeight = scrollY.interpolate({
@@ -82,22 +72,24 @@ export default function FavoritesScreen() {
     const loadFavoriteSongs = useCallback(async () => {
         try {
             setLoadingSongs(true);
-            setError(null);
 
             const songs = await fetchFavoriteSongs(favorites);
             setFavoriteSongs(songs);
-        } catch (error) {
-            console.error("Failed to load favorite songs:", error);
-            setError("Không thể tải bài hát yêu thích");
+        } catch {
+            showAlert({
+                type: "error",
+                title: "Lỗi",
+                message: "Không thể tải bài hát yêu thích",
+            });
             setFavoriteSongs([]);
         } finally {
             setLoadingSongs(false);
         }
-    }, [favorites]);
+    }, [favorites, showAlert]);
 
     useEffect(() => {
         loadFavoriteSongs();
-    }, [favorites.length, loadFavoriteSongs]);
+    }, [favorites, loadFavoriteSongs]);
 
     const filteredSongs = useMemo(() => {
         if (!searchQuery.trim()) return favoriteSongs;
@@ -124,7 +116,44 @@ export default function FavoritesScreen() {
         dispatch(setPlayerMinimized(true));
     };
 
+    const handleRemoveFavorite = async () => {
+        if (!selectedSong) return;
+        try {
+            await toggleFavorite(selectedSong.id);
+            showAlert({
+                type: "success",
+                title: "Thành công",
+                message: `Đã xóa "${selectedSong.title}" khỏi yêu thích`,
+            });
+        } catch {
+            showAlert({
+                type: "error",
+                title: "Lỗi",
+                message: "Không thể xóa khỏi yêu thích",
+            });
+        }
+    };
 
+    const handleAddSongToFavorites = async (songId: number) => {
+        try {
+            await toggleFavorite(songId);
+            showAlert({
+                type: "success",
+                title: "Thành công",
+                message: "Đã thêm bài hát vào yêu thích",
+            });
+        } catch {
+            showAlert({
+                type: "error",
+                title: "Lỗi",
+                message: "Không thể thêm bài hát vào yêu thích",
+            });
+        }
+    };
+
+    const existingFavoriteSongIds = useMemo(() => {
+        return favoriteSongs.map(song => song.id);
+    }, [favoriteSongs]);
 
     const handleScroll = (event: any) => {
         const currentScrollY = event.nativeEvent.contentOffset.y;
@@ -139,8 +168,6 @@ export default function FavoritesScreen() {
             <MusicScreenHeader
                 title="Yêu thích"
                 isDark={isDark}
-                rightIconName="refresh"
-                onRightPress={refetch}
             />
 
             <FavoritesHeader
@@ -155,9 +182,8 @@ export default function FavoritesScreen() {
                 songCount={favoriteSongs.length}
                 onShufflePlay={() => shuffleAndPlay(filteredSongs)}
                 onPlayAll={handlePlayAll}
+                onAddPress={() => setShowAddSongModal(true)}
             />
-
-            <ErrorBanner message={error} onRetry={refetch} isDark={isDark} />
 
             <SongList
                 songs={filteredSongs}
@@ -167,8 +193,72 @@ export default function FavoritesScreen() {
                     searchQuery ? "Không tìm thấy bài hát" : "Chưa có bài hát yêu thích"
                 }
                 onSongPress={handleSongPress}
+                onMorePress={handleMorePress}
                 onScroll={handleScroll}
                 scrollEventThrottle={16}
+            />
+
+            {/* Song Options Modal */}
+            <SongOptionsModal
+                visible={showOptionsModal}
+                isDark={isDark}
+                song={selectedSong}
+                onClose={() => setShowOptionsModal(false)}
+                options={[
+                    {
+                        id: "share",
+                        label: "Chia sẻ",
+                        icon: "share-outline",
+                        action: handleShare,
+                    },
+                    {
+                        id: "add-to-playlist",
+                        label: "Thêm vào playlist",
+                        icon: "add-circle-outline",
+                        action: handleAddToPlaylist,
+                    },
+                    {
+                        id: "remove-favorite",
+                        label: "Xóa khỏi yêu thích",
+                        icon: "heart-dislike-outline",
+                        action: () => void handleRemoveFavorite(),
+                    },
+                    {
+                        id: "go-to-album",
+                        label: "Chuyển đến album",
+                        icon: "disc-outline",
+                        action: handleGoToAlbum,
+                    },
+                    {
+                        id: "go-to-artist",
+                        label: "Chuyển đến nghệ sĩ",
+                        icon: "person-outline",
+                        action: handleGoToArtist,
+                    },
+                ]}
+            />
+
+            {/* Add to Playlist Modal */}
+            {selectedSong && (
+                <AddToPlaylistModal
+                    visible={showAddToPlaylistModal}
+                    isDark={isDark}
+                    songId={selectedSong.id}
+                    songTitle={selectedSong.title}
+                    playlists={playlists}
+                    onClose={() => setShowAddToPlaylistModal(false)}
+                    onAddToPlaylist={handleAddSongToPlaylist}
+                />
+            )}
+
+            {/* Add Song to Favorites Modal */}
+            <AddSongToPlaylistModal
+                visible={showAddSongModal}
+                isDark={isDark}
+                playlistId={0}
+                existingSongIds={existingFavoriteSongIds}
+                onClose={() => setShowAddSongModal(false)}
+                onAddSong={handleAddSongToFavorites}
             />
         </SafeAreaView>
     );

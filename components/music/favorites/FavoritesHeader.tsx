@@ -13,6 +13,7 @@ export type FavoritesHeaderProps = {
     songCount: number;
     onShufflePlay: () => void;
     onPlayAll: () => void;
+    onAddPress: () => void;
 };
 
 export function FavoritesHeader({
@@ -27,6 +28,7 @@ export function FavoritesHeader({
     songCount,
     onShufflePlay,
     onPlayAll,
+    onAddPress,
 }: Readonly<FavoritesHeaderProps>) {
     return (
         <Animated.View
@@ -94,10 +96,13 @@ export function FavoritesHeader({
                                 />
                             )}
                         </View>
-                        <TouchableOpacity className="h-12 w-12 items-center justify-center rounded-full border border-gray-500/40">
+                        <TouchableOpacity
+                            className="h-12 w-12 items-center justify-center rounded-full border border-gray-500/40"
+                            onPress={onAddPress}
+                        >
                             <Ionicons
-                                name="arrow-down"
-                                size={20}
+                                name="add"
+                                size={24}
                                 color={isDark ? "#e5e7eb" : "#374151"}
                             />
                         </TouchableOpacity>

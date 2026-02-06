@@ -4,6 +4,7 @@ import {
   fetchUserPlaylists,
   fetchPlaylistDetail,
   createPlaylist,
+  updatePlaylist,
   addSongToPlaylist,
   removeSongFromPlaylist,
 } from "@/features/slices/playlistSlice";
@@ -20,7 +21,7 @@ export const usePlaylists = () => {
     if (userPlaylists.length === 0 && !loading) {
       dispatch(fetchUserPlaylists());
     }
-  }, []);
+  }, [dispatch, userPlaylists.length, loading]);
 
   const getPlaylistDetail = async (playlistId: number) => {
     if (!playlistDetails[playlistId]) {
@@ -35,6 +36,13 @@ export const usePlaylists = () => {
 
   const addSong = async (playlistId: number, songId: number) => {
     await dispatch(addSongToPlaylist({ playlistId, songId }));
+  };
+
+  const update = async (
+    playlistId: number,
+    data: { name?: string; isPublic?: boolean },
+  ) => {
+    await dispatch(updatePlaylist({ playlistId, data }));
   };
 
   const removeSong = async (playlistId: number, songId: number) => {
@@ -53,6 +61,7 @@ export const usePlaylists = () => {
     error,
     getPlaylistDetail,
     create,
+    update,
     addSong,
     removeSong,
     refetch,

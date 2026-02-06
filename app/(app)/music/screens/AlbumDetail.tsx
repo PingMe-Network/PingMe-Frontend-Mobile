@@ -4,11 +4,12 @@ import { useAppSelector, useAppDispatch } from "@/features/store";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { searchService } from "@/services/music";
-import { SongList, AlbumHeader } from "@/components/music";
+import { SongList, AlbumHeader, SongOptionsModal, AddToPlaylistModal } from "@/components/music";
 import type { SongResponseWithAllAlbum } from "@/types/music";
 import { loadAndPlaySong, setQueue } from "@/features/slices/playerSlice";
 import { Colors } from "@/constants/Colors";
 import { useShufflePlay } from "@/hooks/useShufflePlay";
+import { useSongActions } from "@/hooks/useSongActions";
 
 export default function AlbumDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -16,6 +17,22 @@ export default function AlbumDetailScreen() {
     const { mode } = useAppSelector((state) => state.theme);
     const isDark = mode === "dark";
     const { shuffleAndPlay } = useShufflePlay();
+
+    const {
+        selectedSong,
+        showOptionsModal,
+        showAddToPlaylistModal,
+        setShowOptionsModal,
+        setShowAddToPlaylistModal,
+        handleMorePress,
+        handleShare,
+        handleAddToPlaylist,
+        handleAddSongToPlaylist,
+        handleToggleFavorite,
+        handleGoToArtist,
+        isFavorite,
+        playlists,
+    } = useSongActions();
 
     const [songs, setSongs] = useState<SongResponseWithAllAlbum[]>([]);
     const [loading, setLoading] = useState(true);
@@ -33,8 +50,8 @@ export default function AlbumDetailScreen() {
                 if (albumSongs.length > 0 && albumSongs[0].albums?.[0]) {
                     setAlbum(albumSongs[0].albums[0]);
                 }
-            } catch (error) {
-                console.error("Failed to load album:", error);
+            } catch {
+                // Error loading album
             } finally {
                 setLoading(false);
             }
@@ -69,6 +86,7 @@ export default function AlbumDetailScreen() {
                 <SongList
                     songs={songs}
                     onSongPress={handleSongPress}
+                    onMorePress={handleMorePress}
                     variant="list"
                     showAlbum={false}
                     listHeaderComponent={
@@ -82,6 +100,53 @@ export default function AlbumDetailScreen() {
                             onPlayAll={handlePlayAll}
                         />
                     }
+                />
+            )}
+
+            {/* Song Options Modal */}
+            <SongOptionsModal
+                visible={showOptionsModal}
+                isDark={isDark}
+                song={selectedSong}
+                onClose={() => setShowOptionsModal(false)}
+                options={[
+                    {
+                        id: "favorite",
+                        label: selectedSong && isFavorite(selectedSong.id) ? "Xóa khỏi yêu thích" : "Thêm vào yêu thích",
+                        icon: selectedSong && isFavorite(selectedSong.id) ? "heart-dislike-outline" : "heart-outline",
+                        action: () => void handleToggleFavorite(),
+                    },
+                    {
+                        id: "add-to-playlist",
+                        label: "Thêm vào playlist",
+                        icon: "add-circle-outline",
+                        action: handleAddToPlaylist,
+                    },
+                    {
+                        id: "share",
+                        label: "Chia sẻ",
+                        icon: "share-outline",
+                        action: handleShare,
+                    },
+                    {
+                        id: "go-to-artist",
+                        label: "Chuyển đến nghệ sĩ",
+                        icon: "person-outline",
+                        action: handleGoToArtist,
+                    },
+                ]}
+            />
+
+            {/* Add to Playlist Modal */}
+            {selectedSong && (
+                <AddToPlaylistModal
+                    visible={showAddToPlaylistModal}
+                    isDark={isDark}
+                    songId={selectedSong.id}
+                    songTitle={selectedSong.title}
+                    playlists={playlists}
+                    onClose={() => setShowAddToPlaylistModal(false)}
+                    onAddToPlaylist={handleAddSongToPlaylist}
                 />
             )}
         </SafeAreaView>
