@@ -3,13 +3,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppSelector, useAppDispatch } from "@/features/store";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useShufflePlay } from "@/hooks/useShufflePlay";
-import { usePlaylists } from "@/hooks/usePlaylists";
+import { useSongActions } from "@/hooks/useSongActions";
 import { SongList, FavoritesHeader, MusicScreenHeader, SongOptionsModal, AddToPlaylistModal, AddSongToPlaylistModal } from "@/components/music";
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { songApi } from "@/services/music";
 import type { SongResponseWithAllAlbum } from "@/types/music";
 import { loadAndPlaySong, setQueue, setPlayerMinimized } from "@/features/slices/playerSlice";
-import { router } from "expo-router";
 import { useAlert } from "@/components/ui/AlertProvider";
 
 
@@ -30,16 +29,28 @@ export default function FavoritesScreen() {
     const dispatch = useAppDispatch();
     const isDark = mode === "dark";
     const { favorites, toggle: toggleFavorite } = useFavorites();
-    const { playlists, addSong } = usePlaylists();
     const { shuffleAndPlay } = useShufflePlay();
     const { showAlert } = useAlert();
+
+    const {
+        selectedSong,
+        showOptionsModal,
+        showAddToPlaylistModal,
+        setShowOptionsModal,
+        setShowAddToPlaylistModal,
+        handleMorePress,
+        handleShare,
+        handleAddToPlaylist,
+        handleAddSongToPlaylist,
+        handleGoToAlbum,
+        handleGoToArtist,
+        playlists,
+    } = useSongActions();
+
     const [favoriteSongs, setFavoriteSongs] = useState<SongResponseWithAllAlbum[]>([]);
     const [loadingSongs, setLoadingSongs] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
-    const [showOptionsModal, setShowOptionsModal] = useState(false);
-    const [showAddToPlaylistModal, setShowAddToPlaylistModal] = useState(false);
     const [showAddSongModal, setShowAddSongModal] = useState(false);
-    const [selectedSong, setSelectedSong] = useState<SongResponseWithAllAlbum | null>(null);
     const scrollY = useRef(new Animated.Value(0)).current;
 
     const headerHeight = scrollY.interpolate({
@@ -105,42 +116,6 @@ export default function FavoritesScreen() {
         dispatch(setPlayerMinimized(true));
     };
 
-    const handleMorePress = (song: SongResponseWithAllAlbum) => {
-        setSelectedSong(song);
-        setShowOptionsModal(true);
-    };
-
-    const handleShare = () => {
-        if (!selectedSong) return;
-        showAlert({
-            type: "info",
-            title: "Chia sẻ",
-            message: `Chia sẻ "${selectedSong.title}" đang phát triển!`,
-        });
-    };
-
-    const handleAddToPlaylist = () => {
-        setShowAddToPlaylistModal(true);
-    };
-
-    const handleAddSongToPlaylist = async (playlistId: number) => {
-        if (!selectedSong) return;
-        try {
-            await addSong(playlistId, selectedSong.id);
-            showAlert({
-                type: "success",
-                title: "Thành công",
-                message: `Đã thêm "${selectedSong.title}" vào playlist`,
-            });
-        } catch {
-            showAlert({
-                type: "error",
-                title: "Lỗi",
-                message: "Không thể thêm bài hát vào playlist",
-            });
-        }
-    };
-
     const handleRemoveFavorite = async () => {
         if (!selectedSong) return;
         try {
@@ -157,16 +132,6 @@ export default function FavoritesScreen() {
                 message: "Không thể xóa khỏi yêu thích",
             });
         }
-    };
-
-    const handleGoToAlbum = () => {
-        if (!selectedSong?.albums?.[0]?.id) return;
-        router.push(`/(app)/music/screens/AlbumDetail?id=${selectedSong.albums[0].id}`);
-    };
-
-    const handleGoToArtist = () => {
-        if (!selectedSong?.mainArtist?.id) return;
-        router.push(`/(app)/music/screens/ArtistDetail?id=${selectedSong.mainArtist.id}`);
     };
 
     const handleAddSongToFavorites = async (songId: number) => {
@@ -189,8 +154,6 @@ export default function FavoritesScreen() {
     const existingFavoriteSongIds = useMemo(() => {
         return favoriteSongs.map(song => song.id);
     }, [favoriteSongs]);
-
-
 
     const handleScroll = (event: any) => {
         const currentScrollY = event.nativeEvent.contentOffset.y;
