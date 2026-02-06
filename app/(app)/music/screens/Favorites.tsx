@@ -264,13 +264,13 @@ export default function FavoritesScreen() {
                         id: "go-to-album",
                         label: "Chuyển đến album",
                         icon: "disc-outline",
-                        action: () => void handleGoToAlbum(),
+                        action: handleGoToAlbum,
                     },
                     {
                         id: "go-to-artist",
                         label: "Chuyển đến nghệ sĩ",
                         icon: "person-outline",
-                        action: () => void handleGoToArtist(),
+                        action: handleGoToArtist,
                     },
                 ]}
             />

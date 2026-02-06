@@ -53,31 +53,31 @@ const getPlayerOptions = (
             id: "favorite",
             label: isFavorite(currentSong.id) ? "Xóa khỏi yêu thích" : "Thêm vào yêu thích",
             icon: isFavorite(currentSong.id) ? "heart-dislike-outline" : "heart-outline",
-            action: () => void handleToggleFavorite(),
+            action: handleToggleFavorite,
         },
         {
             id: "add-to-playlist",
             label: "Thêm vào playlist",
             icon: "add-circle-outline",
-            action: () => void handleAddToPlaylist(),
+            action: handleAddToPlaylist,
         },
         {
             id: "share",
             label: "Chia sẻ",
             icon: "share-outline",
-            action: () => void handleShare(),
+            action: handleShare,
         },
         {
             id: "go-to-album",
             label: "Chuyển đến album",
             icon: "disc-outline",
-            action: () => void handleGoToAlbum(),
+            action: handleGoToAlbum,
         },
         {
             id: "go-to-artist",
             label: "Chuyển đến nghệ sĩ",
             icon: "person-outline",
-            action: () => void handleGoToArtist(),
+            action: handleGoToArtist,
         },
     ];
 };
