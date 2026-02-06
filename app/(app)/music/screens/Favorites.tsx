@@ -36,7 +36,6 @@ export default function FavoritesScreen() {
     const [favoriteSongs, setFavoriteSongs] = useState<SongResponseWithAllAlbum[]>([]);
     const [loadingSongs, setLoadingSongs] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
-    const [, setError] = useState<string | null>(null);
     const [showOptionsModal, setShowOptionsModal] = useState(false);
     const [showAddToPlaylistModal, setShowAddToPlaylistModal] = useState(false);
     const [showAddSongModal, setShowAddSongModal] = useState(false);
@@ -62,17 +61,20 @@ export default function FavoritesScreen() {
     const loadFavoriteSongs = useCallback(async () => {
         try {
             setLoadingSongs(true);
-            setError(null);
 
             const songs = await fetchFavoriteSongs(favorites);
             setFavoriteSongs(songs);
         } catch {
-            setError("Không thể tải bài hát yêu thích");
+            showAlert({
+                type: "error",
+                title: "Lỗi",
+                message: "Không thể tải bài hát yêu thích",
+            });
             setFavoriteSongs([]);
         } finally {
             setLoadingSongs(false);
         }
-    }, [favorites]);
+    }, [favorites, showAlert]);
 
     useEffect(() => {
         loadFavoriteSongs();
@@ -256,19 +258,19 @@ export default function FavoritesScreen() {
                         id: "remove-favorite",
                         label: "Xóa khỏi yêu thích",
                         icon: "heart-dislike-outline",
-                        action: handleRemoveFavorite,
+                        action: () => void handleRemoveFavorite(),
                     },
                     {
                         id: "go-to-album",
                         label: "Chuyển đến album",
                         icon: "disc-outline",
-                        action: handleGoToAlbum,
+                        action: () => void handleGoToAlbum(),
                     },
                     {
                         id: "go-to-artist",
                         label: "Chuyển đến nghệ sĩ",
                         icon: "person-outline",
-                        action: handleGoToArtist,
+                        action: () => void handleGoToArtist(),
                     },
                 ]}
             />

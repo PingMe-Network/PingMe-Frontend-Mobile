@@ -428,19 +428,19 @@ export default function PlaylistDetailScreen() {
                             id: "add-to-playlist",
                             label: "Thêm vào danh sách phát khác",
                             icon: "add-circle-outline",
-                            action: handleAddToOtherPlaylist,
+                            action: () => void handleAddToOtherPlaylist(),
                         },
                         {
                             id: "remove",
                             label: "Xóa khỏi danh sách phát này",
                             icon: "trash-outline",
-                            action: handleRemoveSong,
+                            action: () => void handleRemoveSong(),
                         },
                         {
                             id: "go-to-artist",
                             label: "Chuyển đến nghệ sĩ",
                             icon: "person-outline",
-                            action: handleGoToArtist,
+                            action: () => void handleGoToArtist(),
                         },
                     ]}
                 />

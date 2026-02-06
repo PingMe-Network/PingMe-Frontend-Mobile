@@ -23,7 +23,7 @@ export function SongOptionsModal({
     song,
     options,
     onClose,
-}: SongOptionsModalProps) {
+}: Readonly<SongOptionsModalProps>) {
     if (!song) return null;
 
     return (

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
 import { CustomAlert, type AlertType } from "./CustomAlert";
 import { useAppSelector } from "@/features/store";
 
@@ -19,7 +19,7 @@ type AlertContextType = {
 
 const AlertContext = createContext<AlertContextType | undefined>(undefined);
 
-export function AlertProvider({ children }: { children: React.ReactNode }) {
+export function AlertProvider({ children }: Readonly<{ children: React.ReactNode }>) {
     const { mode } = useAppSelector((state) => state.theme);
     const isDark = mode === "dark";
 
@@ -56,8 +56,13 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
         hideAlert();
     }, [alertState.options, hideAlert]);
 
+    const contextValue = useMemo(
+        () => ({ showAlert, hideAlert }),
+        [showAlert, hideAlert]
+    );
+
     return (
-        <AlertContext.Provider value={{ showAlert, hideAlert }}>
+        <AlertContext.Provider value={contextValue}>
             {children}
             {alertState.options && (
                 <CustomAlert

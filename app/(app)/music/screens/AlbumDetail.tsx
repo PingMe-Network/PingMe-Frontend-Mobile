@@ -166,7 +166,7 @@ export default function AlbumDetailScreen() {
                         id: "favorite",
                         label: selectedSong && isFavorite(selectedSong.id) ? "Xóa khỏi yêu thích" : "Thêm vào yêu thích",
                         icon: selectedSong && isFavorite(selectedSong.id) ? "heart-dislike-outline" : "heart-outline",
-                        action: handleToggleFavorite,
+                        action: () => void handleToggleFavorite(),
                     },
                     {
                         id: "add-to-playlist",

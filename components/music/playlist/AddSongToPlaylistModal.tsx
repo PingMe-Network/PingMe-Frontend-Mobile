@@ -5,6 +5,8 @@ import { useState, useEffect, useMemo } from "react";
 import { songApi } from "@/services/music";
 import type { SongResponseWithAllAlbum } from "@/types/music";
 
+const ItemSeparator = () => <View className="h-1" />;
+
 type AddSongToPlaylistModalProps = {
     visible: boolean;
     isDark: boolean;
@@ -124,6 +126,13 @@ export function AddSongToPlaylistModal({
         );
     };
 
+    const getEmptyStateMessage = () => {
+        if (searchQuery.trim()) {
+            return loading ? "Đang tìm kiếm..." : "Không tìm thấy bài hát nào";
+        }
+        return "Nhập từ khóa để tìm kiếm bài hát";
+    };
+
     return (
         <Modal visible={visible} animationType="slide" transparent={false}>
             <View className={`flex-1 ${isDark ? "bg-gray-900" : "bg-white"}`}>
@@ -174,15 +183,11 @@ export function AddSongToPlaylistModal({
                         renderItem={renderSongItem}
                         keyExtractor={(item) => item.id.toString()}
                         contentContainerStyle={{ paddingVertical: 8 }}
-                        ItemSeparatorComponent={() => <View className="h-1" />}
+                        ItemSeparatorComponent={ItemSeparator}
                         ListEmptyComponent={
                             <View className="px-4 py-12">
                                 <Text className="text-gray-400 text-center text-base">
-                                    {!searchQuery.trim()
-                                        ? "Nhập từ khóa để tìm kiếm bài hát"
-                                        : loading
-                                            ? "Đang tìm kiếm..."
-                                            : "Không tìm thấy bài hát nào"}
+                                    {getEmptyStateMessage()}
                                 </Text>
                             </View>
                         }

@@ -15,6 +15,14 @@ export function PlaylistsHeader({
     onCreatePress,
     onBackPress,
 }: Readonly<PlaylistsHeaderProps>) {
+    const getPlaylistCountText = () => {
+        if (playlistCount === 0) {
+            return "Chưa có playlist nào";
+        }
+        const pluralSuffix = playlistCount > 1 ? "s" : "";
+        return `${playlistCount} playlist${pluralSuffix}`;
+    };
+
     return (
         <View className="px-4 pt-2 pb-3">
             {/* Title Row */}
@@ -56,9 +64,7 @@ export function PlaylistsHeader({
 
             {/* Playlist Count */}
             <Text className="text-sm text-gray-400">
-                {playlistCount === 0
-                    ? "Chưa có playlist nào"
-                    : `${playlistCount} playlist${playlistCount > 1 ? "s" : ""}`}
+                {getPlaylistCountText()}
             </Text>
         </View>
     );

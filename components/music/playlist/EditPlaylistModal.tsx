@@ -22,7 +22,7 @@ export function EditPlaylistModal({
     currentIsPublic,
     onClose,
     onSave,
-}: EditPlaylistModalProps) {
+}: Readonly<EditPlaylistModalProps>) {
     const { showAlert } = useAlert();
     const [name, setName] = useState(currentName);
     const [isPublic, setIsPublic] = useState(currentIsPublic);

@@ -92,8 +92,7 @@ export function PlaylistBanner({
                             color="#9ca3af"
                         />
                         <Text className="text-sm text-gray-400">
-                            {isPublic ? "Public" : "Private"} • {songCount}{" "}
-                            {songCount === 1 ? "Phút" : "Phút"}
+                            {isPublic ? "Public" : "Private"} • {songCount} Phút
                         </Text>
                     </View>
 

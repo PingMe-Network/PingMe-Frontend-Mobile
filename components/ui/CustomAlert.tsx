@@ -161,7 +161,7 @@ export function CustomAlert({
                         <TouchableOpacity
                             onPress={handleConfirm}
                             style={{ backgroundColor: config.color }}
-                            className={`${cancelText ? "flex-1" : "flex-1"} py-3 rounded-xl`}
+                            className="flex-1 py-3 rounded-xl"
                         >
                             <Text className="text-center font-semibold text-white">
                                 {confirmText}

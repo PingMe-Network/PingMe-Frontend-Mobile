@@ -21,7 +21,7 @@ export function AddToPlaylistModal({
     playlists,
     onClose,
     onAddToPlaylist,
-}: AddToPlaylistModalProps) {
+}: Readonly<AddToPlaylistModalProps>) {
     const [addingToPlaylistId, setAddingToPlaylistId] = useState<number | null>(null);
 
     const handleSelectPlaylist = async (playlistId: number) => {

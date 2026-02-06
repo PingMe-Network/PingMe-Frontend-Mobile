@@ -39,6 +39,49 @@ const getRepeatIcon = (repeatMode: "off" | "one" | "all") => {
     }
 };
 
+const getPlayerOptions = (
+    currentSong: any,
+    isFavorite: (id: number) => boolean,
+    handleToggleFavorite: () => void,
+    handleAddToPlaylist: () => void,
+    handleShare: () => void,
+    handleGoToAlbum: () => void,
+    handleGoToArtist: () => void
+) => {
+    return [
+        {
+            id: "favorite",
+            label: isFavorite(currentSong.id) ? "Xóa khỏi yêu thích" : "Thêm vào yêu thích",
+            icon: isFavorite(currentSong.id) ? "heart-dislike-outline" : "heart-outline",
+            action: () => void handleToggleFavorite(),
+        },
+        {
+            id: "add-to-playlist",
+            label: "Thêm vào playlist",
+            icon: "add-circle-outline",
+            action: () => void handleAddToPlaylist(),
+        },
+        {
+            id: "share",
+            label: "Chia sẻ",
+            icon: "share-outline",
+            action: () => void handleShare(),
+        },
+        {
+            id: "go-to-album",
+            label: "Chuyển đến album",
+            icon: "disc-outline",
+            action: () => void handleGoToAlbum(),
+        },
+        {
+            id: "go-to-artist",
+            label: "Chuyển đến nghệ sĩ",
+            icon: "person-outline",
+            action: () => void handleGoToArtist(),
+        },
+    ];
+};
+
 export const FullPlayer = () => {
     const dispatch = useAppDispatch();
     const { mode } = useAppSelector((state) => state.theme);
@@ -79,7 +122,6 @@ export const FullPlayer = () => {
     };
 
     const handleShare = () => {
-        if (!currentSong) return;
         showAlert({
             type: "info",
             title: "Chia sẻ",
@@ -92,7 +134,6 @@ export const FullPlayer = () => {
     };
 
     const handleAddSongToPlaylist = async (playlistId: number) => {
-        if (!currentSong) return;
         try {
             await addSong(playlistId, currentSong.id);
             showAlert({
@@ -110,7 +151,6 @@ export const FullPlayer = () => {
     };
 
     const handleToggleFavorite = async () => {
-        if (!currentSong) return;
         try {
             await toggleFavorite(currentSong.id);
             const action = isFavorite(currentSong.id) ? "Đã xóa khỏi" : "Đã thêm vào";
@@ -129,16 +169,28 @@ export const FullPlayer = () => {
     };
 
     const handleGoToAlbum = () => {
-        if (!currentSong?.albums?.[0]?.id) return;
+        const albumId = currentSong?.albums?.[0]?.id;
+        if (!albumId) return;
         dispatch(setPlayerMinimized(true));
-        router.push(`/(app)/music/screens/AlbumDetail?id=${currentSong.albums[0].id}`);
+        router.push(`/(app)/music/screens/AlbumDetail?id=${albumId}`);
     };
 
     const handleGoToArtist = () => {
-        if (!currentSong?.mainArtist?.id) return;
+        const artistId = currentSong?.mainArtist?.id;
+        if (!artistId) return;
         dispatch(setPlayerMinimized(true));
-        router.push(`/(app)/music/screens/ArtistDetail?id=${currentSong.mainArtist.id}`);
+        router.push(`/(app)/music/screens/ArtistDetail?id=${artistId}`);
     };
+
+    const playerOptions = getPlayerOptions(
+        currentSong,
+        isFavorite,
+        handleToggleFavorite,
+        handleAddToPlaylist,
+        handleShare,
+        handleGoToAlbum,
+        handleGoToArtist
+    );
 
     return (
         <Modal
@@ -319,52 +371,19 @@ export const FullPlayer = () => {
                     isDark={isDark}
                     song={currentSong}
                     onClose={() => setShowOptionsModal(false)}
-                    options={[
-                        {
-                            id: "favorite",
-                            label: currentSong && isFavorite(currentSong.id) ? "Xóa khỏi yêu thích" : "Thêm vào yêu thích",
-                            icon: currentSong && isFavorite(currentSong.id) ? "heart-dislike-outline" : "heart-outline",
-                            action: handleToggleFavorite,
-                        },
-                        {
-                            id: "add-to-playlist",
-                            label: "Thêm vào playlist",
-                            icon: "add-circle-outline",
-                            action: handleAddToPlaylist,
-                        },
-                        {
-                            id: "share",
-                            label: "Chia sẻ",
-                            icon: "share-outline",
-                            action: handleShare,
-                        },
-                        {
-                            id: "go-to-album",
-                            label: "Chuyển đến album",
-                            icon: "disc-outline",
-                            action: handleGoToAlbum,
-                        },
-                        {
-                            id: "go-to-artist",
-                            label: "Chuyển đến nghệ sĩ",
-                            icon: "person-outline",
-                            action: handleGoToArtist,
-                        },
-                    ]}
+                    options={playerOptions}
                 />
 
                 {/* Add to Playlist Modal */}
-                {currentSong && (
-                    <AddToPlaylistModal
-                        visible={showAddToPlaylistModal}
-                        isDark={isDark}
-                        songId={currentSong.id}
-                        songTitle={currentSong.title}
-                        playlists={playlists}
-                        onClose={() => setShowAddToPlaylistModal(false)}
-                        onAddToPlaylist={handleAddSongToPlaylist}
-                    />
-                )}
+                <AddToPlaylistModal
+                    visible={showAddToPlaylistModal}
+                    isDark={isDark}
+                    songId={currentSong.id}
+                    songTitle={currentSong.title}
+                    playlists={playlists}
+                    onClose={() => setShowAddToPlaylistModal(false)}
+                    onAddToPlaylist={handleAddSongToPlaylist}
+                />
             </View>
         </Modal>
     );
