@@ -7,7 +7,7 @@ interface SearchArtistItemProps {
     isDark: boolean;
 }
 
-export function SearchArtistItem({ artist, onPress, isDark }: SearchArtistItemProps) {
+export function SearchArtistItem({ artist, onPress, isDark }: Readonly<SearchArtistItemProps>) {
     return (
         <TouchableOpacity
             onPress={onPress}

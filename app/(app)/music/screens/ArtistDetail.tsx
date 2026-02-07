@@ -9,9 +9,8 @@ import { loadAndPlaySong, setQueue } from "@/features/slices/playerSlice";
 import { Colors } from "@/constants/Colors";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { SongList, SongOptionsModal, AddToPlaylistModal } from "@/components/music";
+import { SongList, useSongModals } from "@/components/music";
 import { useShufflePlay } from "@/hooks/useShufflePlay";
-import { useSongActions } from "@/hooks/useSongActions";
 
 export default function ArtistDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -19,18 +18,7 @@ export default function ArtistDetailScreen() {
     const { mode } = useAppSelector((state) => state.theme);
     const isDark = mode === "dark";
     const { shuffleAndPlay } = useShufflePlay();
-
-    const {
-        selectedSong,
-        showOptionsModal,
-        showAddToPlaylistModal,
-        setShowOptionsModal,
-        setShowAddToPlaylistModal,
-        handleMorePress,
-        handleAddSongToPlaylist,
-        playlists,
-        getSongOptions,
-    } = useSongActions();
+    const { handleMorePress, modalsJSX } = useSongModals({ isDark });
 
     const [artist, setArtist] = useState<ArtistResponse | null>(null);
     const [songs, setSongs] = useState<SongResponseWithAllAlbum[]>([]);
@@ -183,27 +171,7 @@ export default function ArtistDetailScreen() {
                 }
             />
 
-            {/* Song Options Modal */}
-            <SongOptionsModal
-                visible={showOptionsModal}
-                isDark={isDark}
-                song={selectedSong}
-                onClose={() => setShowOptionsModal(false)}
-                options={getSongOptions()}
-            />
-
-            {/* Add to Playlist Modal */}
-            {selectedSong && (
-                <AddToPlaylistModal
-                    visible={showAddToPlaylistModal}
-                    isDark={isDark}
-                    songId={selectedSong.id}
-                    songTitle={selectedSong.title}
-                    playlists={playlists}
-                    onClose={() => setShowAddToPlaylistModal(false)}
-                    onAddToPlaylist={handleAddSongToPlaylist}
-                />
-            )}
+            {modalsJSX}
         </SafeAreaView>
     );
 }

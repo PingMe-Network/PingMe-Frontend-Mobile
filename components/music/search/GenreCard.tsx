@@ -8,7 +8,7 @@ interface GenreCardProps {
     onPress: (genreId: number, genreName: string) => void;
 }
 
-export function GenreCard({ genreId, genreName, colors, onPress }: GenreCardProps) {
+export function GenreCard({ genreId, genreName, colors, onPress }: Readonly<GenreCardProps>) {
     const [color1, color2] = colors;
 
     return (

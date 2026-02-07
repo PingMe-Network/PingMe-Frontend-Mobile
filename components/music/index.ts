@@ -26,3 +26,4 @@ export { FavoritesHeader } from "./favorites";
 
 // Shared
 export { MusicScreenHeader } from "./shared";
+export { useSongModals } from "./shared/SongModalsWrapper";

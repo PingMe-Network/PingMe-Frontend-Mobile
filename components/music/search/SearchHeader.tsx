@@ -9,7 +9,7 @@ interface SearchHeaderProps {
     isDark: boolean;
 }
 
-export function SearchHeader({ searchQuery, onSearchChange, onClear, isDark }: SearchHeaderProps) {
+export function SearchHeader({ searchQuery, onSearchChange, onClear, isDark }: Readonly<SearchHeaderProps>) {
     return (
         <View className={`flex-row items-center px-4 py-3 ${isDark ? "bg-background-dark" : "bg-background-light"}`}>
             {/* Back Button */}

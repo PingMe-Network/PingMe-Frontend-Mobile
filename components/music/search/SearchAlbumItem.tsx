@@ -8,7 +8,7 @@ interface SearchAlbumItemProps {
     isDark: boolean;
 }
 
-export function SearchAlbumItem({ album, onPress, isDark }: SearchAlbumItemProps) {
+export function SearchAlbumItem({ album, onPress, isDark }: Readonly<SearchAlbumItemProps>) {
     return (
         <TouchableOpacity
             onPress={onPress}

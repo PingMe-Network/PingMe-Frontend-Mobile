@@ -1,17 +1,20 @@
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native";
+import { View, Text, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppSelector, useAppDispatch } from "@/features/store";
 import { useTabBarHeight } from "@/hooks/useTabBarHeight";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Ionicons } from "@expo/vector-icons";
 import { searchService } from "@/services/music";
 import type { SongResponseWithAllAlbum, AlbumResponse, ArtistResponse } from "@/types/music";
-import { SongOptionsModal, AddToPlaylistModal } from "@/components/music";
-import { SearchHeader, SearchSongItem, SearchArtistItem, SearchAlbumItem, GenreCard } from "@/components/music/search";
+import { useSongModals } from "@/components/music";
+import {
+    SearchHeader,
+    GenreCard,
+    SearchResultsSection,
+    SearchEmptyState,
+    SearchLoading
+} from "@/components/music/search";
 import { router } from "expo-router";
 import { loadAndPlaySong, setQueue, setPlayerMinimized } from "@/features/slices/playerSlice";
-import { useSongActions } from "@/hooks/useSongActions";
-import { Colors } from "@/constants/Colors";
 
 // Màu sắc cho các genre (giống Spotify)
 const GENRE_COLORS = [
@@ -51,18 +54,7 @@ export default function SearchMusicScreen() {
         albums: 5,
     });
     const ITEMS_PER_PAGE = 10;
-
-    const {
-        selectedSong,
-        showOptionsModal,
-        showAddToPlaylistModal,
-        setShowOptionsModal,
-        setShowAddToPlaylistModal,
-        handleMorePress,
-        handleAddSongToPlaylist,
-        playlists,
-        getSongOptions,
-    } = useSongActions();
+    const { handleMorePress, modalsJSX } = useSongModals({ isDark });
 
     const handleSearch = useCallback(async () => {
         if (!searchQuery.trim()) return;
@@ -89,12 +81,10 @@ export default function SearchMusicScreen() {
 
     // Auto search when user types (with debounce)
     useEffect(() => {
-        // Clear previous timeout
         if (searchTimeoutRef.current) {
             clearTimeout(searchTimeoutRef.current);
         }
 
-        // If search query is empty, reset results
         if (!searchQuery.trim()) {
             setSearchResults({ songs: [], albums: [], artists: [] });
             setHasSearched(false);
@@ -102,12 +92,10 @@ export default function SearchMusicScreen() {
             return;
         }
 
-        // Set new timeout for search
         searchTimeoutRef.current = setTimeout(() => {
             handleSearch();
-        }, 500); // Wait 500ms after user stops typing
+        }, 500);
 
-        // Cleanup
         return () => {
             if (searchTimeoutRef.current) {
                 clearTimeout(searchTimeoutRef.current);
@@ -182,121 +170,28 @@ export default function SearchMusicScreen() {
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
             >
-                {/* Loading */}
-                {searching && (
-                    <View className="items-center justify-center py-8">
-                        <ActivityIndicator size="large" color={Colors.primary} />
-                        <Text className={`mt-2 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
-                            Đang tìm kiếm...
-                        </Text>
-                    </View>
-                )}
+                {searching && <SearchLoading isDark={isDark} />}
 
-                {/* Search Results */}
                 {!searching && hasSearched && (
-                    <>
-                        {hasResults ? (
-                            <View className="px-4">
-                                {/* Songs Section */}
-                                {searchResults.songs.length > 0 && (
-                                    <View className="mb-6">
-                                        <Text className={`text-lg font-bold mb-3 ${isDark ? "text-white" : "text-gray-900"}`}>
-                                            Bài hát ({searchResults.songs.length})
-                                        </Text>
-                                        {searchResults.songs.slice(0, visibleCounts.songs).map((song, index) => (
-                                            <SearchSongItem
-                                                key={`song-${song.id}`}
-                                                song={song}
-                                                onPress={() => handleSongPress(song, index)}
-                                                onMorePress={() => handleMorePress(song)}
-                                                isDark={isDark}
-                                            />
-                                        ))}
-                                        {searchResults.songs.length > visibleCounts.songs && (
-                                            <TouchableOpacity
-                                                onPress={loadMoreSongs}
-                                                className="py-3 items-center"
-                                            >
-                                                <Text className={`text-base font-semibold ${isDark ? "text-primary" : "text-primary"}`}>
-                                                    Xem thêm {Math.min(ITEMS_PER_PAGE, searchResults.songs.length - visibleCounts.songs)} bài hát
-                                                </Text>
-                                            </TouchableOpacity>
-                                        )}
-                                    </View>
-                                )}
-
-                                {/* Artists Section */}
-                                {searchResults.artists.length > 0 && (
-                                    <View className="mb-6">
-                                        <Text className={`text-lg font-bold mb-3 ${isDark ? "text-white" : "text-gray-900"}`}>
-                                            Nghệ sĩ ({searchResults.artists.length})
-                                        </Text>
-                                        {searchResults.artists.slice(0, visibleCounts.artists).map((artist) => (
-                                            <SearchArtistItem
-                                                key={`artist-${artist.id}`}
-                                                artist={artist}
-                                                onPress={() => handleArtistPress(artist.id)}
-                                                isDark={isDark}
-                                            />
-                                        ))}
-                                        {searchResults.artists.length > visibleCounts.artists && (
-                                            <TouchableOpacity
-                                                onPress={loadMoreArtists}
-                                                className="py-3 items-center"
-                                            >
-                                                <Text className={`text-base font-semibold ${isDark ? "text-primary" : "text-primary"}`}>
-                                                    Xem thêm {Math.min(ITEMS_PER_PAGE, searchResults.artists.length - visibleCounts.artists)} nghệ sĩ
-                                                </Text>
-                                            </TouchableOpacity>
-                                        )}
-                                    </View>
-                                )}
-
-                                {/* Albums Section */}
-                                {searchResults.albums.length > 0 && (
-                                    <View className="mb-6">
-                                        <Text className={`text-lg font-bold mb-3 ${isDark ? "text-white" : "text-gray-900"}`}>
-                                            Album ({searchResults.albums.length})
-                                        </Text>
-                                        {searchResults.albums.slice(0, visibleCounts.albums).map((album) => (
-                                            <SearchAlbumItem
-                                                key={`album-${album.id}`}
-                                                album={album}
-                                                onPress={() => handleAlbumPress(album.id)}
-                                                isDark={isDark}
-                                            />
-                                        ))}
-                                        {searchResults.albums.length > visibleCounts.albums && (
-                                            <TouchableOpacity
-                                                onPress={loadMoreAlbums}
-                                                className="py-3 items-center"
-                                            >
-                                                <Text className={`text-base font-semibold ${isDark ? "text-primary" : "text-primary"}`}>
-                                                    Xem thêm {Math.min(ITEMS_PER_PAGE, searchResults.albums.length - visibleCounts.albums)} album
-                                                </Text>
-                                            </TouchableOpacity>
-                                        )}
-                                    </View>
-                                )}
-                            </View>
-                        ) : (
-                            <View className="items-center justify-center py-8 px-4">
-                                <Ionicons
-                                    name="search-outline"
-                                    size={64}
-                                    color={isDark ? "#4B5563" : "#9CA3AF"}
-                                />
-                                <Text
-                                    className={`text-lg font-semibold mt-4 ${isDark ? "text-white" : "text-gray-900"}`}
-                                >
-                                    Không tìm thấy kết quả
-                                </Text>
-                                <Text className={`text-center mt-2 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
-                                    Hãy thử với từ khóa khác
-                                </Text>
-                            </View>
-                        )}
-                    </>
+                    hasResults ? (
+                        <SearchResultsSection
+                            songs={searchResults.songs}
+                            artists={searchResults.artists}
+                            albums={searchResults.albums}
+                            visibleCounts={visibleCounts}
+                            itemsPerPage={ITEMS_PER_PAGE}
+                            isDark={isDark}
+                            onSongPress={handleSongPress}
+                            onMorePress={handleMorePress}
+                            onArtistPress={handleArtistPress}
+                            onAlbumPress={handleAlbumPress}
+                            onLoadMoreSongs={loadMoreSongs}
+                            onLoadMoreArtists={loadMoreArtists}
+                            onLoadMoreAlbums={loadMoreAlbums}
+                        />
+                    ) : (
+                        <SearchEmptyState isDark={isDark} />
+                    )
                 )}
 
                 {/* Browse All - Genres Grid */}
@@ -328,27 +223,7 @@ export default function SearchMusicScreen() {
                 )}
             </ScrollView>
 
-            {/* Song Options Modal */}
-            <SongOptionsModal
-                visible={showOptionsModal}
-                isDark={isDark}
-                song={selectedSong}
-                onClose={() => setShowOptionsModal(false)}
-                options={getSongOptions()}
-            />
-
-            {/* Add to Playlist Modal */}
-            {selectedSong && (
-                <AddToPlaylistModal
-                    visible={showAddToPlaylistModal}
-                    isDark={isDark}
-                    songId={selectedSong.id}
-                    songTitle={selectedSong.title}
-                    playlists={playlists}
-                    onClose={() => setShowAddToPlaylistModal(false)}
-                    onAddToPlaylist={handleAddSongToPlaylist}
-                />
-            )}
+            {modalsJSX}
         </SafeAreaView>
     );
 }

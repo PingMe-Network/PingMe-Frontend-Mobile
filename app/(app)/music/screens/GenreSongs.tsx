@@ -4,29 +4,17 @@ import { useAppSelector, useAppDispatch } from "@/features/store";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { searchService } from "@/services/music";
-import { SongList, MusicScreenHeader, SongOptionsModal, AddToPlaylistModal } from "@/components/music";
+import { SongList, MusicScreenHeader, useSongModals } from "@/components/music";
 import type { SongResponseWithAllAlbum } from "@/types/music";
 import { loadAndPlaySong, setQueue, setPlayerMinimized } from "@/features/slices/playerSlice";
 import { Colors } from "@/constants/Colors";
-import { useSongActions } from "@/hooks/useSongActions";
 
 export default function GenreSongsScreen() {
     const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
     const dispatch = useAppDispatch();
     const { mode } = useAppSelector((state) => state.theme);
     const isDark = mode === "dark";
-
-    const {
-        selectedSong,
-        showOptionsModal,
-        showAddToPlaylistModal,
-        setShowOptionsModal,
-        setShowAddToPlaylistModal,
-        handleMorePress,
-        handleAddSongToPlaylist,
-        playlists,
-        getSongOptions,
-    } = useSongActions();
+    const { handleMorePress, modalsJSX } = useSongModals({ isDark });
 
     const [songs, setSongs] = useState<SongResponseWithAllAlbum[]>([]);
     const [loading, setLoading] = useState(true);
@@ -79,27 +67,7 @@ export default function GenreSongsScreen() {
                 />
             )}
 
-            {/* Song Options Modal */}
-            <SongOptionsModal
-                visible={showOptionsModal}
-                isDark={isDark}
-                song={selectedSong}
-                onClose={() => setShowOptionsModal(false)}
-                options={getSongOptions()}
-            />
-
-            {/* Add to Playlist Modal */}
-            {selectedSong && (
-                <AddToPlaylistModal
-                    visible={showAddToPlaylistModal}
-                    isDark={isDark}
-                    songId={selectedSong.id}
-                    songTitle={selectedSong.title}
-                    playlists={playlists}
-                    onClose={() => setShowAddToPlaylistModal(false)}
-                    onAddToPlaylist={handleAddSongToPlaylist}
-                />
-            )}
+            {modalsJSX}
         </SafeAreaView>
     );
 }
