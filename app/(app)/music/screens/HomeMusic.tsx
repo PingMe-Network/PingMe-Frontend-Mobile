@@ -5,7 +5,6 @@ import type {
     ArtistResponse,
     SongResponseWithAllAlbum,
 } from "@/types/music";
-import type { Genre } from "@/types/music/genre";
 import type { PlaylistDto } from "@/types/music/playlist";
 import { SongCard, AlbumCard, ArtistCard, PlaylistCard } from "@/components/music";
 
@@ -20,7 +19,6 @@ interface HomeMusicProps {
     playlistsLoading: boolean;
     popularAlbums: AlbumResponse[];
     popularArtists: ArtistResponse[];
-    allGenres: Genre[];
     onSongPress: (song: SongResponseWithAllAlbum, index: number) => void;
 }
 
@@ -33,7 +31,6 @@ export function HomeMusic({
     playlistsLoading,
     popularAlbums,
     popularArtists,
-    allGenres,
     onSongPress,
 }: Readonly<HomeMusicProps>) {
     const router = useRouter();
@@ -181,28 +178,6 @@ export function HomeMusic({
                             ))}
                         </View>
                     </ScrollView>
-                </View>
-            )}
-
-            {activeFilter === "all" && allGenres.length > 0 && (
-                <View className="mt-6 px-4">
-                    <Text
-                        className={`text-xl font-bold mb-3 ${isDark ? "text-white" : "text-gray-900"}`}
-                    >
-                        Browse by Genre
-                    </Text>
-                    <View className="flex-row flex-wrap gap-2">
-                        {allGenres.map((genre) => (
-                            <TouchableOpacity
-                                key={genre.id}
-                                className={`px-4 py-2 rounded-full ${isDark ? "bg-gray-800" : "bg-gray-200"}`}
-                            >
-                                <Text className={isDark ? "text-white" : "text-gray-900"}>
-                                    {genre.name}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
                 </View>
             )}
         </>

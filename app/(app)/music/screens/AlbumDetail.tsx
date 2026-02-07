@@ -25,13 +25,9 @@ export default function AlbumDetailScreen() {
         setShowOptionsModal,
         setShowAddToPlaylistModal,
         handleMorePress,
-        handleShare,
-        handleAddToPlaylist,
         handleAddSongToPlaylist,
-        handleToggleFavorite,
-        handleGoToArtist,
-        isFavorite,
         playlists,
+        getSongOptions,
     } = useSongActions();
 
     const [songs, setSongs] = useState<SongResponseWithAllAlbum[]>([]);
@@ -46,9 +42,18 @@ export default function AlbumDetailScreen() {
                 setLoading(true);
                 const albumSongs = await searchService.getSongsByAlbum(Number(id));
                 setSongs(albumSongs);
-                // Get album info from first song
-                if (albumSongs.length > 0 && albumSongs[0].albums?.[0]) {
-                    setAlbum(albumSongs[0].albums[0]);
+
+                // Get album info from first song - support both 'albums' and 'album'
+                if (albumSongs.length > 0) {
+                    const firstSong = albumSongs[0] as any;
+                    const albumData = firstSong.albums || firstSong.album;
+
+                    // Handle both array and single object
+                    if (Array.isArray(albumData) && albumData.length > 0) {
+                        setAlbum(albumData[0]);
+                    } else if (albumData && typeof albumData === 'object') {
+                        setAlbum(albumData);
+                    }
                 }
             } catch {
                 // Error loading album
@@ -109,32 +114,7 @@ export default function AlbumDetailScreen() {
                 isDark={isDark}
                 song={selectedSong}
                 onClose={() => setShowOptionsModal(false)}
-                options={[
-                    {
-                        id: "favorite",
-                        label: selectedSong && isFavorite(selectedSong.id) ? "Xóa khỏi yêu thích" : "Thêm vào yêu thích",
-                        icon: selectedSong && isFavorite(selectedSong.id) ? "heart-dislike-outline" : "heart-outline",
-                        action: () => void handleToggleFavorite(),
-                    },
-                    {
-                        id: "add-to-playlist",
-                        label: "Thêm vào playlist",
-                        icon: "add-circle-outline",
-                        action: handleAddToPlaylist,
-                    },
-                    {
-                        id: "share",
-                        label: "Chia sẻ",
-                        icon: "share-outline",
-                        action: handleShare,
-                    },
-                    {
-                        id: "go-to-artist",
-                        label: "Chuyển đến nghệ sĩ",
-                        icon: "person-outline",
-                        action: handleGoToArtist,
-                    },
-                ]}
+                options={getSongOptions().filter(option => option.id !== "go-to-album")}
             />
 
             {/* Add to Playlist Modal */}

@@ -9,7 +9,7 @@ import { loadAndPlaySong, setQueue } from "@/features/slices/playerSlice";
 import { Colors } from "@/constants/Colors";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { SongList } from "@/components/music";
+import { SongList, useSongModals } from "@/components/music";
 import { useShufflePlay } from "@/hooks/useShufflePlay";
 
 export default function ArtistDetailScreen() {
@@ -18,6 +18,7 @@ export default function ArtistDetailScreen() {
     const { mode } = useAppSelector((state) => state.theme);
     const isDark = mode === "dark";
     const { shuffleAndPlay } = useShufflePlay();
+    const { handleMorePress, modalsJSX } = useSongModals({ isDark });
 
     const [artist, setArtist] = useState<ArtistResponse | null>(null);
     const [songs, setSongs] = useState<SongResponseWithAllAlbum[]>([]);
@@ -110,6 +111,7 @@ export default function ArtistDetailScreen() {
             <SongList
                 songs={songs}
                 onSongPress={handleSongPress}
+                onMorePress={handleMorePress}
                 variant="list"
                 showAlbum={false}
                 emptyMessage="Chưa có bài hát"
@@ -168,6 +170,8 @@ export default function ArtistDetailScreen() {
                     </View>
                 }
             />
+
+            {modalsJSX}
         </SafeAreaView>
     );
 }
