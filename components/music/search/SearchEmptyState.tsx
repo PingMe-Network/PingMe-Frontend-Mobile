@@ -5,7 +5,7 @@ interface SearchEmptyStateProps {
     isDark: boolean;
 }
 
-export function SearchEmptyState({ isDark }: SearchEmptyStateProps) {
+export function SearchEmptyState({ isDark }: Readonly<SearchEmptyStateProps>) {
     return (
         <View className="items-center justify-center py-8 px-4">
             <Ionicons

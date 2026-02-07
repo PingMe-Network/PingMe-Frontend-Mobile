@@ -5,7 +5,7 @@ interface SearchLoadingProps {
     isDark: boolean;
 }
 
-export function SearchLoading({ isDark }: SearchLoadingProps) {
+export function SearchLoading({ isDark }: Readonly<SearchLoadingProps>) {
     return (
         <View className="items-center justify-center py-8">
             <ActivityIndicator size="large" color={Colors.primary} />

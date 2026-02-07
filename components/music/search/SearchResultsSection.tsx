@@ -39,7 +39,7 @@ export function SearchResultsSection({
     onLoadMoreSongs,
     onLoadMoreArtists,
     onLoadMoreAlbums,
-}: SearchResultsSectionProps) {
+}: Readonly<SearchResultsSectionProps>) {
     return (
         <View className="px-4">
             {/* Songs Section */}

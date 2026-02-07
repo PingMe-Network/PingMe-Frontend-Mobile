@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity } from "react-native";
+import { Text, TouchableOpacity } from "react-native";
 
 interface LoadMoreButtonProps {
     onPress: () => void;
@@ -7,7 +7,7 @@ interface LoadMoreButtonProps {
     label: string;
 }
 
-export function LoadMoreButton({ onPress, remainingCount, itemsPerPage, label }: LoadMoreButtonProps) {
+export function LoadMoreButton({ onPress, remainingCount, itemsPerPage, label }: Readonly<LoadMoreButtonProps>) {
     const count = Math.min(itemsPerPage, remainingCount);
 
     return (
