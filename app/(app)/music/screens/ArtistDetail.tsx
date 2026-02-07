@@ -9,8 +9,9 @@ import { loadAndPlaySong, setQueue } from "@/features/slices/playerSlice";
 import { Colors } from "@/constants/Colors";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { SongList } from "@/components/music";
+import { SongList, SongOptionsModal, AddToPlaylistModal } from "@/components/music";
 import { useShufflePlay } from "@/hooks/useShufflePlay";
+import { useSongActions } from "@/hooks/useSongActions";
 
 export default function ArtistDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -18,6 +19,18 @@ export default function ArtistDetailScreen() {
     const { mode } = useAppSelector((state) => state.theme);
     const isDark = mode === "dark";
     const { shuffleAndPlay } = useShufflePlay();
+
+    const {
+        selectedSong,
+        showOptionsModal,
+        showAddToPlaylistModal,
+        setShowOptionsModal,
+        setShowAddToPlaylistModal,
+        handleMorePress,
+        handleAddSongToPlaylist,
+        playlists,
+        getSongOptions,
+    } = useSongActions();
 
     const [artist, setArtist] = useState<ArtistResponse | null>(null);
     const [songs, setSongs] = useState<SongResponseWithAllAlbum[]>([]);
@@ -110,6 +123,7 @@ export default function ArtistDetailScreen() {
             <SongList
                 songs={songs}
                 onSongPress={handleSongPress}
+                onMorePress={handleMorePress}
                 variant="list"
                 showAlbum={false}
                 emptyMessage="Chưa có bài hát"
@@ -168,6 +182,28 @@ export default function ArtistDetailScreen() {
                     </View>
                 }
             />
+
+            {/* Song Options Modal */}
+            <SongOptionsModal
+                visible={showOptionsModal}
+                isDark={isDark}
+                song={selectedSong}
+                onClose={() => setShowOptionsModal(false)}
+                options={getSongOptions()}
+            />
+
+            {/* Add to Playlist Modal */}
+            {selectedSong && (
+                <AddToPlaylistModal
+                    visible={showAddToPlaylistModal}
+                    isDark={isDark}
+                    songId={selectedSong.id}
+                    songTitle={selectedSong.title}
+                    playlists={playlists}
+                    onClose={() => setShowAddToPlaylistModal(false)}
+                    onAddToPlaylist={handleAddSongToPlaylist}
+                />
+            )}
         </SafeAreaView>
     );
 }

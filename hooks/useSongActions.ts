@@ -73,17 +73,116 @@ export function useSongActions() {
   };
 
   const handleGoToAlbum = () => {
-    if (!selectedSong?.albums?.[0]?.id) return;
-    router.push(
-      `/(app)/music/screens/AlbumDetail?id=${selectedSong.albums[0].id}`,
-    );
+    if (!selectedSong) return;
+
+    const songData = selectedSong as any;
+    const albumId = songData.album?.id || songData.albums?.id;
+
+    if (!albumId) {
+      showAlert({
+        type: "info",
+        title: "Thông báo",
+        message: "Bài hát này không có album",
+      });
+      return;
+    }
+
+    setShowOptionsModal(false);
+    router.push(`/(app)/music/screens/AlbumDetail?id=${albumId}`);
   };
 
   const handleGoToArtist = () => {
-    if (!selectedSong?.mainArtist?.id) return;
+    if (!selectedSong) return;
+
+    if (!selectedSong.mainArtist?.id) {
+      showAlert({
+        type: "info",
+        title: "Thông báo",
+        message: "Bài hát này không có thông tin nghệ sĩ",
+      });
+      return;
+    }
+
+    setShowOptionsModal(false);
     router.push(
       `/(app)/music/screens/ArtistDetail?id=${selectedSong.mainArtist.id}`,
     );
+  };
+
+  // Standard song options
+  const getSongOptions = (variant: "default" | "favorites" = "default") => {
+    if (variant === "favorites") {
+      return [
+        {
+          id: "share",
+          label: "Chia sẻ",
+          icon: "share-outline" as const,
+          action: handleShare,
+        },
+        {
+          id: "add-to-playlist",
+          label: "Thêm vào playlist",
+          icon: "add-circle-outline" as const,
+          action: handleAddToPlaylist,
+        },
+        {
+          id: "remove-favorite",
+          label: "Xóa khỏi yêu thích",
+          icon: "heart-dislike-outline" as const,
+          action: handleToggleFavorite,
+        },
+        {
+          id: "go-to-album",
+          label: "Chuyển đến album",
+          icon: "disc-outline" as const,
+          action: handleGoToAlbum,
+        },
+        {
+          id: "go-to-artist",
+          label: "Chuyển đến nghệ sĩ",
+          icon: "person-outline" as const,
+          action: handleGoToArtist,
+        },
+      ];
+    }
+
+    // Default variant
+    return [
+      {
+        id: "share",
+        label: "Chia sẻ",
+        icon: "share-outline" as const,
+        action: handleShare,
+      },
+      {
+        id: "add-to-playlist",
+        label: "Thêm vào playlist",
+        icon: "add-circle-outline" as const,
+        action: handleAddToPlaylist,
+      },
+      {
+        id: "favorite",
+        label: isFavorite(selectedSong?.id || 0)
+          ? "Xóa khỏi yêu thích"
+          : "Thêm vào yêu thích",
+        icon: isFavorite(selectedSong?.id || 0)
+          ? ("heart-dislike-outline" as const)
+          : ("heart-outline" as const),
+        action: handleToggleFavorite,
+      },
+      {
+        id: "go-to-album",
+        label: "Chuyển đến album",
+        icon: "disc-outline" as const,
+        action: handleGoToAlbum,
+      },
+      {
+        id: "go-to-artist",
+        label: "Chuyển đến nghệ sĩ",
+        icon: "person-outline" as const,
+        action: handleGoToArtist,
+      },
+    ];
   };
 
   return {
@@ -101,5 +200,6 @@ export function useSongActions() {
     handleGoToArtist,
     isFavorite,
     playlists,
+    getSongOptions,
   };
 }

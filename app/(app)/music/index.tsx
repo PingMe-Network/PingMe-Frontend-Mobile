@@ -16,7 +16,7 @@ export default function MusicScreen() {
   const isDark = mode === "dark";
   const tabBarHeight = useTabBarHeight();
 
-  const { topSongs, popularAlbums, popularArtists, allGenres, loading } =
+  const { topSongs, popularAlbums, popularArtists, loading } =
     useAppSelector((state) => state.music);
 
   const [refreshing, setRefreshing] = useState(false);
@@ -36,7 +36,7 @@ export default function MusicScreen() {
   const handleSongPress = (song: any, index: number) => {
     dispatch(setQueue({ songs: topSongs, startIndex: index }));
     dispatch(loadAndPlaySong(song));
-    dispatch(setPlayerMinimized(true)); // Show MiniPlayer
+    dispatch(setPlayerMinimized(true));
   };
 
   const filters: { key: string; label: string; route?: string }[] = [
@@ -75,6 +75,7 @@ export default function MusicScreen() {
               <TouchableOpacity
                 className={`h-10 w-10 items-center justify-center rounded-full ${isDark ? "bg-gray-800" : "bg-gray-200"
                   }`}
+                onPress={() => router.push("/(app)/music/screens/SearchMusic")}
               >
                 <Ionicons
                   name="search"
@@ -137,7 +138,6 @@ export default function MusicScreen() {
             playlistsLoading={false}
             popularAlbums={popularAlbums}
             popularArtists={popularArtists}
-            allGenres={allGenres}
             onSongPress={handleSongPress}
           />
 

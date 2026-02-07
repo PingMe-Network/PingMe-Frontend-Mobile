@@ -4,19 +4,17 @@ import { useAppSelector, useAppDispatch } from "@/features/store";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { searchService } from "@/services/music";
-import { SongList, AlbumHeader, SongOptionsModal, AddToPlaylistModal } from "@/components/music";
+import { SongList, MusicScreenHeader, SongOptionsModal, AddToPlaylistModal } from "@/components/music";
 import type { SongResponseWithAllAlbum } from "@/types/music";
-import { loadAndPlaySong, setQueue } from "@/features/slices/playerSlice";
+import { loadAndPlaySong, setQueue, setPlayerMinimized } from "@/features/slices/playerSlice";
 import { Colors } from "@/constants/Colors";
-import { useShufflePlay } from "@/hooks/useShufflePlay";
 import { useSongActions } from "@/hooks/useSongActions";
 
-export default function AlbumDetailScreen() {
-    const { id } = useLocalSearchParams<{ id: string }>();
+export default function GenreSongsScreen() {
+    const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
     const dispatch = useAppDispatch();
     const { mode } = useAppSelector((state) => state.theme);
     const isDark = mode === "dark";
-    const { shuffleAndPlay } = useShufflePlay();
 
     const {
         selectedSong,
@@ -32,57 +30,40 @@ export default function AlbumDetailScreen() {
 
     const [songs, setSongs] = useState<SongResponseWithAllAlbum[]>([]);
     const [loading, setLoading] = useState(true);
-    const [album, setAlbum] = useState<any>(null);
 
     useEffect(() => {
         if (!id) return;
 
-        const loadAlbumData = async () => {
+        const loadGenreSongs = async () => {
             try {
                 setLoading(true);
-                const albumSongs = await searchService.getSongsByAlbum(Number(id));
-                setSongs(albumSongs);
-
-                // Get album info from first song - support both 'albums' and 'album'
-                if (albumSongs.length > 0) {
-                    const firstSong = albumSongs[0] as any;
-                    const albumData = firstSong.albums || firstSong.album;
-
-                    // Handle both array and single object
-                    if (Array.isArray(albumData) && albumData.length > 0) {
-                        setAlbum(albumData[0]);
-                    } else if (albumData && typeof albumData === 'object') {
-                        setAlbum(albumData);
-                    }
-                }
-            } catch {
-                // Error loading album
+                const genreSongs = await searchService.getSongsByGenre(Number(id));
+                setSongs(genreSongs);
+            } catch (error) {
+                console.error("Error loading genre songs:", error);
             } finally {
                 setLoading(false);
             }
         };
 
-        loadAlbumData();
+        loadGenreSongs();
     }, [id]);
 
     const handleSongPress = (song: SongResponseWithAllAlbum, index: number) => {
         dispatch(setQueue({ songs, startIndex: index }));
         dispatch(loadAndPlaySong(song));
+        dispatch(setPlayerMinimized(true));
     };
-
-    const handlePlayAll = () => {
-        if (songs.length === 0) return;
-        dispatch(setQueue({ songs, startIndex: 0 }));
-        dispatch(loadAndPlaySong(songs[0]));
-    };
-
-    const coverImageUrl = songs[0]?.coverImageUrl;
-    const artistName = songs[0]?.mainArtist?.name;
 
     return (
         <SafeAreaView
             className={`flex-1 ${isDark ? "bg-background-dark" : "bg-background-light"}`}
         >
+            <MusicScreenHeader
+                title={name || "Thể loại"}
+                isDark={isDark}
+            />
+
             {loading ? (
                 <View className="flex-1 items-center justify-center">
                     <ActivityIndicator size="large" color={Colors.primary} />
@@ -90,21 +71,11 @@ export default function AlbumDetailScreen() {
             ) : (
                 <SongList
                     songs={songs}
+                    loading={false}
+                    variant="list"
+                    emptyMessage="Không có bài hát nào trong thể loại này"
                     onSongPress={handleSongPress}
                     onMorePress={handleMorePress}
-                    variant="list"
-                    showAlbum={false}
-                    listHeaderComponent={
-                        <AlbumHeader
-                            isDark={isDark}
-                            coverImageUrl={coverImageUrl}
-                            albumTitle={album?.title || "Album"}
-                            artistName={artistName}
-                            songCount={songs.length}
-                            onShufflePlay={() => shuffleAndPlay(songs)}
-                            onPlayAll={handlePlayAll}
-                        />
-                    }
                 />
             )}
 
@@ -114,7 +85,7 @@ export default function AlbumDetailScreen() {
                 isDark={isDark}
                 song={selectedSong}
                 onClose={() => setShowOptionsModal(false)}
-                options={getSongOptions().filter(option => option.id !== "go-to-album")}
+                options={getSongOptions()}
             />
 
             {/* Add to Playlist Modal */}

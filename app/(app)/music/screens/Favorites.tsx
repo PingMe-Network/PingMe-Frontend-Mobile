@@ -39,12 +39,9 @@ export default function FavoritesScreen() {
         setShowOptionsModal,
         setShowAddToPlaylistModal,
         handleMorePress,
-        handleShare,
-        handleAddToPlaylist,
         handleAddSongToPlaylist,
-        handleGoToAlbum,
-        handleGoToArtist,
         playlists,
+        getSongOptions,
     } = useSongActions();
 
     const [favoriteSongs, setFavoriteSongs] = useState<SongResponseWithAllAlbum[]>([]);
@@ -204,38 +201,11 @@ export default function FavoritesScreen() {
                 isDark={isDark}
                 song={selectedSong}
                 onClose={() => setShowOptionsModal(false)}
-                options={[
-                    {
-                        id: "share",
-                        label: "Chia sẻ",
-                        icon: "share-outline",
-                        action: handleShare,
-                    },
-                    {
-                        id: "add-to-playlist",
-                        label: "Thêm vào playlist",
-                        icon: "add-circle-outline",
-                        action: handleAddToPlaylist,
-                    },
-                    {
-                        id: "remove-favorite",
-                        label: "Xóa khỏi yêu thích",
-                        icon: "heart-dislike-outline",
-                        action: () => void handleRemoveFavorite(),
-                    },
-                    {
-                        id: "go-to-album",
-                        label: "Chuyển đến album",
-                        icon: "disc-outline",
-                        action: handleGoToAlbum,
-                    },
-                    {
-                        id: "go-to-artist",
-                        label: "Chuyển đến nghệ sĩ",
-                        icon: "person-outline",
-                        action: handleGoToArtist,
-                    },
-                ]}
+                options={getSongOptions("favorites").map(option =>
+                    option.id === "remove-favorite"
+                        ? { ...option, action: () => void handleRemoveFavorite() }
+                        : option
+                )}
             />
 
             {/* Add to Playlist Modal */}
