@@ -1,5 +1,5 @@
-import { AddToPlaylistModal } from "./playlist/AddToPlaylistModal";
-import CreatePlaylistModal from "./playlist/CreatePlaylistModal";
+import { AddToPlaylistModal } from "./AddToPlaylistModal";
+import CreatePlaylistModal from "./CreatePlaylistModal";
 
 type PlaylistModalsWrapperProps = {
     isDark: boolean;

@@ -16,7 +16,9 @@ import {
 import { useState } from "react";
 import { Colors } from "@/constants/Colors";
 import { router } from "expo-router";
-import { SongOptionsModal, AddToPlaylistModal, CreatePlaylistModal } from "@/components/music";
+import { SongOptionsModal } from "../song/SongOptionsModal";
+import { AddToPlaylistModal } from "../playlist/AddToPlaylistModal";
+import CreatePlaylistModal from "../playlist/CreatePlaylistModal";
 import { useFavorites } from "@/hooks/useFavorites";
 import { usePlaylists } from "@/hooks/usePlaylists";
 import { useAlert } from "@/components/ui/AlertProvider";
