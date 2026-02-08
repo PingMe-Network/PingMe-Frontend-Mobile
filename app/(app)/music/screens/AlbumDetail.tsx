@@ -4,12 +4,13 @@ import { useAppSelector, useAppDispatch } from "@/features/store";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { searchService } from "@/services/music";
-import { SongList, AlbumHeader, SongOptionsModal, AddToPlaylistModal } from "@/components/music";
+import { SongList, AlbumHeader, SongOptionsModal, AddToPlaylistModal, CreatePlaylistModal } from "@/components/music";
 import type { SongResponseWithAllAlbum } from "@/types/music";
 import { loadAndPlaySong, setQueue } from "@/features/slices/playerSlice";
 import { Colors } from "@/constants/Colors";
 import { useShufflePlay } from "@/hooks/useShufflePlay";
 import { useSongActions } from "@/hooks/useSongActions";
+import { usePlaylists } from "@/hooks/usePlaylists";
 
 export default function AlbumDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -17,6 +18,7 @@ export default function AlbumDetailScreen() {
     const { mode } = useAppSelector((state) => state.theme);
     const isDark = mode === "dark";
     const { shuffleAndPlay } = useShufflePlay();
+    const { create } = usePlaylists();
 
     const {
         selectedSong,
@@ -33,6 +35,7 @@ export default function AlbumDetailScreen() {
     const [songs, setSongs] = useState<SongResponseWithAllAlbum[]>([]);
     const [loading, setLoading] = useState(true);
     const [album, setAlbum] = useState<any>(null);
+    const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
 
     useEffect(() => {
         if (!id) return;
@@ -56,7 +59,8 @@ export default function AlbumDetailScreen() {
                     }
                 }
             } catch {
-                // Error loading album
+                setSongs([]);
+                setAlbum(null);
             } finally {
                 setLoading(false);
             }
@@ -127,8 +131,35 @@ export default function AlbumDetailScreen() {
                     playlists={playlists}
                     onClose={() => setShowAddToPlaylistModal(false)}
                     onAddToPlaylist={handleAddSongToPlaylist}
+                    onCreatePlaylist={() => {
+                        setShowAddToPlaylistModal(false);
+                        setShowCreatePlaylistModal(true);
+                    }}
                 />
             )}
+
+            {/* Create Playlist Modal */}
+            <CreatePlaylistModal
+                visible={showCreatePlaylistModal}
+                onClose={() => setShowCreatePlaylistModal(false)}
+                onCreate={async (name) => {
+                    if (!selectedSong) return;
+
+                    try {
+                        // Tạo playlist mới và lấy playlist vừa tạo
+                        const newPlaylist = await create(name, false);
+
+                        if (newPlaylist) {
+                            // Thêm bài hát vào playlist mới
+                            await handleAddSongToPlaylist(newPlaylist.id);
+                        }
+
+                        setShowCreatePlaylistModal(false);
+                    } catch {
+                        // Error alert is handled by handleAddSongToPlaylist
+                    }
+                }}
+            />
         </SafeAreaView>
     );
 }

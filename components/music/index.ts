@@ -13,6 +13,7 @@ export {
   AddSongToPlaylistModal,
   EditPlaylistModal,
   AddToPlaylistModal,
+  PlaylistModalsWrapper,
 } from "./playlist";
 
 // Song

@@ -1,12 +1,14 @@
 import { View, Text, TouchableOpacity, TextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/Colors";
+import { PlaylistCover } from "./PlaylistCover";
 
 export type PlaylistBannerProps = {
     isDark: boolean;
     playlistName: string;
     isPublic: boolean;
     songCount: number;
+    coverImages?: (string | null | undefined)[];
     searchQuery?: string;
     onSearchChange?: (text: string) => void;
     onClearSearch?: () => void;
@@ -25,6 +27,7 @@ export function PlaylistBanner({
     playlistName,
     isPublic,
     songCount,
+    coverImages = [],
     searchQuery,
     onSearchChange,
     onClearSearch,
@@ -68,12 +71,7 @@ export function PlaylistBanner({
                 <>
                     {/* Playlist Cover */}
                     <View className="items-center mb-4">
-                        <View
-                            className={`w-48 h-48 rounded-lg items-center justify-center shadow-lg ${isDark ? "bg-gray-700" : "bg-gray-300"
-                                }`}
-                        >
-                            <Ionicons name="musical-notes" size={80} color={Colors.primary} />
-                        </View>
+                        <PlaylistCover coverImages={coverImages} size={192} isDark={isDark} />
                     </View>
 
                     {/* Playlist Name */}

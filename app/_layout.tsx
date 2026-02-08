@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { Provider } from "react-redux";
 import { View, ActivityIndicator } from "react-native";
 import { PersistGate } from "redux-persist/integration/react";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import {
   store,
   persistor,
@@ -99,9 +100,11 @@ export default function RootLayout() {
           </View>
         }
       >
-        <AlertProvider>
-          <RootLayoutNav />
-        </AlertProvider>
+        <SafeAreaProvider>
+          <AlertProvider>
+            <RootLayoutNav />
+          </AlertProvider>
+        </SafeAreaProvider>
       </PersistGate>
     </Provider>
   );

@@ -5,9 +5,12 @@ import {
   fetchPlaylistDetail,
   createPlaylist,
   updatePlaylist,
+  deletePlaylist,
   addSongToPlaylist,
   removeSongFromPlaylist,
 } from "@/features/slices/playlistSlice";
+import { invalidatePlaylistCache } from "@/features/slices/playlistCoversSlice";
+import type { PlaylistDto } from "@/types/music/playlist";
 
 /**
  * Hook for managing playlists
@@ -31,11 +34,14 @@ export const usePlaylists = () => {
   };
 
   const create = async (name: string, isPublic: boolean = false) => {
-    await dispatch(createPlaylist({ name, isPublic }));
+    const result = await dispatch(createPlaylist({ name, isPublic }));
+    return result.payload as PlaylistDto;
   };
 
   const addSong = async (playlistId: number, songId: number) => {
     await dispatch(addSongToPlaylist({ playlistId, songId }));
+    // Invalidate cache vì playlist đã thay đổi
+    dispatch(invalidatePlaylistCache(playlistId));
   };
 
   const update = async (
@@ -43,10 +49,19 @@ export const usePlaylists = () => {
     data: { name?: string; isPublic?: boolean },
   ) => {
     await dispatch(updatePlaylist({ playlistId, data }));
+    // Không cần invalidate cache vì chỉ đổi tên/privacy, không đổi songs
   };
 
   const removeSong = async (playlistId: number, songId: number) => {
     await dispatch(removeSongFromPlaylist({ playlistId, songId }));
+    // Invalidate cache vì playlist đã thay đổi
+    dispatch(invalidatePlaylistCache(playlistId));
+  };
+
+  const deletePlaylistById = async (playlistId: number) => {
+    await dispatch(deletePlaylist(playlistId));
+    // Invalidate cache vì playlist đã bị xóa
+    dispatch(invalidatePlaylistCache(playlistId));
   };
 
   const refetch = async () => {
@@ -64,6 +79,7 @@ export const usePlaylists = () => {
     update,
     addSong,
     removeSong,
+    deletePlaylistById,
     refetch,
   };
 };

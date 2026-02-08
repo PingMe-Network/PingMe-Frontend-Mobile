@@ -5,3 +5,5 @@ export { default as CreatePlaylistModal } from "./CreatePlaylistModal";
 export { AddSongToPlaylistModal } from "./AddSongToPlaylistModal";
 export { EditPlaylistModal } from "./EditPlaylistModal";
 export { AddToPlaylistModal } from "./AddToPlaylistModal";
+export { PlaylistCover } from "./PlaylistCover";
+export { PlaylistModalsWrapper } from "./PlaylistModalsWrapper";

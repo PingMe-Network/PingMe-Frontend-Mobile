@@ -2,12 +2,14 @@ import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { PlaylistDto } from "@/types/music/playlist";
 import { useAppSelector } from "@/features/store";
+import { PlaylistCover } from "./PlaylistCover";
 
 interface PlaylistCardProps {
     playlist: PlaylistDto;
     onPress?: () => void;
     onMorePress?: () => void;
     variant?: "default" | "compact";
+    coverImages?: (string | null | undefined)[];
 }
 
 const PlaylistIcon = ({ size, isDark }: { size: number; isDark: boolean }) => {
@@ -57,6 +59,7 @@ export const PlaylistCard = ({
     onPress,
     onMorePress,
     variant = "default",
+    coverImages = [],
 }: PlaylistCardProps) => {
     const { mode } = useAppSelector((state) => state.theme);
     const isDark = mode === "dark";
@@ -69,7 +72,7 @@ export const PlaylistCard = ({
                     }`}
                 activeOpacity={0.7}
             >
-                <PlaylistIcon size={12} isDark={isDark} />
+                <PlaylistCover coverImages={coverImages} size={48} isDark={isDark} />
                 <View className="flex-1 ml-3">
                     <Text
                         className={`font-semibold ${isDark ? "text-white" : "text-gray-900"}`}
@@ -81,7 +84,7 @@ export const PlaylistCard = ({
                 </View>
                 {onMorePress && (
                     <TouchableOpacity onPress={onMorePress} className="p-2">
-                        <Ionicons name="ellipsis-vertical" size={20} color="#9ca3af" />
+                        <Ionicons name="trash-outline" size={15} color="#ef4444" />
                     </TouchableOpacity>
                 )}
             </TouchableOpacity>
@@ -96,10 +99,10 @@ export const PlaylistCard = ({
             activeOpacity={0.8}
         >
             <View className="flex-row items-start justify-between mb-3">
-                <PlaylistIcon size={16} isDark={isDark} />
+                <PlaylistCover coverImages={coverImages} size={64} isDark={isDark} />
                 {onMorePress && (
                     <TouchableOpacity onPress={onMorePress} className="p-1">
-                        <Ionicons name="ellipsis-horizontal" size={24} color="#9ca3af" />
+                        <Ionicons name="trash-outline" size={24} color="#ef4444" />
                     </TouchableOpacity>
                 )}
             </View>

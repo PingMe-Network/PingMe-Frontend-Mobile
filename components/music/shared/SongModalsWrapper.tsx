@@ -1,4 +1,5 @@
-import { SongOptionsModal, AddToPlaylistModal } from "@/components/music";
+import { SongOptionsModal } from "../song/SongOptionsModal";
+import { AddToPlaylistModal } from "../playlist/AddToPlaylistModal";
 import { useSongActions } from "@/hooks/useSongActions";
 
 interface SongModalsProps {

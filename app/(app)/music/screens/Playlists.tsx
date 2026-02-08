@@ -1,19 +1,26 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { View, Text, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppSelector } from "@/features/store";
 import { usePlaylists } from "@/hooks/usePlaylists";
+import { usePlaylistCovers } from "@/hooks/usePlaylistCovers";
 import { PlaylistCard, PlaylistsHeader, CreatePlaylistModal } from "@/components/music";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useTabBarHeight } from "@/hooks/useTabBarHeight";
+import { useAlert } from "@/components/ui/AlertProvider";
 
 export default function PlaylistsScreen() {
     const { mode } = useAppSelector((state) => state.theme);
     const isDark = mode === "dark";
-    const { playlists, create } = usePlaylists();
+    const { playlists, create, deletePlaylistById } = usePlaylists();
+    const { showAlert } = useAlert();
     const [showCreateModal, setShowCreateModal] = useState(false);
     const tabBarHeight = useTabBarHeight();
+
+    // ✨ Load cover images cho tất cả playlists
+    const playlistIds = useMemo(() => playlists.map(p => p.id), [playlists]);
+    const { coverImagesMap } = usePlaylistCovers(playlistIds);
 
     const handleCreatePlaylist = async (playlistName: string) => {
         // Default is private (isPublic = false)
@@ -23,6 +30,27 @@ export default function PlaylistsScreen() {
 
     const handleOpenCreateModal = () => {
         setShowCreateModal(true);
+    };
+
+    const handleDeletePlaylist = (playlistId: number, playlistName: string) => {
+        showAlert({
+            type: "warning",
+            title: "Xóa playlist",
+            message: `Bạn có chắc chắn muốn xóa playlist "${playlistName}"? Hành động này không thể hoàn tác.`,
+            confirmText: "Xóa",
+            cancelText: "Hủy",
+            onConfirm: async () => {
+                try {
+                    await deletePlaylistById(playlistId);
+                } catch {
+                    showAlert({
+                        type: "error",
+                        title: "Lỗi",
+                        message: "Không thể xóa playlist. Vui lòng thử lại.",
+                    });
+                }
+            },
+        });
     };
 
     return (
@@ -55,8 +83,12 @@ export default function PlaylistsScreen() {
                         <PlaylistCard
                             playlist={item}
                             variant="compact"
+                            coverImages={coverImagesMap[item.id] || []}
                             onPress={() => {
                                 router.push(`/(app)/music/screens/PlaylistDetail?id=${item.id}`);
+                            }}
+                            onMorePress={() => {
+                                handleDeletePlaylist(item.id, item.name);
                             }}
                         />
                     </View>

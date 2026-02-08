@@ -183,3 +183,5 @@ export function HomeMusic({
         </>
     );
 }
+
+export default HomeMusic;

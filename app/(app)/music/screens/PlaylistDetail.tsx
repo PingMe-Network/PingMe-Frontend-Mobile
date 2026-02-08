@@ -3,7 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppSelector, useAppDispatch } from "@/features/store";
 import { useLocalSearchParams, router } from "expo-router";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import { SongList, PlaylistBanner, AddSongToPlaylistModal, EditPlaylistModal, SongOptionsModal, AddToPlaylistModal } from "@/components/music";
+import { SongList, PlaylistBanner, AddSongToPlaylistModal, EditPlaylistModal, SongOptionsModal, AddToPlaylistModal, CreatePlaylistModal } from "@/components/music";
 import type { SongResponseWithAllAlbum } from "@/types/music";
 import { loadAndPlaySong, setQueue } from "@/features/slices/playerSlice";
 import { Colors } from "@/constants/Colors";
@@ -21,7 +21,7 @@ export default function PlaylistDetailScreen() {
     const { mode } = useAppSelector((state) => state.theme);
     const isDark = mode === "dark";
     const { shuffleAndPlay } = useShufflePlay();
-    const { getPlaylistDetail, playlistDetails, removeSong, addSong, update, playlists } = usePlaylists();
+    const { getPlaylistDetail, playlistDetails, removeSong, addSong, update, create, playlists } = usePlaylists();
     const { showAlert } = useAlert();
 
     const [songs, setSongs] = useState<SongResponseWithAllAlbum[]>([]);
@@ -31,6 +31,7 @@ export default function PlaylistDetailScreen() {
     const [showEditModal, setShowEditModal] = useState(false);
     const [showOptionsModal, setShowOptionsModal] = useState(false);
     const [showAddToPlaylistModal, setShowAddToPlaylistModal] = useState(false);
+    const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
     const [selectedSong, setSelectedSong] = useState<SongResponseWithAllAlbum | null>(null);
 
     const scrollY = useRef(new Animated.Value(0)).current;
@@ -92,14 +93,21 @@ export default function PlaylistDetailScreen() {
             );
 
             setSongs(validSongs);
-        } catch (error) {
-            console.error("Failed to load songs:", error);
+        } catch {
+            // Failed to load songs
         }
     }, [playlistDetail]);
 
     useEffect(() => {
         loadSongs();
     }, [loadSongs]);
+
+    const coverImages = useMemo(() => {
+        return songs
+            .slice(0, 4)
+            .map(song => song.coverImageUrl)
+            .filter((url): url is string => !!url);
+    }, [songs]);
 
     // Filter songs with useMemo for better performance
     const filteredSongs = useMemo(() => {
@@ -336,6 +344,7 @@ export default function PlaylistDetailScreen() {
                                     playlistName={playlistDetail.name}
                                     isPublic={playlistDetail.isPublic}
                                     songCount={playlistDetail.items?.length || 0}
+                                    coverImages={coverImages}
                                     searchQuery={searchQuery}
                                     onSearchChange={setSearchQuery}
                                     onClearSearch={handleClearSearch}
@@ -370,6 +379,7 @@ export default function PlaylistDetailScreen() {
                                         playlistName={playlistDetail.name}
                                         isPublic={playlistDetail.isPublic}
                                         songCount={filteredSongs.length}
+                                        coverImages={coverImages}
                                         searchQuery={searchQuery}
                                         onSearchChange={setSearchQuery}
                                         onClearSearch={handleClearSearch}
@@ -455,8 +465,45 @@ export default function PlaylistDetailScreen() {
                         playlists={playlists.filter(p => p.id !== playlistId)}
                         onClose={() => setShowAddToPlaylistModal(false)}
                         onAddToPlaylist={handleAddSongToOtherPlaylist}
+                        onCreatePlaylist={() => {
+                            setShowAddToPlaylistModal(false);
+                            setShowCreatePlaylistModal(true);
+                        }}
                     />
                 )}
+
+                {/* Create Playlist Modal */}
+                <CreatePlaylistModal
+                    visible={showCreatePlaylistModal}
+                    onClose={() => setShowCreatePlaylistModal(false)}
+                    onCreate={async (name) => {
+                        if (!selectedSong) return;
+
+                        try {
+                            // Tạo playlist mới và lấy playlist vừa tạo
+                            const newPlaylist = await create(name, false);
+
+                            if (newPlaylist) {
+                                // Thêm bài hát vào playlist mới
+                                await addSong(newPlaylist.id, selectedSong.id);
+
+                                showAlert({
+                                    type: "success",
+                                    title: "Thành công",
+                                    message: `Đã tạo playlist "${name}" và thêm "${selectedSong.title}"`,
+                                });
+                            }
+
+                            setShowCreatePlaylistModal(false);
+                        } catch {
+                            showAlert({
+                                type: "error",
+                                title: "Lỗi",
+                                message: "Không thể tạo playlist. Vui lòng thử lại.",
+                            });
+                        }
+                    }}
+                />
             </SafeAreaView>
         </LinearGradient>
     );
