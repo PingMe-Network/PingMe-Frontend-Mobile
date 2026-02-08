@@ -261,7 +261,7 @@ export default function FavoritesScreen() {
                         }
 
                         setShowCreatePlaylistModal(false);
-                    } catch (error) {
+                    } catch {
                         showAlert({
                             type: "error",
                             title: "Lỗi",

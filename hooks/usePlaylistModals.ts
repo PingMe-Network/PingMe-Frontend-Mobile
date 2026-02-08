@@ -85,7 +85,7 @@ export const usePlaylistModals = () => {
       }
 
       closeCreatePlaylistModal();
-    } catch (error) {
+    } catch {
       showAlert({
         type: "error",
         title: "Lỗi",

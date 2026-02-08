@@ -42,7 +42,7 @@ export default function PlaylistsScreen() {
             onConfirm: async () => {
                 try {
                     await deletePlaylistById(playlistId);
-                } catch (error) {
+                } catch {
                     showAlert({
                         type: "error",
                         title: "Lỗi",

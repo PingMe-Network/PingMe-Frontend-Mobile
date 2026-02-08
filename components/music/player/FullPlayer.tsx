@@ -413,7 +413,7 @@ export const FullPlayer = () => {
                             }
 
                             setShowCreatePlaylistModal(false);
-                        } catch (error) {
+                        } catch {
                             showAlert({
                                 type: "error",
                                 title: "Lỗi",

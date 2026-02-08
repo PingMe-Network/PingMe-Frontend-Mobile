@@ -8,6 +8,37 @@ import {
 import { playlistApi } from "@/services/music/playlistApi";
 import { songApi } from "@/services/music";
 
+// Helper function separated to reduce nesting depth
+const fetchPlaylistCovers = async (
+  playlistId: number
+): Promise<[number, string[]]> => {
+  try {
+    const detail = await playlistApi.getPlaylistDetail(playlistId);
+    
+    // Get up to 4 distinct song IDs
+    const songIds = detail.items.slice(0, 4).map((item) => item.songId);
+
+    if (songIds.length === 0) {
+      return [playlistId, []];
+    }
+
+    // Fetch songs in parallel
+    const songs = await Promise.all(
+      songIds.map((id) => songApi.getSongById(id).catch(() => null))
+    );
+
+    // Extract valid cover URLs
+    const covers = songs
+      .filter((s) => s?.coverImageUrl)
+      .map((s) => s!.coverImageUrl!);
+
+    return [playlistId, covers];
+  } catch {
+    // Return empty covers on error
+    return [playlistId, []];
+  }
+};
+
 export const usePlaylistCovers = (playlistIds: number[]) => {
   const dispatch = useAppDispatch();
   const coverImagesCache = useAppSelector(
@@ -20,73 +51,37 @@ export const usePlaylistCovers = (playlistIds: number[]) => {
     (state) => state.playlistCovers.loadingIds
   );
 
-  // Cache TTL: 5 phút
+  // Cache TTL: 5 minutes
   const CACHE_TTL = 5 * 60 * 1000;
 
-  // Tìm playlists cần load (chưa có trong cache hoặc đã hết hạn)
+  // Identify playlists needing updates (not in cache or expired)
   const playlistsToLoad = useMemo(() => {
     const now = Date.now();
     return playlistIds.filter((id) => {
       const timestamp = cacheTimestamps[id];
-      if (!timestamp) return true; // Chưa có trong cache
-      return now - timestamp > CACHE_TTL; // Đã hết hạn
+      if (!timestamp) return true;
+      return now - timestamp > CACHE_TTL;
     });
   }, [playlistIds, cacheTimestamps]);
 
+  // Clear expired cache on mount
   useEffect(() => {
-    // Clear expired cache khi component mount
     dispatch(clearExpiredCache());
   }, [dispatch]);
 
+  // Load missing covers
   useEffect(() => {
     if (playlistsToLoad.length === 0) return;
 
     const loadCovers = async () => {
-      // Set loading state
       dispatch(setLoadingIds(playlistsToLoad));
 
-      const newCoverMap: Record<number, string[]> = {};
+      const results = await Promise.all(
+        playlistsToLoad.map(fetchPlaylistCovers)
+      );
 
-      // Load playlist details parallel
-      const promises = playlistsToLoad.map(async (playlistId) => {
-        try {
-          // Load playlist detail
-          const detail = await playlistApi.getPlaylistDetail(playlistId);
+      const newCoverMap = Object.fromEntries(results);
 
-          // Lấy tối đa 4 songIds đầu tiên
-          const songIds = detail.items.slice(0, 4).map((item) => item.songId);
-
-          if (songIds.length === 0) {
-            newCoverMap[playlistId] = [];
-            return;
-          }
-
-          // Load songs để lấy coverImageUrl
-          const songPromises = songIds.map((songId) =>
-            songApi.getSongById(songId).catch(() => null)
-          );
-
-          const songs = await Promise.all(songPromises);
-
-          // Extract cover images
-          const covers = songs
-            .filter((song) => song !== null)
-            .map((song) => song!.coverImageUrl)
-            .filter((url): url is string => !!url);
-
-          newCoverMap[playlistId] = covers;
-        } catch (error) {
-          console.error(
-            `Failed to load covers for playlist ${playlistId}:`,
-            error
-          );
-          newCoverMap[playlistId] = [];
-        }
-      });
-
-      await Promise.all(promises);
-
-      // Save to Redux cache
       dispatch(setMultipleCoverImages(newCoverMap));
       dispatch(setLoadingIds([]));
     };
@@ -94,7 +89,7 @@ export const usePlaylistCovers = (playlistIds: number[]) => {
     loadCovers();
   }, [playlistsToLoad.join(","), dispatch]);
 
-  // Tạo coverImagesMap từ cache
+  // Derived state for easy access
   const coverImagesMap = useMemo(() => {
     const map: Record<number, string[]> = {};
     playlistIds.forEach((id) => {
@@ -107,4 +102,3 @@ export const usePlaylistCovers = (playlistIds: number[]) => {
 
   return { coverImagesMap, loading };
 };
-
