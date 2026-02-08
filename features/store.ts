@@ -21,12 +21,13 @@ import musicReducer from "./slices/musicSlice";
 import favoriteReducer from "./slices/favoriteSlice";
 import playerReducer from "./slices/playerSlice";
 import playlistReducer from "./slices/playlistSlice";
+import playlistCoversReducer from "./slices/playlistCoversSlice";
 
 const persistConfig = {
   key: "root",
   version: 2, // Increment this when schema changes
   storage: AsyncStorage,
-  whitelist: ["auth", "theme", "favorite", "playlist"], // Removed "player" - Audio.Sound cannot be serialized
+  whitelist: ["auth", "theme", "favorite", "playlist", "playlistCovers"], // Added playlistCovers for caching
   migrate: (state: any) => {
     // Migration for favorite.favoriteSongIds from Set to Array
     if (state?.favorite?.favoriteSongIds) {
@@ -50,6 +51,7 @@ const rootReducer = combineReducers({
   favorite: favoriteReducer,
   player: playerReducer,
   playlist: playlistReducer,
+  playlistCovers: playlistCoversReducer,
   theme: themeReducer,
 });
 

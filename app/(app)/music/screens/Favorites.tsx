@@ -4,7 +4,8 @@ import { useAppSelector, useAppDispatch } from "@/features/store";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useShufflePlay } from "@/hooks/useShufflePlay";
 import { useSongActions } from "@/hooks/useSongActions";
-import { SongList, FavoritesHeader, MusicScreenHeader, SongOptionsModal, AddToPlaylistModal, AddSongToPlaylistModal } from "@/components/music";
+import { usePlaylists } from "@/hooks/usePlaylists";
+import { SongList, FavoritesHeader, MusicScreenHeader, SongOptionsModal, AddToPlaylistModal, AddSongToPlaylistModal, CreatePlaylistModal } from "@/components/music";
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { songApi } from "@/services/music";
 import type { SongResponseWithAllAlbum } from "@/types/music";
@@ -29,6 +30,7 @@ export default function FavoritesScreen() {
     const dispatch = useAppDispatch();
     const isDark = mode === "dark";
     const { favorites, toggle: toggleFavorite } = useFavorites();
+    const { create } = usePlaylists();
     const { shuffleAndPlay } = useShufflePlay();
     const { showAlert } = useAlert();
 
@@ -48,6 +50,7 @@ export default function FavoritesScreen() {
     const [loadingSongs, setLoadingSongs] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [showAddSongModal, setShowAddSongModal] = useState(false);
+    const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
     const scrollY = useRef(new Animated.Value(0)).current;
 
     const headerHeight = scrollY.interpolate({
@@ -218,6 +221,10 @@ export default function FavoritesScreen() {
                     playlists={playlists}
                     onClose={() => setShowAddToPlaylistModal(false)}
                     onAddToPlaylist={handleAddSongToPlaylist}
+                    onCreatePlaylist={() => {
+                        setShowAddToPlaylistModal(false);
+                        setShowCreatePlaylistModal(true);
+                    }}
                 />
             )}
 
@@ -229,6 +236,39 @@ export default function FavoritesScreen() {
                 existingSongIds={existingFavoriteSongIds}
                 onClose={() => setShowAddSongModal(false)}
                 onAddSong={handleAddSongToFavorites}
+            />
+
+            {/* Create Playlist Modal */}
+            <CreatePlaylistModal
+                visible={showCreatePlaylistModal}
+                onClose={() => setShowCreatePlaylistModal(false)}
+                onCreate={async (name) => {
+                    if (!selectedSong) return;
+
+                    try {
+                        // Tạo playlist mới và lấy playlist vừa tạo
+                        const newPlaylist = await create(name, false);
+
+                        if (newPlaylist) {
+                            // Thêm bài hát vào playlist mới
+                            await handleAddSongToPlaylist(newPlaylist.id);
+
+                            showAlert({
+                                type: "success",
+                                title: "Thành công",
+                                message: `Đã tạo playlist "${name}" và thêm "${selectedSong.title}"`,
+                            });
+                        }
+
+                        setShowCreatePlaylistModal(false);
+                    } catch (error) {
+                        showAlert({
+                            type: "error",
+                            title: "Lỗi",
+                            message: "Không thể tạo playlist. Vui lòng thử lại.",
+                        });
+                    }
+                }}
             />
         </SafeAreaView>
     );

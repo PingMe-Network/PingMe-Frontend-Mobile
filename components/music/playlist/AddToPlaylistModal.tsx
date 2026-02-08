@@ -11,6 +11,7 @@ type AddToPlaylistModalProps = {
     playlists: PlaylistDto[];
     onClose: () => void;
     onAddToPlaylist: (playlistId: number) => Promise<void>;
+    onCreatePlaylist?: () => void;
 };
 
 export function AddToPlaylistModal({
@@ -21,6 +22,7 @@ export function AddToPlaylistModal({
     playlists,
     onClose,
     onAddToPlaylist,
+    onCreatePlaylist,
 }: Readonly<AddToPlaylistModalProps>) {
     const [addingToPlaylistId, setAddingToPlaylistId] = useState<number | null>(null);
 
@@ -64,6 +66,26 @@ export function AddToPlaylistModal({
                             </TouchableOpacity>
                         </View>
                     </View>
+
+                    {/* Create New Playlist Button */}
+                    {onCreatePlaylist && (
+                        <TouchableOpacity
+                            onPress={onCreatePlaylist}
+                            className={`mx-4 mt-3 mb-2 flex-row items-center px-4 py-3 rounded-lg border ${isDark
+                                    ? "bg-gray-700/50 border-gray-600 active:bg-gray-700"
+                                    : "bg-gray-50 border-gray-300 active:bg-gray-100"
+                                }`}
+                            activeOpacity={0.7}
+                        >
+                            <View className={`w-10 h-10 rounded-full items-center justify-center mr-3 ${isDark ? "bg-blue-500/20" : "bg-blue-500/10"
+                                }`}>
+                                <Ionicons name="add" size={24} color="#3b82f6" />
+                            </View>
+                            <Text className={`text-base font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>
+                                Tạo playlist mới
+                            </Text>
+                        </TouchableOpacity>
+                    )}
 
                     {/* Playlists List */}
                     <FlatList

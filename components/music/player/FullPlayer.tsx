@@ -16,7 +16,7 @@ import {
 import { useState } from "react";
 import { Colors } from "@/constants/Colors";
 import { router } from "expo-router";
-import { SongOptionsModal, AddToPlaylistModal } from "@/components/music";
+import { SongOptionsModal, AddToPlaylistModal, CreatePlaylistModal } from "@/components/music";
 import { useFavorites } from "@/hooks/useFavorites";
 import { usePlaylists } from "@/hooks/usePlaylists";
 import { useAlert } from "@/components/ui/AlertProvider";
@@ -100,12 +100,13 @@ export const FullPlayer = () => {
     } = useAppSelector((state) => state.player);
 
     const { isFavorite, toggle: toggleFavorite } = useFavorites();
-    const { playlists, addSong } = usePlaylists();
+    const { playlists, addSong, create } = usePlaylists();
     const { showAlert } = useAlert();
 
     const [showVolumeControl, setShowVolumeControl] = useState(false);
     const [showOptionsModal, setShowOptionsModal] = useState(false);
     const [showAddToPlaylistModal, setShowAddToPlaylistModal] = useState(false);
+    const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
 
     if (!currentSong || isPlayerMinimized) return null;
 
@@ -383,6 +384,41 @@ export const FullPlayer = () => {
                     playlists={playlists}
                     onClose={() => setShowAddToPlaylistModal(false)}
                     onAddToPlaylist={handleAddSongToPlaylist}
+                    onCreatePlaylist={() => {
+                        setShowAddToPlaylistModal(false);
+                        setShowCreatePlaylistModal(true);
+                    }}
+                />
+
+                {/* Create Playlist Modal */}
+                <CreatePlaylistModal
+                    visible={showCreatePlaylistModal}
+                    onClose={() => setShowCreatePlaylistModal(false)}
+                    onCreate={async (name) => {
+                        try {
+                            // Tạo playlist mới và lấy playlist vừa tạo
+                            const newPlaylist = await create(name, false);
+
+                            if (newPlaylist) {
+                                // Thêm bài hát vào playlist mới
+                                await addSong(newPlaylist.id, currentSong.id);
+
+                                showAlert({
+                                    type: "success",
+                                    title: "Thành công",
+                                    message: `Đã tạo playlist "${name}" và thêm "${currentSong.title}"`,
+                                });
+                            }
+
+                            setShowCreatePlaylistModal(false);
+                        } catch (error) {
+                            showAlert({
+                                type: "error",
+                                title: "Lỗi",
+                                message: "Không thể tạo playlist. Vui lòng thử lại.",
+                            });
+                        }
+                    }}
                 />
             </View>
         </Modal>
