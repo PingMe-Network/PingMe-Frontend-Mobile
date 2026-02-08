@@ -72,8 +72,8 @@ export function AddToPlaylistModal({
                         <TouchableOpacity
                             onPress={onCreatePlaylist}
                             className={`mx-4 mt-3 mb-2 flex-row items-center px-4 py-3 rounded-lg border ${isDark
-                                    ? "bg-gray-700/50 border-gray-600 active:bg-gray-700"
-                                    : "bg-gray-50 border-gray-300 active:bg-gray-100"
+                                ? "bg-gray-700/50 border-gray-600 active:bg-gray-700"
+                                : "bg-gray-50 border-gray-300 active:bg-gray-100"
                                 }`}
                             activeOpacity={0.7}
                         >

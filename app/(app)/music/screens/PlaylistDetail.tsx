@@ -93,8 +93,8 @@ export default function PlaylistDetailScreen() {
             );
 
             setSongs(validSongs);
-        } catch (error) {
-            console.error("Failed to load songs:", error);
+        } catch {
+            // Failed to load songs
         }
     }, [playlistDetail]);
 

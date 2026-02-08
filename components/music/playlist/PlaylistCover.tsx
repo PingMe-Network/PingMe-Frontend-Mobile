@@ -7,8 +7,42 @@ interface PlaylistCoverProps {
     isDark: boolean;
 }
 
+interface ImageGridProps {
+    images: string[];
+    imageSize: number;
+    gap: number;
+    isDark: boolean;
+}
+
+const ImageGrid = ({ images, imageSize, gap, isDark }: Readonly<ImageGridProps>) => {
+    return (
+        <>
+            {images.map((imageUrl, index) => (
+                <View
+                    key={`${imageUrl}-${index}`}
+                    style={{
+                        width: imageSize - (gap / 2),
+                        height: imageSize - (gap / 2),
+                        marginRight: index % 2 === 0 ? gap : 0,
+                        marginBottom: index < 2 ? gap : 0,
+                    }}
+                >
+                    <Image
+                        source={{ uri: imageUrl }}
+                        style={{
+                            width: "100%",
+                            height: "100%",
+                            backgroundColor: isDark ? "#374151" : "#e5e7eb"
+                        }}
+                        resizeMode="cover"
+                    />
+                </View>
+            ))}
+        </>
+    );
+};
+
 export const PlaylistCover = ({ coverImages, size, isDark }: Readonly<PlaylistCoverProps>) => {
-    // Lọc ra các ảnh hợp lệ
     const validImages = coverImages.filter((img): img is string => !!img);
 
     // Nếu không có ảnh nào, hiển thị icon mặc định
@@ -34,7 +68,7 @@ export const PlaylistCover = ({ coverImages, size, isDark }: Readonly<PlaylistCo
     );
 
     const imageSize = size / 2;
-    const gap = 1; // Khoảng cách giữa các ảnh (1px)
+    const gap = 1;
 
     return (
         <View
@@ -42,23 +76,12 @@ export const PlaylistCover = ({ coverImages, size, isDark }: Readonly<PlaylistCo
             style={{ width: size, height: size }}
         >
             <View className="flex-row flex-wrap">
-                {imagesToShow.map((imageUrl, index) => (
-                    <View
-                        key={index}
-                        style={{
-                            width: imageSize - (gap / 2),
-                            height: imageSize - (gap / 2),
-                            marginRight: index % 2 === 0 ? gap : 0,
-                            marginBottom: index < 2 ? gap : 0,
-                        }}
-                    >
-                        <Image
-                            source={{ uri: imageUrl }}
-                            style={{ width: "100%", height: "100%", backgroundColor: isDark ? "#374151" : "#e5e7eb" }}
-                            resizeMode="cover"
-                        />
-                    </View>
-                ))}
+                <ImageGrid
+                    images={imagesToShow}
+                    imageSize={imageSize}
+                    gap={gap}
+                    isDark={isDark}
+                />
             </View>
         </View>
     );

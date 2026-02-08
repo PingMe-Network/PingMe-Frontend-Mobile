@@ -59,7 +59,8 @@ export default function AlbumDetailScreen() {
                     }
                 }
             } catch {
-                // Error loading album
+                setSongs([]);
+                setAlbum(null);
             } finally {
                 setLoading(false);
             }
@@ -154,8 +155,8 @@ export default function AlbumDetailScreen() {
                         }
 
                         setShowCreatePlaylistModal(false);
-                    } catch (error) {
-                        // Error handled by handleAddSongToPlaylist
+                    } catch {
+                        // Error alert is handled by handleAddSongToPlaylist
                     }
                 }}
             />
