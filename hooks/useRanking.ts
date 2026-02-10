@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { songApi } from "@/services/music/songApi";
 import type { TopSongPlayCounter, SongResponseWithAllAlbum } from "@/types/music";
 import { hydrateSongs } from "@/utils/musicHydration";
+import { useAppSelector } from "@/features/store";
 
 export const useRanking = () => {
     const [topSongToday, setTopSongToday] = useState<(TopSongPlayCounter | SongResponseWithAllAlbum)[]>([]);
@@ -9,6 +10,8 @@ export const useRanking = () => {
     const [topSongMonthly, setTopSongMonthly] = useState<(TopSongPlayCounter | SongResponseWithAllAlbum)[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<unknown>(null);
+
+    const { hasCountedPlay } = useAppSelector(state => state.player);
 
     const fetchRankings = useCallback(async () => {
         setLoading(true);
@@ -60,10 +63,21 @@ export const useRanking = () => {
         }
     }, []);
 
-
     useEffect(() => {
         fetchRankings();
     }, [fetchRankings]);
+
+    // Auto-refresh when a new song play is counted
+    useEffect(() => {
+        if (hasCountedPlay) {
+            // Delay 3s to allow backend to update DB
+            const timer = setTimeout(() => {
+                console.log("Refetching rankings due to new play count...");
+                fetchRankings();
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [hasCountedPlay, fetchRankings]);
 
     return {
         topSongToday,

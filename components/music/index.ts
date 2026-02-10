@@ -32,3 +32,4 @@ export { useSongModals } from "./shared/SongModalsWrapper";
 // Ranking
 export { RankingItem } from "./ranking/RankingItem";
 export { RankingCard } from "./ranking/RankingCard";
+export { RankingHeader } from "./ranking/RankingHeader";

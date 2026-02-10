@@ -1,15 +1,7 @@
-
 import { songApi } from "@/services/music/songApi";
 import type { SongResponseWithAllAlbum, TopSongPlayCounter } from "@/types/music";
 import { normalizeTopSong } from "@/utils/musicNormalization";
 
-/**
- * Hydrates a list of songs (TopSongPlayCounter or partially filled SongResponseWithAllAlbum)
- * by fetching complete details from the API for items that need it.
- * 
- * @param items List of items to hydrate
- * @returns Fully hydrated list of songs
- */
 export const hydrateSongs = async (
     items: (TopSongPlayCounter | SongResponseWithAllAlbum)[]
 ): Promise<SongResponseWithAllAlbum[]> => {
@@ -35,7 +27,7 @@ export const hydrateSongs = async (
                 return normalizeTopSong(item);
             }
             // Already a full song object (or close enough)
-            return item as SongResponseWithAllAlbum;
+            return item;
         });
         
         return await Promise.all(hydrationPromises);

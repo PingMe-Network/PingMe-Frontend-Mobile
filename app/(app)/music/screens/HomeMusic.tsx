@@ -4,6 +4,7 @@ import type {
     AlbumResponse,
     ArtistResponse,
     SongResponseWithAllAlbum,
+    TopSongPlayCounter
 } from "@/types/music";
 import type { PlaylistDto } from "@/types/music/playlist";
 import { SongCard, AlbumCard, ArtistCard, PlaylistCard, RankingCard } from "@/components/music";
@@ -11,7 +12,6 @@ import { useRanking } from "@/hooks/useRanking";
 import { useAppDispatch } from "@/features/store";
 import { loadAndPlaySong, setQueue } from "@/features/slices/playerSlice";
 import { normalizeTopSong } from "@/utils/musicNormalization";
-import type { TopSongPlayCounter } from "@/types/music";
 
 export type HomeMusicFilter = "all" | "playlist" | "favorite";
 
@@ -46,7 +46,7 @@ export function HomeMusic({
         const normalizedList = list.map(normalizeTopSong);
         const index = normalizedList.findIndex(s => s.id === normalizedSong.id);
 
-        dispatch(setQueue({ songs: normalizedList, startIndex: index >= 0 ? index : 0 }));
+        dispatch(setQueue({ songs: normalizedList, startIndex: Math.max(0, index) }));
         dispatch(loadAndPlaySong(normalizedSong));
     };
 

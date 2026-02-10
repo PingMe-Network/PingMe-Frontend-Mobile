@@ -28,18 +28,20 @@ const RankingItemComponent = ({
 }: Readonly<RankingItemProps>) => {
     const { mode } = useAppSelector((state) => state.theme);
     const isDark = mode === "dark";
-
-    // Handle different item types (TopSongPlayCounter vs SongResponseWithAllAlbum)
     const title = item.title;
     const imgUrl = 'coverImageUrl' in item ? item.coverImageUrl : item.imgUrl;
-    const artist = 'artist' in item && item.artist ? item.artist : ('mainArtist' in item ? item.mainArtist.name : "Unknown Artist");
-    // const playCount = item.playCount; // Unused variable
 
-    // Determine rank color
+    let artist = "Unknown Artist";
+    if ('artist' in item && item.artist) {
+        artist = item.artist;
+    } else if ('mainArtist' in item && item.mainArtist) {
+        artist = item.mainArtist.name;
+    }
+
     let rankColor = isDark ? "text-white" : "text-gray-900";
-    if (rank === 1) rankColor = "text-[#DF40A3]"; // Primary
-    else if (rank === 2) rankColor = "text-[#00E5FF]"; // Secondary
-    else if (rank === 3) rankColor = "text-green-500"; // Green
+    if (rank === 1) rankColor = "text-[#DF40A3]";
+    else if (rank === 2) rankColor = "text-[#00E5FF]";
+    else if (rank === 3) rankColor = "text-green-500";
 
     // Mock rank change (random for demo if not provided by API)
     const getChangeIcon = () => {
