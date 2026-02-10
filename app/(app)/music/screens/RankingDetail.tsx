@@ -1,11 +1,7 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState, useCallback } from "react";
-import { View, Text, TouchableOpacity, Platform, ActivityIndicator, RefreshControl } from "react-native";
-import { Image } from "expo-image";
+import { View, ActivityIndicator, RefreshControl } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
 import { SongList, useSongModals, RankingHeader } from "@/components/music";
 import { useAppSelector, useAppDispatch } from "@/features/store";
 import { songApi } from "@/services/music/songApi";
@@ -110,19 +106,6 @@ export default function RankingDetail() {
         ? songs[0].coverImageUrl
         : "https://via.placeholder.com/400";
 
-    const HeaderComponent = () => (
-        <RankingHeader
-            headerImage={headerImage}
-            title={title || "Bảng Xếp Hạng"}
-            currentDate={currentDate}
-            songCount={songs.length}
-            isDark={isDark}
-            topInset={insets.top}
-            onBack={handleBack}
-            onPlayAll={handlePlayAll}
-            onShufflePlay={() => shuffleAndPlay(songs)}
-        />
-    );
 
     return (
         <View className={`flex-1 ${isDark ? "bg-black" : "bg-white"}`}>
@@ -137,7 +120,19 @@ export default function RankingDetail() {
                     onMorePress={handleMorePress}
                     variant="list"
                     showRank={true}
-                    listHeaderComponent={<HeaderComponent />}
+                    listHeaderComponent={
+                        <RankingHeader
+                            headerImage={headerImage}
+                            title={title || "Bảng Xếp Hạng"}
+                            currentDate={currentDate}
+                            songCount={songs.length}
+                            isDark={isDark}
+                            topInset={insets.top}
+                            onBack={handleBack}
+                            onPlayAll={handlePlayAll}
+                            onShufflePlay={() => shuffleAndPlay(songs)}
+                        />
+                    }
                     refreshControl={
                         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
                     }
