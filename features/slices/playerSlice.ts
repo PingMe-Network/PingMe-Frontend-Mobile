@@ -7,6 +7,7 @@ import { Audio, AVPlaybackStatus } from "expo-av";
 import type { SongResponseWithAllAlbum } from "@/types/music";
 import { logoutThunk } from "./authThunk";
 import { getRandomInt } from "@/utils/random";
+import { songCrudService } from "@/services/music/songCrudService";
 
 export type RepeatMode = "off" | "one" | "all";
 export type PlaybackState =
@@ -51,6 +52,9 @@ interface PlayerState {
 
   // Auto-play flag
   shouldPlayNext: boolean;
+
+  // Play analytics
+  hasCountedPlay: boolean;
 }
 
 const initialState: PlayerState = {
@@ -72,6 +76,7 @@ const initialState: PlayerState = {
   playHistory: [],
   isPlayerMinimized: true,
   shouldPlayNext: false,
+  hasCountedPlay: false,
 };
 
 // Async Thunks
@@ -100,7 +105,30 @@ export const loadAndPlaySong = createAsyncThunk(
       const { sound } = await Audio.Sound.createAsync(
         { uri: song.songUrl },
         { shouldPlay: true },
-        (status) => dispatch(updatePlaybackStatus(status)),
+        (status) => {
+          dispatch(updatePlaybackStatus(status));
+
+          // Check for play count increment (50% progress)
+          if (status.isLoaded && status.durationMillis) {
+            const progress = status.positionMillis / status.durationMillis;
+            if (progress >= 0.5) {
+              // Wrap in setTimeout to avoid calling getState while reducer is executing
+              setTimeout(() => {
+                const currentState = getState() as { player: PlayerState };
+                // Ensure we only count once per song session
+                if (
+                  !currentState.player.hasCountedPlay &&
+                  currentState.player.currentSong?.id === song.id
+                ) {
+                  dispatch(markPlayCounted());
+                  songCrudService.increasePlayCount(song.id).catch((err) => {
+                    console.error("Failed to increase play count:", err);
+                  });
+                }
+              }, 0);
+            }
+          }
+        },
       );
 
       return { sound, song };
@@ -399,6 +427,11 @@ const playerSlice = createSlice({
       state.error = null;
     },
 
+    // Play analytics
+    markPlayCounted(state) {
+      state.hasCountedPlay = true;
+    },
+
     // Cleanup
     resetPlayer(state) {
       if (state.sound && typeof state.sound.unloadAsync === "function") {
@@ -428,6 +461,9 @@ const playerSlice = createSlice({
         if (state.playHistory.length > 100) {
           state.playHistory = state.playHistory.slice(0, 100);
         }
+
+        // Reset analytics flag for new song
+        state.hasCountedPlay = false;
       })
       .addCase(loadAndPlaySong.rejected, (state, action) => {
         state.error = action.error.message || "Failed to load song";
@@ -503,6 +539,7 @@ export const {
   setError,
   clearError,
   resetPlayer,
+  markPlayCounted,
 } = playerSlice.actions;
 
 export default playerSlice.reducer;

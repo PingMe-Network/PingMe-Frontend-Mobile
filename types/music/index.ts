@@ -91,6 +91,10 @@ export interface TopSongPlayCounter {
   title: string;
   imgUrl: string;
   playCount: number;
+  // Additional fields for UI
+  artist?: string;
+  duration?: number;
+  songUrl?: string;
 }
 
 // ============================================================================

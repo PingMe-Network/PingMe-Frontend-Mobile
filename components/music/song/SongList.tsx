@@ -1,5 +1,5 @@
 import type React from "react";
-import { View, Text, FlatList, ActivityIndicator, Image, TouchableOpacity } from "react-native";
+import { View, Text, FlatList, ActivityIndicator, Image, TouchableOpacity, type RefreshControlProps } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SongCard } from "./SongCard";
 import type { SongResponseWithAllAlbum } from "@/types/music";
@@ -16,10 +16,13 @@ interface SongListProps {
     horizontal?: boolean;
     showAlbum?: boolean;
     showArtist?: boolean;
+    showRank?: boolean;
+    scrollEnabled?: boolean;
     onScroll?: (event: any) => void;
     scrollEventThrottle?: number;
     listHeaderComponent?: React.ReactElement | null;
     contentContainerStyle?: any;
+    refreshControl?: React.ReactElement<RefreshControlProps>;
 }
 
 export const SongList = ({
@@ -32,10 +35,13 @@ export const SongList = ({
     horizontal = false,
     showAlbum = true,
     showArtist = true,
+    showRank = false,
     onScroll,
     scrollEventThrottle,
     listHeaderComponent,
     contentContainerStyle,
+    scrollEnabled = true,
+    refreshControl,
 }: SongListProps) => {
     const { mode } = useAppSelector((state) => state.theme);
     const isDark = mode === "dark";
@@ -50,6 +56,14 @@ export const SongList = ({
         return "";
     };
 
+    const getRankStyle = (index: number) => {
+        const rank = index + 1;
+        if (rank === 1) return "text-[#DF40A3] text-3xl font-bold"; // Primary (Pink)
+        if (rank === 2) return "text-[#00E5FF] text-3xl font-bold"; // Secondary (Cyan)
+        if (rank === 3) return "text-green-500 text-3xl font-bold"; // Green
+        return isDark ? "text-white text-lg font-bold" : "text-gray-900 text-lg font-bold";
+    };
+
     if (loading) {
         return (
             <View className="flex-1 items-center justify-center p-8">
@@ -59,15 +73,13 @@ export const SongList = ({
         );
     }
 
-    if (!songs || songs.length === 0) {
-        return (
-            <View className="flex-1 items-center justify-center p-8">
-                <Text className={`text-center ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-                    {emptyMessage}
-                </Text>
-            </View>
-        );
-    }
+    const renderEmptyComponent = () => (
+        <View className="items-center justify-center p-8 pt-20">
+            <Text className={`text-center ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                {emptyMessage}
+            </Text>
+        </View>
+    );
 
     // Use compact layout for vertical list variant
     if (variant === "list" && !horizontal) {
@@ -76,6 +88,7 @@ export const SongList = ({
                 data={songs}
                 keyExtractor={(item) => item.id.toString()}
                 showsVerticalScrollIndicator={false}
+                scrollEnabled={scrollEnabled}
                 onScroll={onScroll}
                 scrollEventThrottle={scrollEventThrottle}
                 renderItem={({ item, index }) => (
@@ -84,6 +97,13 @@ export const SongList = ({
                         className="flex-row items-center px-4 py-3"
                         activeOpacity={0.7}
                     >
+                        {showRank && (
+                            <View className="w-8 items-center justify-center mr-3">
+                                <Text className={getRankStyle(index)} style={{ fontFamily: 'System' }}>
+                                    {index + 1}
+                                </Text>
+                            </View>
+                        )}
                         <Image
                             source={{
                                 uri: item.coverImageUrl || "https://via.placeholder.com/50",
@@ -115,10 +135,12 @@ export const SongList = ({
                     </TouchableOpacity>
                 )}
                 ListHeaderComponent={listHeaderComponent}
+                ListEmptyComponent={renderEmptyComponent}
                 contentContainerStyle={[
                     { paddingBottom: listBottomPadding },
                     contentContainerStyle,
                 ]}
+                refreshControl={refreshControl}
             />
         );
     }
@@ -130,6 +152,7 @@ export const SongList = ({
             horizontal={horizontal}
             showsHorizontalScrollIndicator={false}
             showsVerticalScrollIndicator={false}
+            scrollEnabled={scrollEnabled}
             onScroll={onScroll}
             scrollEventThrottle={scrollEventThrottle}
             renderItem={({ item, index }) => (
@@ -145,11 +168,13 @@ export const SongList = ({
                 </View>
             )}
             ListHeaderComponent={listHeaderComponent}
+            ListEmptyComponent={renderEmptyComponent}
             contentContainerStyle={
                 horizontal
                     ? [{ paddingHorizontal: 16 }, contentContainerStyle]
                     : [{ paddingBottom: listBottomPadding }, contentContainerStyle]
             }
+            refreshControl={refreshControl}
         />
     );
 };
