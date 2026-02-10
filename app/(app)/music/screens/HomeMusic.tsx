@@ -91,9 +91,6 @@ export function HomeMusic({
                         >
                             {activeFilter === "favorite" ? "Yêu thích" : "Top Songs"}
                         </Text>
-                        <TouchableOpacity onPress={activeFilter === "favorite" ? handleViewAllFavorites : undefined}>
-                            <Text className="text-primary font-semibold">See All</Text>
-                        </TouchableOpacity>
                     </View>
 
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -190,11 +187,8 @@ export function HomeMusic({
                         <Text
                             className={`text-xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}
                         >
-                            Popular Albums
+                            Album phổ biến
                         </Text>
-                        <TouchableOpacity>
-                            <Text className="text-primary font-semibold">See All</Text>
-                        </TouchableOpacity>
                     </View>
 
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -219,11 +213,8 @@ export function HomeMusic({
                         <Text
                             className={`text-xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}
                         >
-                            Popular Artists
+                            Nghệ sĩ
                         </Text>
-                        <TouchableOpacity>
-                            <Text className="text-primary font-semibold">See All</Text>
-                        </TouchableOpacity>
                     </View>
 
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
