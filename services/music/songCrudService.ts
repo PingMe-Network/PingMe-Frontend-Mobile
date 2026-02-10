@@ -68,7 +68,6 @@ export const songCrudService = {
    * Create new song
    */
   create: async (data: SongRequest): Promise<SongResponse> => {
-    console.log("[PingMe] Creating song with data:", data);
     const formData = createFormDataForSong(data);
     const response = await axiosClient.post<ApiResponse<SongResponse[]>>(
       `${BASE_URL}/songs/save`,
@@ -77,7 +76,6 @@ export const songCrudService = {
         headers: { "Content-Type": "multipart/form-data" },
       },
     );
-    console.log("[PingMe] Song create response:", response.data);
     // Backend returns ApiResponse<List>, so unwrap and return first item
     const songs = response.data.data;
     return Array.isArray(songs) ? songs[0] : songs;
@@ -90,7 +88,6 @@ export const songCrudService = {
     id: number,
     data: Partial<SongRequest>,
   ): Promise<SongResponse> => {
-    console.log("[PingMe] Updating song", id, "with data:", data);
     const formData = createFormDataForSong(data);
     const response = await axiosClient.put<ApiResponse<SongResponse[]>>(
       `${BASE_URL}/songs/update/${id}`,
@@ -99,7 +96,6 @@ export const songCrudService = {
         headers: { "Content-Type": "multipart/form-data" },
       },
     );
-    console.log("[PingMe] Song update response:", response.data);
     // Backend returns ApiResponse<List>, so unwrap and return first item
     const songs = response.data.data;
     return Array.isArray(songs) ? songs[0] : songs;
