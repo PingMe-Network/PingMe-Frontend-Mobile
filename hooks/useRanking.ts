@@ -72,7 +72,6 @@ export const useRanking = () => {
         if (hasCountedPlay) {
             // Delay 3s to allow backend to update DB
             const timer = setTimeout(() => {
-                console.log("Refetching rankings due to new play count...");
                 fetchRankings();
             }, 3000);
             return () => clearTimeout(timer);

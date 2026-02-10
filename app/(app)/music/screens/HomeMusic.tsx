@@ -64,10 +64,6 @@ export function HomeMusic({
         });
     };
 
-    const handleViewAllFavorites = () => {
-        router.push("/(app)/music/screens/Favorites");
-    };
-
     const handleViewAllPlaylists = () => {
         router.push("/(app)/music/screens/Playlists");
     };
