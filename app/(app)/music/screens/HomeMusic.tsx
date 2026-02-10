@@ -4,9 +4,14 @@ import type {
     AlbumResponse,
     ArtistResponse,
     SongResponseWithAllAlbum,
+    TopSongPlayCounter
 } from "@/types/music";
 import type { PlaylistDto } from "@/types/music/playlist";
-import { SongCard, AlbumCard, ArtistCard, PlaylistCard } from "@/components/music";
+import { SongCard, AlbumCard, ArtistCard, PlaylistCard, RankingCard } from "@/components/music";
+import { useRanking } from "@/hooks/useRanking";
+import { useAppDispatch } from "@/features/store";
+import { loadAndPlaySong, setQueue } from "@/features/slices/playerSlice";
+import { normalizeTopSong } from "@/utils/musicNormalization";
 
 export type HomeMusicFilter = "all" | "playlist" | "favorite";
 
@@ -34,6 +39,16 @@ export function HomeMusic({
     onSongPress,
 }: Readonly<HomeMusicProps>) {
     const router = useRouter();
+    const dispatch = useAppDispatch();
+
+    const handleRankingSongPress = (item: TopSongPlayCounter | SongResponseWithAllAlbum, list: (TopSongPlayCounter | SongResponseWithAllAlbum)[]) => {
+        const normalizedSong = normalizeTopSong(item);
+        const normalizedList = list.map(normalizeTopSong);
+        const index = normalizedList.findIndex(s => s.id === normalizedSong.id);
+
+        dispatch(setQueue({ songs: normalizedList, startIndex: Math.max(0, index) }));
+        dispatch(loadAndPlaySong(normalizedSong));
+    };
 
     const handleAlbumPress = (albumId: number) => {
         router.push({
@@ -55,6 +70,15 @@ export function HomeMusic({
 
     const handleViewAllPlaylists = () => {
         router.push("/(app)/music/screens/Playlists");
+    };
+
+    const { topSongToday, topSongWeekly, topSongMonthly } = useRanking();
+
+    const handleRankingPress = (type: "today" | "week" | "month", title: string) => {
+        router.push({
+            pathname: "/(app)/music/screens/RankingDetail" as any,
+            params: { type, title },
+        });
     };
 
     return (
@@ -86,6 +110,43 @@ export function HomeMusic({
                                     </View>
                                 ))}
                         </View>
+                    </ScrollView>
+                </View>
+            )}
+
+            {/* Ranking Section */}
+            {activeFilter === "all" && (
+                <View className="mt-6">
+                    <View className="flex-row items-center justify-between px-4 mb-3">
+                        <Text
+                            className={`text-xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}
+                        >
+                            Bảng Xếp Hạng
+                        </Text>
+                    </View>
+
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 16, paddingRight: 16 }}>
+                        <RankingCard
+                            title="BXH Hôm Nay"
+                            data={topSongToday}
+                            onPress={() => handleRankingPress("today", "BXH Hôm Nay")}
+                            onPlayPress={() => { }}
+                            onSongPress={(item) => handleRankingSongPress(item, topSongToday)}
+                        />
+                        <RankingCard
+                            title="BXH Tuần Này"
+                            data={topSongWeekly}
+                            onPress={() => handleRankingPress("week", "BXH Tuần Này")}
+                            onPlayPress={() => { }}
+                            onSongPress={(item) => handleRankingSongPress(item, topSongWeekly)}
+                        />
+                        <RankingCard
+                            title="BXH Tháng Này"
+                            data={topSongMonthly}
+                            onPress={() => handleRankingPress("month", "BXH Tháng Này")}
+                            onPlayPress={() => { }}
+                            onSongPress={(item) => handleRankingSongPress(item, topSongMonthly)}
+                        />
                     </ScrollView>
                 </View>
             )}
