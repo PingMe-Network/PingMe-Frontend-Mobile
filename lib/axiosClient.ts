@@ -3,7 +3,7 @@ import type { InternalAxiosRequestConfig, AxiosError } from "axios";
 import { getTokens, saveTokens, clearTokens } from "@/utils/storage";
 import { getSessionMetaRequest } from "@/utils/sessionMetaHandler";
 import type { ApiResponse } from "@/types/base/apiResponse";
-import type { MobileAuthResponse } from "@/types/authentication";
+import type { MobileAuthResponse } from "@/types/auth";
 
 // 1. Cấu hình cơ bản
 const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
@@ -82,7 +82,7 @@ axiosClient.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 // ============================================================
@@ -136,7 +136,7 @@ axiosClient.interceptors.response.use(
     } catch (e) {
       return Promise.reject(e);
     }
-  }
+  },
 );
 
 export default axiosClient;

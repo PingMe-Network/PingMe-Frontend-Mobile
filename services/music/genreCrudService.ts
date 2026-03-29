@@ -3,7 +3,7 @@ import type { ApiResponse, PageResponse } from "@/types/base/apiResponse";
 import type { GenreResponse, GenreRequest } from "@/types/music";
 import { createFormDataForGenre } from "./helpers/formDataHelper";
 
-const BASE_URL = "";
+const BASE_URL = "/music-service";
 
 /**
  * CRUD service for Genre entity

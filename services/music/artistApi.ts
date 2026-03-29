@@ -8,7 +8,7 @@ export const artistApi = {
   > => {
     const response =
       await axiosClient.get<ApiResponse<PageResponse<ArtistResponse>>>(
-        "/artists/all",
+        "/music-service/artists/all",
       );
     return response.data;
   },
@@ -16,7 +16,7 @@ export const artistApi = {
   getPopularArtists: async (limit?: number): Promise<ArtistResponse[]> => {
     const response =
       await axiosClient.get<ApiResponse<PageResponse<ArtistResponse>>>(
-        "/artists/all",
+        "/music-service/artists/all",
       );
     const artists = response.data?.data?.content || [];
     return limit ? artists.slice(0, limit) : artists;

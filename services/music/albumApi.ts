@@ -12,7 +12,7 @@ export const albumApi = {
   getAllAlbums: async (): Promise<ApiResponse<PageResponse<AlbumResponse>>> => {
     const response =
       await axiosClient.get<ApiResponse<PageResponse<AlbumResponse>>>(
-        "/albums/all",
+        "/music-service/albums/all",
       );
     return response.data;
   },
@@ -20,7 +20,7 @@ export const albumApi = {
   getPopularAlbums: async (limit?: number): Promise<AlbumResponse[]> => {
     const response =
       await axiosClient.get<ApiResponse<PageResponse<AlbumResponse>>>(
-        "/albums/all",
+        "/music-service/albums/all",
       );
     const albums = response.data?.data?.content || [];
     const sortedAlbums = [...albums].sort((a, b) => b.playCount - a.playCount);

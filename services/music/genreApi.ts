@@ -9,7 +9,7 @@ export const genreApi = {
    */
   getAllGenres: async (): Promise<Genre[]> => {
     const response =
-      await axiosClient.get<ApiResponse<PageResponse<Genre>>>("/genres/all");
+      await axiosClient.get<ApiResponse<PageResponse<Genre>>>("/music-service/genres/all");
     return response.data?.data?.content || response.data?.data || [];
   },
 };
