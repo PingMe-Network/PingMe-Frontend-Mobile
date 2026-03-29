@@ -2,8 +2,13 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import type {
   CurrentUserSessionResponse,
   MobileAuthResponse,
-} from "@/types/authentication";
-import { getCurrentUserSession, loginThunk, logoutThunk, registerThunk } from "./authThunk";
+} from "@/types/auth";
+import {
+  getCurrentUserSession,
+  loginThunk,
+  logoutThunk,
+  registerThunk,
+} from "./authThunk";
 
 interface AuthState {
   userSession: CurrentUserSessionResponse;

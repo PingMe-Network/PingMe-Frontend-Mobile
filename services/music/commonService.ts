@@ -1,7 +1,7 @@
 import axiosClient from "@/lib/axiosClient";
 import type { ApiResponse } from "@/types/base/apiResponse";
 
-const COMMON_URL = "/music/common";
+const COMMON_URL = "/music-service/music/common";
 
 /**
  * Common service for shared music operations

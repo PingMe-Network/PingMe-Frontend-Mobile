@@ -4,7 +4,7 @@ import type {
   ChangeProfileRequest,
   CurrentUserProfileResponse,
   CurrentUserSessionResponse,
-} from "@/types/authentication";
+} from "@/types/auth";
 import axiosClient from "@/lib/axiosClient";
 
 export const getCurrentUserSessionApi = () => {

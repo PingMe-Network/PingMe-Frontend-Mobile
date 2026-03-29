@@ -8,8 +8,8 @@ import {
   deletePlaylist,
   addSongToPlaylist,
   removeSongFromPlaylist,
-} from "@/features/slices/playlistSlice";
-import { invalidatePlaylistCache } from "@/features/slices/playlistCoversSlice";
+} from "@/features/music/playlistSlice";
+import { invalidatePlaylistCache } from "@/features/music/playlistCoversSlice";
 import type { PlaylistDto } from "@/types/music/playlist";
 
 /**

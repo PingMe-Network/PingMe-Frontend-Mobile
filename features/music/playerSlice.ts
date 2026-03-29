@@ -5,7 +5,7 @@ import {
 } from "@reduxjs/toolkit";
 import { Audio, AVPlaybackStatus } from "expo-av";
 import type { SongResponseWithAllAlbum } from "@/types/music";
-import { logoutThunk } from "./authThunk";
+import { logoutThunk } from "@/features/auth/authThunk";
 import { getRandomInt } from "@/utils/random";
 import { songCrudService } from "@/services/music/songCrudService";
 

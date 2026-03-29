@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { searchService } from "@/services/music";
 import { SongList, MusicScreenHeader, useSongModals } from "@/components/music";
 import type { SongResponseWithAllAlbum } from "@/types/music";
-import { loadAndPlaySong, setQueue, setPlayerMinimized } from "@/features/slices/playerSlice";
+import { loadAndPlaySong, setQueue, setPlayerMinimized } from "@/features/music/playerSlice";
 import { Colors } from "@/constants/Colors";
 
 export default function GenreSongsScreen() {

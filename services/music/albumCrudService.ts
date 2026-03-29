@@ -3,7 +3,7 @@ import type { ApiResponse, PageResponse } from "@/types/base/apiResponse";
 import type { AlbumResponse, AlbumRequest } from "@/types/music";
 import { createFormDataForAlbum } from "./helpers/formDataHelper";
 
-const BASE_URL = "";
+const BASE_URL = "/music-service";
 
 /**
  * CRUD service for Album entity

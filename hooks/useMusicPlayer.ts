@@ -10,7 +10,7 @@ import {
   toggleRepeat,
   toggleShuffle,
   setPlayerMinimized,
-} from "@/features/slices/playerSlice";
+} from "@/features/music/playerSlice";
 import type { SongResponseWithAllAlbum } from "@/types/music";
 
 /**

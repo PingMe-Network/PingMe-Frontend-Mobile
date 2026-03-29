@@ -12,7 +12,7 @@ import {
     toggleShuffle,
     setPlayerMinimized,
     setVolume,
-} from "@/features/slices/playerSlice";
+} from "@/features/music/playerSlice";
 import { useState } from "react";
 import { Colors } from "@/constants/Colors";
 import { router } from "expo-router";

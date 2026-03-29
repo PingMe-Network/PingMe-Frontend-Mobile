@@ -2,7 +2,7 @@ import type { ApiResponse } from "@/types/base/apiResponse";
 import type {
   CurrentUserSessionMetaResponse,
   CurrentUserSessionResponse,
-} from "@/types/authentication";
+} from "@/types/auth";
 import axiosClient from "@/lib/axiosClient";
 
 export const getCurrentUserAllDeviceMetasApi = () => {

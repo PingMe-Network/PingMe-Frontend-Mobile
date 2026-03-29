@@ -2,15 +2,15 @@ import { View, ActivityIndicator, Animated, Text, TouchableOpacity, ScrollView }
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppSelector, useAppDispatch } from "@/features/store";
 import { useLocalSearchParams, router } from "expo-router";
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { SongList, PlaylistBanner, AddSongToPlaylistModal, EditPlaylistModal, SongOptionsModal, AddToPlaylistModal, CreatePlaylistModal } from "@/components/music";
 import type { SongResponseWithAllAlbum } from "@/types/music";
-import { loadAndPlaySong, setQueue } from "@/features/slices/playerSlice";
+import { loadAndPlaySong, setQueue } from "@/features/music/playerSlice";
 import { Colors } from "@/constants/Colors";
 import { useShufflePlay } from "@/hooks/useShufflePlay";
 import { usePlaylists } from "@/hooks/usePlaylists";
 import { songApi } from "@/services/music";
-import { deletePlaylist } from "@/features/slices/playlistSlice";
+import { deletePlaylist } from "@/features/music/playlistSlice";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAlert } from "@/components/ui/AlertProvider";
@@ -34,7 +34,7 @@ export default function PlaylistDetailScreen() {
     const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
     const [selectedSong, setSelectedSong] = useState<SongResponseWithAllAlbum | null>(null);
 
-    const scrollY = useRef(new Animated.Value(0)).current;
+    const [scrollY] = useState(() => new Animated.Value(0));
 
     // Animate header title visibility when scrolling
     const headerTitleOpacity = scrollY.interpolate({
@@ -204,7 +204,10 @@ export default function PlaylistDetailScreen() {
 
     const handleGoToArtist = () => {
         if (!selectedSong?.mainArtist?.id) return;
-        router.push(`/(app)/music/screens/ArtistDetail?id=${selectedSong.mainArtist.id}`);
+        router.push({
+            pathname: "/(app)/music/screens/ArtistDetail",
+            params: { id: selectedSong.mainArtist.id.toString() }
+        } as any);
     };
 
     const handleEdit = () => {
@@ -294,8 +297,7 @@ export default function PlaylistDetailScreen() {
                 {/* Sticky Header Bar */}
                 <Animated.View
                     className="flex-row items-center px-4 py-3"
-                    style={[
-                        {
+                    style={{
                             backgroundColor: headerBackgroundOpacity.interpolate({
                                 inputRange: [0, 1],
                                 outputRange: isDark
@@ -303,8 +305,7 @@ export default function PlaylistDetailScreen() {
                                     : ['rgba(30, 30, 30, 0)', 'rgba(30, 30, 30, 1)'],
                             }),
                             borderBottomWidth: 0,
-                        },
-                    ]}
+                        }}
                 >
                     <View className="flex-row items-center flex-1">
                         {/* Back Button */}

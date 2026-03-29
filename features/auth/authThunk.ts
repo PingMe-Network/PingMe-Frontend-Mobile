@@ -1,11 +1,11 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
-import { loginMobileApi, logoutApi, registerApi } from "@/services/authentication";
+import { loginMobileApi, logoutApi, registerApi } from "@/services/auth";
 import type {
   CurrentUserSessionResponse,
   LoginRequest,
   MobileAuthResponse,
   RegisterRequest,
-} from "@/types/authentication";
+} from "@/types/auth";
 import { saveTokens, clearTokens } from "@/utils/storage";
 import { getErrorMessage } from "@/utils/errorMessageHandler";
 import { getCurrentUserSessionApi } from "@/services/user/currentUserProfileApi";
@@ -77,4 +77,3 @@ export const registerThunk = createAsyncThunk<
     return rejectWithValue(getErrorMessage(error));
   }
 });
-

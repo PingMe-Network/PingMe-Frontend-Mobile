@@ -8,7 +8,7 @@ import { songApi } from "@/services/music/songApi";
 import type { SongResponseWithAllAlbum, TopSongPlayCounter } from "@/types/music";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
-import { loadAndPlaySong, setQueue } from "@/features/slices/playerSlice";
+import { loadAndPlaySong, setQueue } from "@/features/music/playerSlice";
 import { Colors } from "@/constants/Colors";
 import { useShufflePlay } from "@/hooks/useShufflePlay";
 import { normalizeTopSong } from "@/utils/musicNormalization";

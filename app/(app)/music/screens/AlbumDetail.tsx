@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { searchService } from "@/services/music";
 import { SongList, AlbumHeader, SongOptionsModal, AddToPlaylistModal, CreatePlaylistModal } from "@/components/music";
 import type { SongResponseWithAllAlbum } from "@/types/music";
-import { loadAndPlaySong, setQueue } from "@/features/slices/playerSlice";
+import { loadAndPlaySong, setQueue } from "@/features/music/playerSlice";
 import { Colors } from "@/constants/Colors";
 import { useShufflePlay } from "@/hooks/useShufflePlay";
 import { useSongActions } from "@/hooks/useSongActions";

@@ -7,7 +7,7 @@ import type {
 } from "@/types/music";
 import { createFormDataForSong } from "./helpers/formDataHelper";
 
-const BASE_URL = "";
+const BASE_URL = "/music-service";
 
 /**
  * CRUD service for Song entity

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "@/features/store";
-import { fetchMusicData } from "@/features/slices/musicSlice";
+import { fetchMusicData } from "@/features/music/musicSlice";
 import { CACHE_DURATION } from "@/constants/musicConstants";
 
 /**

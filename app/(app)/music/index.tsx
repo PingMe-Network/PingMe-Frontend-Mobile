@@ -3,9 +3,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppSelector, useAppDispatch } from "@/features/store";
 import { useTabBarHeight } from "@/hooks/useTabBarHeight";
 import { useEffect, useState } from "react";
-import { fetchMusicData } from "@/features/slices/musicSlice";
+import { fetchMusicData } from "@/features/music/musicSlice";
 import { Ionicons } from "@expo/vector-icons";
-import { loadAndPlaySong, setQueue, setPlayerMinimized } from "@/features/slices/playerSlice";
+import { loadAndPlaySong, setQueue, setPlayerMinimized } from "@/features/music/playerSlice";
 import { useRouter } from "expo-router";
 import { HomeMusic } from "./screens/HomeMusic";
 

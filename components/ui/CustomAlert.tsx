@@ -1,7 +1,7 @@
 import { Modal, View, Text, TouchableOpacity, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/Colors";
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 
 export type AlertType = "success" | "error" | "info" | "warning";
 
@@ -58,8 +58,8 @@ export function CustomAlert({
     onConfirm,
     onCancel,
 }: Readonly<CustomAlertProps>) {
-    const scaleAnim = useRef(new Animated.Value(0)).current;
-    const opacityAnim = useRef(new Animated.Value(0)).current;
+    const [scaleAnim] = useState(() => new Animated.Value(0));
+    const [opacityAnim] = useState(() => new Animated.Value(0));
 
     useEffect(() => {
         if (visible) {

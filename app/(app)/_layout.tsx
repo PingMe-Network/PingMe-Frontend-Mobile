@@ -1,5 +1,5 @@
 import { Tabs, usePathname } from "expo-router";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   MessageCircle,
   Users,
@@ -11,7 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Platform, Animated, Easing } from "react-native";
 import { useAppSelector, useAppDispatch } from "@/features/store";
-import { pauseSong } from "@/features/slices/playerSlice";
+import { pauseSong } from "@/features/music/playerSlice";
 import { Colors } from "@/constants/Colors";
 import { TabBarBackground } from "@/components/ui/TabBarBackground";
 
@@ -109,7 +109,7 @@ export default function AppLayout() {
   const tabBarHeight = 65 + bottomPadding;
 
   // Animation for music icon
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const [pulseAnim] = useState(() => new Animated.Value(1));
   const isMusicTab = pathname?.includes('/music');
   const isReelsTab = pathname?.includes('/reels');
 

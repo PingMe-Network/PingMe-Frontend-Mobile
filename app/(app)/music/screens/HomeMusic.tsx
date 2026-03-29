@@ -10,7 +10,7 @@ import type { PlaylistDto } from "@/types/music/playlist";
 import { SongCard, AlbumCard, ArtistCard, PlaylistCard, RankingCard } from "@/components/music";
 import { useRanking } from "@/hooks/useRanking";
 import { useAppDispatch } from "@/features/store";
-import { loadAndPlaySong, setQueue } from "@/features/slices/playerSlice";
+import { loadAndPlaySong, setQueue } from "@/features/music/playerSlice";
 import { normalizeTopSong } from "@/utils/musicNormalization";
 
 export type HomeMusicFilter = "all" | "playlist" | "favorite";

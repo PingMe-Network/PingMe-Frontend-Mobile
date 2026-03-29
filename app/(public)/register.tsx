@@ -12,7 +12,7 @@ import {
 import { Link, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppDispatch, useAppSelector } from "@/features/store";
-import { registerThunk } from "@/features/slices/authThunk";
+import { registerThunk } from "@/features/auth/authThunk";
 import { InputField } from "@/components/ui/InputField";
 import { Button } from "@/components/ui/Button";
 import { Colors } from "@/constants/Colors";

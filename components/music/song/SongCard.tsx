@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { SongResponseWithAllAlbum } from "@/types/music";
 import { useAppSelector, useAppDispatch } from "@/features/store";
-import { toggleFavorite } from "@/features/slices/favoriteSlice";
+import { toggleFavorite } from "@/features/music/favoriteSlice";
 
 interface SongCardProps {
     song: SongResponseWithAllAlbum;

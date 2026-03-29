@@ -6,7 +6,7 @@ import type {
   ArtistResponse,
 } from "@/types/music";
 
-const BASE_URL = "";
+const BASE_URL = "/music-service";
 
 /**
  * Search service for music-related search operations

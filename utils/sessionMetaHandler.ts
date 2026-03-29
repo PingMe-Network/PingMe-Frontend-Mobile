@@ -1,6 +1,6 @@
 import * as Device from "expo-device";
 import { Platform } from "react-native";
-import type { SubmitSessionMetaRequest } from "@/types/authentication";
+import type { SubmitSessionMetaRequest } from "@/types/auth";
 
 export const getSessionMetaRequest =
   async (): Promise<SubmitSessionMetaRequest> => {
