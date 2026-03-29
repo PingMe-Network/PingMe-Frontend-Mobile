@@ -14,8 +14,8 @@ import { setupAxiosInterceptors } from "@/lib/axiosClient";
 import {
   logoutThunk,
   getCurrentUserSession,
-} from "@/features/slices/authThunk";
-import { updateUserSession } from "@/features/slices/authSlice";
+} from "@/features/auth/authThunk";
+import { updateUserSession } from "@/features/auth/authSlice";
 import { getTokens } from "@/utils/storage";
 import { Colors } from "@/constants/Colors";
 import { AlertProvider } from "@/components/ui/AlertProvider";

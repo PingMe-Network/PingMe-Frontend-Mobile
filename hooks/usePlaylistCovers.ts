@@ -4,7 +4,7 @@ import {
   setMultipleCoverImages,
   setLoadingIds,
   clearExpiredCache,
-} from "@/features/slices/playlistCoversSlice";
+} from "@/features/music/playlistCoversSlice";
 import { playlistApi } from "@/services/music/playlistApi";
 import { songApi } from "@/services/music";
 

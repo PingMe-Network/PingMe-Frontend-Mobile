@@ -3,7 +3,7 @@ import { useAppDispatch, useAppSelector } from "@/features/store";
 import {
   fetchFavorites,
   toggleFavorite,
-} from "@/features/slices/favoriteSlice";
+} from "@/features/music/favoriteSlice";
 
 /**
  * Hook for managing favorite songs

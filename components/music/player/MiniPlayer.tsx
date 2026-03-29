@@ -8,7 +8,7 @@ import {
     playPreviousSong,
     setPlayerMinimized,
     clearShouldPlayNext,
-} from "@/features/slices/playerSlice";
+} from "@/features/music/playerSlice";
 import { useEffect, useState } from "react";
 
 export const MiniPlayer = () => {

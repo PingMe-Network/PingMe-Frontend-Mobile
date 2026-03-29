@@ -2,8 +2,8 @@ import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useAppDispatch, useAppSelector } from "@/features/store";
-import { logoutThunk } from "@/features/slices/authThunk";
-import { toggleTheme } from "@/features/slices/themeSlice";
+import { logoutThunk } from "@/features/auth/authThunk";
+import { toggleTheme } from "@/features/theme/themeSlice";
 import { useTabBarHeight } from "@/hooks/useTabBarHeight";
 
 export default function AccountScreen() {

@@ -5,7 +5,7 @@ import { useLocalSearchParams, router } from "expo-router";
 import { useEffect, useState } from "react";
 import { searchService } from "@/services/music";
 import type { ArtistResponse, SongResponseWithAllAlbum } from "@/types/music";
-import { loadAndPlaySong, setQueue } from "@/features/slices/playerSlice";
+import { loadAndPlaySong, setQueue } from "@/features/music/playerSlice";
 import { Colors } from "@/constants/Colors";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";

@@ -9,7 +9,7 @@ import { SongList, FavoritesHeader, MusicScreenHeader, SongOptionsModal, AddToPl
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { songApi } from "@/services/music";
 import type { SongResponseWithAllAlbum } from "@/types/music";
-import { loadAndPlaySong, setQueue, setPlayerMinimized } from "@/features/slices/playerSlice";
+import { loadAndPlaySong, setQueue, setPlayerMinimized } from "@/features/music/playerSlice";
 import { useAlert } from "@/components/ui/AlertProvider";
 
 

@@ -14,7 +14,7 @@ import {
     SearchLoading
 } from "@/components/music/search";
 import { router } from "expo-router";
-import { loadAndPlaySong, setQueue, setPlayerMinimized } from "@/features/slices/playerSlice";
+import { loadAndPlaySong, setQueue, setPlayerMinimized } from "@/features/music/playerSlice";
 
 // Màu sắc cho các genre (giống Spotify)
 const GENRE_COLORS = [

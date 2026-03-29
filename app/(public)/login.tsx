@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { Link, router } from "expo-router";
 import { useAppDispatch, useAppSelector } from "@/features/store";
-import { loginThunk } from "@/features/slices/authThunk";
+import { loginThunk } from "@/features/auth/authThunk";
 import { InputField } from "@/components/ui/InputField";
 import { Button } from "@/components/ui/Button";
 

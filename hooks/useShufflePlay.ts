@@ -3,7 +3,7 @@ import {
   loadAndPlaySong,
   setQueue,
   setPlayerMinimized,
-} from "@/features/slices/playerSlice";
+} from "@/features/music/playerSlice";
 import { getRandomInt } from "@/utils/random";
 import type { SongResponseWithAllAlbum } from "@/types/music";
 

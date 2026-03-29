@@ -11,7 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Platform, Animated, Easing } from "react-native";
 import { useAppSelector, useAppDispatch } from "@/features/store";
-import { pauseSong } from "@/features/slices/playerSlice";
+import { pauseSong } from "@/features/music/playerSlice";
 import { Colors } from "@/constants/Colors";
 import { TabBarBackground } from "@/components/ui/TabBarBackground";
 

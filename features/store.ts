@@ -15,13 +15,13 @@ import {
   REGISTER,
 } from "redux-persist";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import authReducer from "./slices/authSlice";
-import themeReducer from "./slices/themeSlice";
-import musicReducer from "./slices/musicSlice";
-import favoriteReducer from "./slices/favoriteSlice";
-import playerReducer from "./slices/playerSlice";
-import playlistReducer from "./slices/playlistSlice";
-import playlistCoversReducer from "./slices/playlistCoversSlice";
+import authReducer from "./auth/authSlice";
+import themeReducer from "./theme/themeSlice";
+import musicReducer from "./music/musicSlice";
+import favoriteReducer from "./music/favoriteSlice";
+import playerReducer from "./music/playerSlice";
+import playlistReducer from "./music/playlistSlice";
+import playlistCoversReducer from "./music/playlistCoversSlice";
 
 const persistConfig = {
   key: "root",
