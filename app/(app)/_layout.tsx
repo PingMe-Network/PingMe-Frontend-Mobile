@@ -1,5 +1,5 @@
 import { Tabs, usePathname } from "expo-router";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   MessageCircle,
   Users,
@@ -109,7 +109,7 @@ export default function AppLayout() {
   const tabBarHeight = 65 + bottomPadding;
 
   // Animation for music icon
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const [pulseAnim] = useState(() => new Animated.Value(1));
   const isMusicTab = pathname?.includes('/music');
   const isReelsTab = pathname?.includes('/reels');
 

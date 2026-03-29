@@ -9,7 +9,7 @@ import {
     setPlayerMinimized,
     clearShouldPlayNext,
 } from "@/features/slices/playerSlice";
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 
 export const MiniPlayer = () => {
     const dispatch = useAppDispatch();
@@ -19,7 +19,7 @@ export const MiniPlayer = () => {
     const { currentSong, isPlaying, position, duration, isPlayerMinimized, shouldPlayNext } =
         useAppSelector((state) => state.player);
 
-    const slideAnim = useRef(new Animated.Value(200)).current;
+    const [slideAnim] = useState(() => new Animated.Value(200));
 
     // Auto-play next song when current song finishes
     useEffect(() => {
