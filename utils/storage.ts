@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // Lưu Token
 // ====================================================
 export const saveTokens = async (accessToken: string, refreshToken: string) => {
+  if (typeof window === "undefined") return;
   try {
     await AsyncStorage.multiSet([
       ["access_token", accessToken],
@@ -18,6 +19,7 @@ export const saveTokens = async (accessToken: string, refreshToken: string) => {
 // Lấy Token
 // ====================================================
 export const getTokens = async () => {
+  if (typeof window === "undefined") return { accessToken: null, refreshToken: null };
   try {
     const values = await AsyncStorage.multiGet([
       "access_token",
@@ -36,6 +38,7 @@ export const getTokens = async () => {
 // Xóa Token
 // ====================================================
 export const clearTokens = async () => {
+  if (typeof window === "undefined") return;
   try {
     await AsyncStorage.multiRemove(["access_token", "refresh_token"]);
   } catch (e) {
