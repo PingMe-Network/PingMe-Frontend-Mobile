@@ -7,12 +7,12 @@ import axiosClient from "@/lib/axiosClient";
 
 export const getCurrentUserAllDeviceMetasApi = () => {
   return axiosClient.get<ApiResponse<CurrentUserSessionMetaResponse[]>>(
-    "/users/me/sessions",
+    "/auth-service/users/me/sessions",
   );
 };
 
 export const deleteCurrentUserDeviceMetaApi = (sessionId: string) => {
   return axiosClient.delete<ApiResponse<CurrentUserSessionResponse>>(
-    `/users/me/sessions/${sessionId}`,
+    `/auth-service/users/me/sessions/${sessionId}`,
   );
 };
