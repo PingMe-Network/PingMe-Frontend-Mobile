@@ -6,13 +6,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   Image,
 } from "react-native";
-import { Link, router } from "expo-router";
+import { Link } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppDispatch, useAppSelector } from "@/features/store";
 import { registerThunk } from "@/features/auth/authThunk";
+import { checkEmailExistsApi } from "@/services/auth";
 import { InputField } from "@/components/ui/InputField";
 import { Button } from "@/components/ui/Button";
 import { Colors } from "@/constants/Colors";
@@ -22,17 +22,37 @@ export default function RegisterScreen() {
   const { isLoading } = useAppSelector((state) => state.auth);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showGenderDropdown, setShowGenderDropdown] = useState(false);
   const [gender, setGender] = useState<"MALE" | "FEMALE" | "OTHER">("MALE");
 
+  const handleEmailBlur = async () => {
+    if (!email.trim()) return;
+    try {
+      const res = await checkEmailExistsApi(email.trim());
+      if (res.data.data.exists) {
+        setEmailError("Email này đã được sử dụng");
+      } else {
+        setEmailError(null);
+      }
+    } catch (error) {
+      console.log("Check email error", error);
+    }
+  };
+
   const handleRegister = async () => {
     setErrorMessage(null);
 
     if (!fullName.trim() || !email.trim() || !password.trim()) {
       setErrorMessage("Vui lòng điền đầy đủ thông tin");
+      return;
+    }
+
+    if (emailError) {
+      setErrorMessage("Vui lòng sử dụng email hợp lệ");
       return;
     }
 
@@ -44,29 +64,12 @@ export default function RegisterScreen() {
     try {
       await dispatch(
         registerThunk({
-          email,
+          email: email.trim(),
           name: fullName,
           password,
           gender, // Gửi gender lên API
         })
       ).unwrap();
-
-      // Xử lý thông báo thành công đa nền tảng
-      if (Platform.OS === "web") {
-        (globalThis as any).alert("Đăng ký thành công! Vui lòng đăng nhập.");
-        router.replace("/(public)/login" as never);
-      } else {
-        Alert.alert(
-          "Đăng ký thành công",
-          "Tài khoản của bạn đã được tạo. Vui lòng đăng nhập.",
-          [
-            {
-              text: "OK",
-              onPress: () => router.replace("/(public)/login" as never),
-            },
-          ]
-        );
-      }
     } catch (error) {
       setErrorMessage(
         typeof error === "string" ? error : "Đăng ký thất bại. Vui lòng thử lại."
@@ -120,7 +123,12 @@ export default function RegisterScreen() {
             label="Email"
             placeholder="Nhập email của bạn"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(text) => {
+              setEmail(text);
+              if (emailError) setEmailError(null);
+            }}
+            onBlur={handleEmailBlur}
+            error={emailError}
             autoCapitalize="none"
             keyboardType="email-address"
           />
