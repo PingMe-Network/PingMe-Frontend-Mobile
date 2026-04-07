@@ -8,7 +8,7 @@ import {
 } from "@/utils/storage";
 import { getSessionMetaRequest } from "@/utils/sessionMetaHandler";
 import type { ApiResponse } from "@/types/base/apiResponse";
-import type { MobileAuthResponse } from "@/types/auth";
+import type { MobileAuthResponse, RefreshMobileRequest } from "@/types/auth";
 
 // 1. Cấu hình cơ bản
 const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
@@ -48,10 +48,13 @@ const performRefreshToken = async (): Promise<string> => {
     const metaData = await getSessionMetaRequest();
 
     // Gọi API Refresh
-    const response = await axios.post(`${BASE_URL}/auth/mobile/refresh`, {
-      refreshToken: refreshToken,
-      submitSessionMetaRequest: metaData,
-    });
+    const response = await axios.post<ApiResponse<MobileAuthResponse>>(
+      `${BASE_URL}/auth-service/auth/mobile/refresh`,
+      {
+        refreshToken: refreshToken,
+        submitSessionMetaRequest: metaData,
+      } as RefreshMobileRequest
+    );
 
     const payload = response.data.data as MobileAuthResponse;
 
@@ -85,9 +88,9 @@ axiosClient.interceptors.request.use(
   async (config) => {
     // Bỏ qua auth-related requests
     const isAuthRequest =
-      config.url?.includes("/auth/mobile/login") ||
-      config.url?.includes("/auth/mobile/refresh") ||
-      config.url?.includes("/auth/register");
+      config.url?.includes("/auth-service/auth/mobile/login") ||
+      config.url?.includes("/auth-service/auth/mobile/refresh") ||
+      config.url?.includes("/auth-service/auth/register");
 
     if (isAuthRequest) return config;
 
@@ -150,8 +153,8 @@ axiosClient.interceptors.response.use(
 
     // Chặn Loop vô tận
     if (
-      originalRequest.url?.includes("/auth/mobile/login") ||
-      originalRequest.url?.includes("/auth/mobile/refresh")
+      originalRequest.url?.includes("/auth-service/auth/mobile/login") ||
+      originalRequest.url?.includes("/auth-service/auth/mobile/refresh")
     ) {
       return Promise.reject(error);
     }

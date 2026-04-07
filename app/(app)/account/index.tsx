@@ -8,7 +8,7 @@ import { useTabBarHeight } from "@/hooks/useTabBarHeight";
 
 export default function AccountScreen() {
   const dispatch = useAppDispatch();
-  const { user } = useAppSelector((state) => state.auth);
+  const { userSession: user } = useAppSelector((state) => state.auth);
   const { mode } = useAppSelector((state) => state.theme);
   const isDark = mode === "dark";
   const tabBarHeight = useTabBarHeight();
