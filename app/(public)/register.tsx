@@ -15,7 +15,6 @@ import { registerThunk } from "@/features/auth/authThunk";
 import { checkEmailExistsApi } from "@/services/auth";
 import { InputField } from "@/components/ui/InputField";
 import { Button } from "@/components/ui/Button";
-import { Colors } from "@/constants/Colors";
 
 export default function RegisterScreen() {
   const dispatch = useAppDispatch();
@@ -86,21 +85,26 @@ export default function RegisterScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1 bg-background-dark"
+      className="flex-1 bg-background-light relative overflow-hidden"
     >
+      {/* Background Decorators (Bubbles) */}
+      <View className="absolute top-20 -left-10 w-48 h-48 bg-primary/10 rounded-full" />
+      <View className="absolute top-[40%] -right-16 w-64 h-64 bg-secondary/10 rounded-full" />
+      <View className="absolute -bottom-10 left-[10%] w-56 h-56 bg-purple-500/10 rounded-full" />
+      
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
       >
         <View className="px-6 py-10 w-full max-w-lg mx-auto">
           {/* Header */}
-          <View className="items-center mb-8">
+          <View className="items-center mb-8 z-10">
             <Image
               source={require("../../assets/app/icon.png")}
-              className="w-28 h-28 mb-4 rounded-2xl"
+              className="w-24 h-24 mb-4 rounded-2xl"
             />
-            <Text className="text-3xl font-bold text-primary">PingMe</Text>
-            <Text className="text-gray-400 mt-2">Tạo tài khoản mới</Text>
+            <Text className="text-3xl font-black text-gray-900 tracking-tight">PingMe</Text>
+            <Text className="text-gray-500 mt-2 font-medium">Tạo tài khoản mới</Text>
           </View>
 
           {/* Error Message */}
@@ -134,25 +138,25 @@ export default function RegisterScreen() {
           />
 
           {/* Gender Selection */}
-          <Text className="mb-2 font-medium text-gray-300">Giới tính</Text>
-          <View className="mb-4 relative z-50">
+          <View className="mb-4 z-50 relative">
+            <Text className="mb-2 font-medium text-gray-700">Giới tính</Text>
             <TouchableOpacity
-              className="border border-gray-700 rounded-custom p-4 bg-gray-900 flex-row justify-between items-center"
+              className="border border-gray-200 rounded-custom p-4 bg-white flex-row justify-between items-center"
               onPress={() => setShowGenderDropdown(!showGenderDropdown)}
               activeOpacity={0.7}
             >
-              <Text className="text-base text-white">
+              <Text className="text-base text-gray-900">
                 {genderLabels[gender]}
               </Text>
               <Ionicons
                 name={showGenderDropdown ? "chevron-up" : "chevron-down"}
                 size={20}
-                color={Colors.text.gray}
+                color="#9CA3AF"
               />
             </TouchableOpacity>
 
             {showGenderDropdown && (
-              <View className="absolute top-full left-0 right-0 mt-2 bg-gray-900 border border-gray-800 rounded-custom shadow-lg z-50 overflow-hidden">
+              <View className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-custom shadow-sm z-50 overflow-hidden">
                 {[
                   { label: "Khác", value: "OTHER" },
                   { label: "Nam", value: "MALE" },
@@ -160,7 +164,7 @@ export default function RegisterScreen() {
                 ].map((item) => (
                   <TouchableOpacity
                     key={item.value}
-                    className={`p-4 border-b border-gray-800 last:border-0 ${gender === item.value ? "bg-primary/20" : ""
+                    className={`p-4 border-b border-gray-100 last:border-0 ${gender === item.value ? "bg-primary/5" : ""
                       }`}
                     onPress={() => {
                       setGender(item.value as any);
@@ -170,7 +174,7 @@ export default function RegisterScreen() {
                     <Text
                       className={`${gender === item.value
                         ? "text-primary font-semibold"
-                        : "text-gray-300"
+                        : "text-gray-700"
                         }`}
                     >
                       {item.label}
@@ -208,8 +212,8 @@ export default function RegisterScreen() {
           />
 
           {/* Login Link */}
-          <View className="flex-row justify-center mt-6">
-            <Text className="text-gray-400">Đã có tài khoản? </Text>
+          <View className="flex-row justify-center mt-6 z-10">
+            <Text className="text-gray-500 text-sm">Đã có tài khoản? </Text>
             <Link href={"/(public)/login" as never} asChild>
               <TouchableOpacity>
                 <Text className="text-primary font-semibold">Đăng nhập</Text>

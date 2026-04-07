@@ -23,13 +23,14 @@ export const InputField = ({
 
     return (
         <View className="mb-4">
-            {label && <Text className="mb-2 font-medium text-gray-300">{label}</Text>}
+            {label && <Text className="mb-2 font-medium text-gray-700">{label}</Text>}
 
-            <View className="relative">
+            <View className="relative justify-center">
                 <TextInput
-                    className={`border rounded-custom p-4 bg-gray-900 text-white text-base ${error ? "border-red-500 bg-red-900/10" : "border-gray-700"
-                        } ${isPassword ? "pr-12" : ""} ${className || ""}`}
-                    placeholderTextColor={Colors.text.gray}
+                    className={`border rounded-custom p-4 bg-white text-gray-900 text-base ${
+                        error ? "border-red-500 bg-red-50" : "border-gray-200"
+                    } ${isPassword ? "pr-12" : ""} ${className || ""}`}
+                    placeholderTextColor={Colors.text?.gray || "#9CA3AF"}
                     secureTextEntry={isSecure}
                     {...props}
                 />
@@ -43,7 +44,7 @@ export const InputField = ({
                         <Ionicons
                             name={showPassword ? "eye-off" : "eye"}
                             size={24}
-                            color={Colors.text.gray}
+                            color={Colors.text?.gray || "#9CA3AF"}
                         />
                     </TouchableOpacity>
                 )}
