@@ -16,7 +16,7 @@ import {
   getCurrentUserSession,
 } from "@/features/auth/authThunk";
 import { updateUserSession } from "@/features/auth/authSlice";
-import { getTokens } from "@/utils/storage";
+import { getTokens, isRefreshTokenExpired } from "@/utils/storage";
 import { Colors } from "@/constants/Colors";
 import { AlertProvider } from "@/components/ui/AlertProvider";
 import "../global.css";
@@ -38,7 +38,16 @@ function RootLayoutNav() {
 
     (async () => {
       const { accessToken } = await getTokens();
+
       if (mounted && isLogin && accessToken) {
+        // Kiểm tra refresh token có hết hạn chưa
+        const refreshExpired = await isRefreshTokenExpired();
+        if (refreshExpired) {
+          console.log("[Auth] Refresh token đã hết hạn, auto logout...");
+          dispatch(logoutThunk());
+          return;
+        }
+
         dispatch(getCurrentUserSession());
       }
     })();

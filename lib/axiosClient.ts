@@ -1,9 +1,14 @@
 import axios from "axios";
 import type { InternalAxiosRequestConfig, AxiosError } from "axios";
-import { getTokens, saveTokens, clearTokens } from "@/utils/storage";
+import {
+  getTokens,
+  saveTokens,
+  clearTokens,
+  isAccessTokenExpiringSoon,
+} from "@/utils/storage";
 import { getSessionMetaRequest } from "@/utils/sessionMetaHandler";
 import type { ApiResponse } from "@/types/base/apiResponse";
-import type { MobileAuthResponse } from "@/types/auth";
+import type { MobileAuthResponse, RefreshMobileRequest } from "@/types/auth";
 
 // 1. Cấu hình cơ bản
 const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
@@ -43,10 +48,13 @@ const performRefreshToken = async (): Promise<string> => {
     const metaData = await getSessionMetaRequest();
 
     // Gọi API Refresh
-    const response = await axios.post(`${BASE_URL}/auth/mobile/refresh`, {
-      refreshToken: refreshToken,
-      submitSessionMetaRequest: metaData,
-    });
+    const response = await axios.post<ApiResponse<MobileAuthResponse>>(
+      `${BASE_URL}/auth-service/auth/mobile/refresh`,
+      {
+        refreshToken: refreshToken,
+        submitSessionMetaRequest: metaData,
+      } as RefreshMobileRequest
+    );
 
     const payload = response.data.data as MobileAuthResponse;
 
@@ -69,17 +77,54 @@ const performRefreshToken = async (): Promise<string> => {
 };
 
 // ============================================================
+// PROACTIVE REFRESH BUFFER (60 giây)
+// ============================================================
+const REFRESH_BUFFER_MS = 60_000;
+
+// ============================================================
 // REQUEST INTERCEPTOR
 // ============================================================
 axiosClient.interceptors.request.use(
   async (config) => {
+    // Bỏ qua auth-related requests
+    const isAuthRequest =
+      config.url?.includes("/auth-service/auth/mobile/login") ||
+      config.url?.includes("/auth-service/auth/mobile/refresh") ||
+      config.url?.includes("/auth-service/auth/register");
+
+    if (isAuthRequest) return config;
+
     const { accessToken } = await getTokens();
 
-    // Nếu có token và không phải API refresh thì gắn vào header
-    if (accessToken && !config.url?.includes("/auth/mobile/refresh")) {
+    if (accessToken) {
+      // Proactive Refresh: nếu token sắp hết hạn trong 60s → refresh trước
+      const expiringSoon = await isAccessTokenExpiringSoon(REFRESH_BUFFER_MS);
+
+      if (expiringSoon) {
+        console.log("[Axios] Access token sắp hết hạn, proactive refresh...");
+        try {
+          // Dùng shared promise để tránh refresh trùng lặp
+          if (!refreshPromise) {
+            refreshPromise = performRefreshToken().finally(() => {
+              refreshPromise = null;
+            });
+          }
+          const newToken = await refreshPromise;
+          config.headers = config.headers ?? {};
+          config.headers.Authorization = `Bearer ${newToken}`;
+          return config;
+        } catch {
+          // Nếu refresh thất bại → vẫn gửi request với token cũ
+          // Response interceptor sẽ xử lý 401
+          console.warn("[Axios] Proactive refresh thất bại, dùng token cũ");
+        }
+      }
+
+      // Token còn hạn → gắn bình thường
       config.headers = config.headers ?? {};
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
+
     return config;
   },
   (error) => Promise.reject(error),
@@ -108,8 +153,8 @@ axiosClient.interceptors.response.use(
 
     // Chặn Loop vô tận
     if (
-      originalRequest.url?.includes("/auth/mobile/login") ||
-      originalRequest.url?.includes("/auth/mobile/refresh")
+      originalRequest.url?.includes("/auth-service/auth/mobile/login") ||
+      originalRequest.url?.includes("/auth-service/auth/mobile/refresh")
     ) {
       return Promise.reject(error);
     }

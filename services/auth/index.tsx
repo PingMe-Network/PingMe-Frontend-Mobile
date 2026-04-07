@@ -4,6 +4,7 @@ import type {
   LoginRequest,
   MobileAuthResponse,
   RegisterRequest,
+  RefreshMobileRequest,
 } from "@/types/auth";
 import { getSessionMetaRequest } from "@/utils/sessionMetaHandler";
 
@@ -28,4 +29,16 @@ export const registerApi = (data: RegisterRequest) => {
 
 export const logoutApi = () => {
   return axiosClient.post("/auth-service/auth/logout");
+};
+
+export const refreshMobileApi = async (data: { refreshToken: string }) => {
+  const metaData = await getSessionMetaRequest();
+
+  return axiosClient.post<ApiResponse<MobileAuthResponse>>(
+    "/auth-service/auth/mobile/refresh",
+    {
+      ...data,
+      submitSessionMetaRequest: metaData,
+    } as RefreshMobileRequest,
+  );
 };
