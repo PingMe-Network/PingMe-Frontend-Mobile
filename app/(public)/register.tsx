@@ -16,6 +16,7 @@ import { registerThunk } from "@/features/auth/authThunk";
 import { InputField } from "@/components/ui/InputField";
 import { Button } from "@/components/ui/Button";
 import { Colors } from "@/constants/Colors";
+import { TurnstileWidget } from "@/components/ui/TurnstileWidget";
 
 export default function RegisterScreen() {
   const dispatch = useAppDispatch();
@@ -27,6 +28,9 @@ export default function RegisterScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showGenderDropdown, setShowGenderDropdown] = useState(false);
   const [gender, setGender] = useState<"MALE" | "FEMALE" | "OTHER">("MALE");
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+
+  const turnstileSiteKey = process.env.VITE_TURNSTILE_SITE_KEY || "0x4AAAAAAClpT4qYqe0yvp2q";
 
   const handleRegister = async () => {
     setErrorMessage(null);
@@ -41,13 +45,19 @@ export default function RegisterScreen() {
       return;
     }
 
+    if (!turnstileToken) {
+      setErrorMessage("Vui lòng xác thực CAPTCHA");
+      return;
+    }
+
     try {
       await dispatch(
         registerThunk({
           email,
           name: fullName,
           password,
-          gender, // Gửi gender lên API
+          gender,
+          turnstileToken: turnstileToken!,
         })
       ).unwrap();
 
@@ -191,6 +201,22 @@ export default function RegisterScreen() {
             isPassword
             className="mb-6"
           />
+
+          {/* Turnstile Widget */}
+          <View style={{ height: 100, marginBottom: 10 }}>
+            <TurnstileWidget
+              siteKey={turnstileSiteKey}
+              onVerify={(token) => {
+                setTurnstileToken(token);
+                setErrorMessage(null);
+              }}
+              onExpire={() => setTurnstileToken(null)}
+              onError={() => {
+                setErrorMessage("Lỗi tải CAPTCHA. Vui lòng thử lại.");
+                setTurnstileToken(null);
+              }}
+            />
+          </View>
 
           {/* Register Button */}
           <Button

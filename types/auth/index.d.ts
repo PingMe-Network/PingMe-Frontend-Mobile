@@ -23,6 +23,7 @@ export interface RegisterRequest {
   password: string;
   address?: string;
   dob?: string;
+  turnstileToken: string;
 }
 
 export interface RefreshMobileRequest {
