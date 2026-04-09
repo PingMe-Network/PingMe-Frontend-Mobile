@@ -115,7 +115,7 @@ export default function AccountScreen() {
             {menuItems.map((item, index) => (
               <TouchableOpacity
                 key={item.id}
-                className={`flex-row items-center p-4 ${index !== menuItems.length - 1 ? 'border-b border-gray-100 dark:border-white/5' : ''}`}
+                className={`flex-row items-center p-4 ${index === menuItems.length - 1 ? '' : 'border-b border-gray-100 dark:border-white/5'}`}
                 onPress={item.onPress}
                 activeOpacity={0.7}
               >

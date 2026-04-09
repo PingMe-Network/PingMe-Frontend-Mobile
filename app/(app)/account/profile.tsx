@@ -50,8 +50,14 @@ const GenderSelector = ({ gender, setGender, isOpen, setIsOpen, labels, isDark, 
         <View className={`absolute top-full left-0 right-0 mt-2 border rounded-xl shadow-lg z-50 overflow-hidden ${styles.dropdownBgClass}`}>
           {Object.entries(labels).map(([key, label]: any) => {
             const isSelected = gender === key;
-            const itemBg = isSelected ? (isDark ? "bg-primary/20" : "bg-primary/5") : "";
-            const itemTextColor = isSelected ? "text-primary font-bold" : (isDark ? "text-gray-300" : "text-gray-700");
+            
+            // Extract nested logic into clear variables
+            const selectedBg = isDark ? "bg-primary/20" : "bg-primary/5";
+            const unselectedTextColor = isDark ? "text-gray-300" : "text-gray-700";
+            
+            const itemBg = isSelected ? selectedBg : "";
+            const itemTextColor = isSelected ? "text-primary font-bold" : unselectedTextColor;
+
             return (
               <TouchableOpacity
                 key={key}
