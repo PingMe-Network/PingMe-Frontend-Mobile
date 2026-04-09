@@ -17,7 +17,7 @@ export default function AccountScreen() {
   const { userSession: user } = useAppSelector((state) => state.auth);
   const { mode } = useAppSelector((state) => state.theme);
   const isDark = mode === "dark";
-  const { colorScheme, setColorScheme } = useColorScheme();
+  const { setColorScheme } = useColorScheme();
   const tabBarHeight = useTabBarHeight();
   const { updatingAvatar, handleUpdateAvatar } = useAvatarUpdate();
 
@@ -50,6 +50,15 @@ export default function AccountScreen() {
     },
   ];
 
+  const thumbColor = Platform.select({
+    ios: undefined,
+    default: isDark ? "#fff" : "#f4f3f4",
+  });
+
+  const avatarUrl = (user?.avatarUrl || "").trim();
+  const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "User")}&background=DF40A3&color=fff&size=200`;
+  const avatarSource = avatarUrl ? { uri: avatarUrl } : { uri: defaultAvatar };
+
   return (
     <AccountLayout noScrollView={true}>
       <ScrollView
@@ -64,11 +73,7 @@ export default function AccountScreen() {
         <View className="items-center -mt-16 px-6">
           <View className="relative">
             <Image
-              source={
-                user?.avatarUrl 
-                  ? { uri: user.avatarUrl.trim() } 
-                  : { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "User")}&background=DF40A3&color=fff&size=200` }
-              }
+              source={avatarSource}
               className="w-32 h-32 rounded-full border-4 border-white dark:border-background-dark bg-white"
               resizeMode="cover"
             />
@@ -151,7 +156,7 @@ export default function AccountScreen() {
                 value={isDark}
                 onValueChange={() => { dispatch(toggleTheme()); }}
                 trackColor={{ false: "#d1d5db", true: Colors.primary }}
-                thumbColor={Platform.OS === "ios" ? undefined : (isDark ? "#fff" : "#f4f3f4")}
+                thumbColor={thumbColor}
               />
             </View>
           </View>
