@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Platform, Alert, Image } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { router, Stack } from "expo-router";
+import { router } from "expo-router";
 import { useAppDispatch, useAppSelector } from "@/features/store";
-import { logoutThunk, getCurrentUserSession } from "@/features/auth/authThunk";
+import { logoutThunk } from "@/features/auth/authThunk";
 import { useTabBarHeight } from "@/hooks/useTabBarHeight";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { Colors } from "@/constants/Colors";
@@ -11,6 +10,7 @@ import { useAvatarUpdate } from "@/hooks/useAvatarUpdate";
 import { useColorScheme } from "nativewind";
 import { toggleTheme } from "@/features/theme/themeSlice";
 import { Switch } from "react-native";
+import { AccountLayout } from "@/components/ui/AccountLayout";
 
 export default function AccountScreen() {
   const dispatch = useAppDispatch();
@@ -51,8 +51,7 @@ export default function AccountScreen() {
   ];
 
   return (
-    <SafeAreaView className={`flex-1 ${isDark ? "bg-background-dark" : "bg-background-light"}`} edges={['top']}>
-      <Stack.Screen options={{ headerShown: false }} />
+    <AccountLayout noScrollView={true}>
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, paddingBottom: tabBarHeight + 20 }}
         showsVerticalScrollIndicator={false}
@@ -131,32 +130,32 @@ export default function AccountScreen() {
                     {item.description}
                   </Text>
                 </View>
-                  <Feather name="chevron-right" size={20} color={isDark ? "#4b5563" : "#d1d5db"} />
-                </TouchableOpacity>
-              ))}
+                <Feather name="chevron-right" size={20} color={isDark ? "#4b5563" : "#d1d5db"} />
+              </TouchableOpacity>
+            ))}
 
-              {/* Theme Toggle Row */}
-              <View className="flex-row items-center p-4 border-t border-gray-100 dark:border-white/5">
-                <View className={`w-10 h-10 rounded-full items-center justify-center ${isDark ? 'bg-primary/20' : 'bg-primary/10'}`}>
-                  <Feather name={isDark ? "moon" : "sun"} size={20} color={Colors.primary} />
-                </View>
-                <View className="ml-4 flex-1">
-                  <Text className={`text-base font-semibold ${isDark ? "text-white" : "text-midnight-velvet"}`}>
-                    Chế độ tối
-                  </Text>
-                  <Text className={`text-xs mt-0.5 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-                    {isDark ? "Đang bật" : "Đang tắt"}
-                  </Text>
-                </View>
-                <Switch
-                  value={isDark}
-                  onValueChange={() => { dispatch(toggleTheme()); }}
-                  trackColor={{ false: "#d1d5db", true: Colors.primary }}
-                  thumbColor={Platform.OS === "ios" ? undefined : (isDark ? "#fff" : "#f4f3f4")}
-                />
+            {/* Theme Toggle Row */}
+            <View className="flex-row items-center p-4 border-t border-gray-100 dark:border-white/5">
+              <View className={`w-10 h-10 rounded-full items-center justify-center ${isDark ? 'bg-primary/20' : 'bg-primary/10'}`}>
+                <Feather name={isDark ? "moon" : "sun"} size={20} color={Colors.primary} />
               </View>
+              <View className="ml-4 flex-1">
+                <Text className={`text-base font-semibold ${isDark ? "text-white" : "text-midnight-velvet"}`}>
+                  Chế độ tối
+                </Text>
+                <Text className={`text-xs mt-0.5 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                  {isDark ? "Đang bật" : "Đang tắt"}
+                </Text>
+              </View>
+              <Switch
+                value={isDark}
+                onValueChange={() => { dispatch(toggleTheme()); }}
+                trackColor={{ false: "#d1d5db", true: Colors.primary }}
+                thumbColor={Platform.OS === "ios" ? undefined : (isDark ? "#fff" : "#f4f3f4")}
+              />
             </View>
           </View>
+        </View>
 
         {/* Logout */}
         <View className="px-6 mt-10">
@@ -170,6 +169,6 @@ export default function AccountScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </AccountLayout>
   );
 }
