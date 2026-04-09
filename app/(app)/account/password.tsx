@@ -71,28 +71,6 @@ export default function PasswordScreen() {
     }
   };
 
-  const InputAuthField = ({ label, value, onChangeText, secureTextEntry, showPassword, setShowPassword, placeholder }: any) => (
-    <View className="mb-6">
-      <Text className={`text-sm font-medium mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
-        {label} <Text className="text-red-500">*</Text>
-      </Text>
-      <View className={`flex-row items-center px-4 py-1 border rounded-xl ${isDark ? "border-white/20" : "border-gray-200"}`}>
-        <Feather name="lock" size={18} color={isDark ? "#9ca3af" : "#6b7280"} />
-        <TextInput
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={isDark ? "#6b7280" : "#9ca3af"}
-          secureTextEntry={!showPassword}
-          className={`flex-1 py-3 px-3 text-base ${isDark ? "text-white" : "text-midnight-velvet"}`}
-        />
-        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} className="p-2">
-          <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color={isDark ? "#9ca3af" : "#6b7280"} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
   return (
     <SafeAreaView className={`flex-1 ${isDark ? "bg-background-dark" : "bg-background-light"}`} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
