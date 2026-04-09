@@ -33,7 +33,7 @@ export const useProfileData = () => {
       setAddress(data.address || "");
       if (data.dob) {
         const d = new Date(data.dob);
-        if (!isNaN(d.getTime())) setDob(d);
+        if (!Number.isNaN(d.getTime())) setDob(d);
       }
     } catch (error) {
       Alert.alert("Lỗi tải thông tin", getErrorMessage(error));

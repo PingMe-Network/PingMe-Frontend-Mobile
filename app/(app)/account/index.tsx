@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Platform, Alert, Image } from "react-native";
+import React from "react";
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Platform, Image, Switch } from "react-native";
 import { router } from "expo-router";
 import { useAppDispatch, useAppSelector } from "@/features/store";
 import { logoutThunk } from "@/features/auth/authThunk";
@@ -9,7 +9,6 @@ import { Colors } from "@/constants/Colors";
 import { useAvatarUpdate } from "@/hooks/useAvatarUpdate";
 import { useColorScheme } from "nativewind";
 import { toggleTheme } from "@/features/theme/themeSlice";
-import { Switch } from "react-native";
 import { AccountLayout } from "@/components/ui/AccountLayout";
 
 export default function AccountScreen() {

@@ -43,6 +43,30 @@ export const AccountLayout: React.FC<AccountLayoutProps> = ({
     }
   };
 
+  const renderMainContent = () => {
+    if (loading) {
+      return (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      );
+    }
+
+    if (noScrollView) {
+      return children;
+    }
+
+    return (
+      <ScrollView
+        className="flex-1 px-5"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[{ paddingTop: 24, paddingBottom: 100 }, contentContainerStyle]}
+      >
+        {children}
+      </ScrollView>
+    );
+  };
+
   const content = (
     <View className="flex-1">
       {/* Header */}
@@ -59,21 +83,7 @@ export const AccountLayout: React.FC<AccountLayoutProps> = ({
         </View>
       )}
 
-      {loading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={Colors.primary} />
-        </View>
-      ) : noScrollView ? (
-        children
-      ) : (
-        <ScrollView 
-          className="flex-1 px-5" 
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={[{ paddingTop: 24, paddingBottom: 100 }, contentContainerStyle]}
-        >
-          {children}
-        </ScrollView>
-      )}
+      {renderMainContent()}
     </View>
   );
 
