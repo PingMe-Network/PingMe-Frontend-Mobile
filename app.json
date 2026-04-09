@@ -55,8 +55,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "8e14b7f4-deed-4d87-b898-4a8a57fe94fb"
+        "projectId": "33d68865-1b6c-42c2-a9cc-a0f38a524202"
       }
-    }
+    },
+    "owner": "pnhung"
   }
 }

@@ -1,11 +1,12 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import { Appearance } from "react-native";
 
 interface ThemeState {
   mode: "light" | "dark";
 }
 
 const initialState: ThemeState = {
-  mode: "light",
+  mode: Appearance.getColorScheme() === "dark" ? "dark" : "light",
 };
 
 const themeSlice = createSlice({

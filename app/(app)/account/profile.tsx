@@ -12,7 +12,7 @@ import { Colors } from "@/constants/Colors";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { updateCurrentUserAvatarApi } from "@/services/user/currentUserProfileApi";
-import { Image } from "expo-image";
+import { Image } from "react-native";
 
 const InputFieldWrapper = ({ label, required, isDark, children }: any) => (
   <View className="mb-6">
@@ -101,7 +101,7 @@ export default function ProfileScreen() {
         const selectedImage = result.assets[0];
         
         const formData = new FormData();
-        formData.append('file', {
+        formData.append('avatar', {
           uri: selectedImage.uri,
           name: 'avatar.jpg',
           type: 'image/jpeg',
@@ -201,12 +201,11 @@ export default function ProfileScreen() {
                   <Image
                     source={
                       userInfo?.avatarUrl || user?.avatarUrl 
-                        ? { uri: userInfo?.avatarUrl || user?.avatarUrl } 
+                        ? { uri: (userInfo?.avatarUrl || user?.avatarUrl || "").trim() } 
                         : { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(name || user?.name || "User")}&background=DF40A3&color=fff&size=200` }
                     }
                     className="w-full h-full"
-                    contentFit="cover"
-                    transition={200}
+                    resizeMode="cover"
                   />
                   {updatingAvatar && (
                     <View className="absolute inset-0 bg-black/30 items-center justify-center">
