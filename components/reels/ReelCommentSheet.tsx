@@ -290,10 +290,10 @@ export default function ReelCommentSheet({
 function CommentItem({
   comment,
   isDark,
-}: {
+}: Readonly<{
   comment: ReelComment;
   isDark: boolean;
-}) {
+}>) {
   const [liked, setLiked] = useState(!!comment.myReaction);
   const heartScale = useRef(new Animated.Value(1)).current;
 

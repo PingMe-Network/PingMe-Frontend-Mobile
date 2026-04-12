@@ -53,7 +53,7 @@ export default function ReelCard({
   onShare,
   isMuted,
   onToggleMute,
-}: ReelCardProps) {
+}: Readonly<ReelCardProps>) {
   const [isVideoPaused, setIsVideoPaused] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);

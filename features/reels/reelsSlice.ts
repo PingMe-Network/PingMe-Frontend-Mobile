@@ -75,6 +75,48 @@ const initialState: ReelsState = {
 
 /**
  * ======================================
+ * HELPERS
+ * ======================================
+ */
+
+const updateReelList = (
+  state: ReelsState,
+  listKey: "feed" | "myReels",
+  payload: { content: Reel[]; page: number; hasMore: boolean },
+  isFirstPage: boolean
+) => {
+  if (isFirstPage) {
+    state[listKey] = payload.content;
+  } else {
+    const existingIds = new Set(state[listKey].map((r) => r.id));
+    const newReels = payload.content.filter((r) => !existingIds.has(r.id));
+    state[listKey].push(...(newReels as any));
+  }
+
+  if (listKey === "feed") {
+    state.feedPage = payload.page;
+    state.feedHasMore = payload.hasMore;
+  } else {
+    state.myReelsPage = payload.page;
+    state.myReelsHasMore = payload.hasMore;
+  }
+};
+
+const toggleLikeLocal = (reel: Reel) => {
+  reel.isLikedByMe = !reel.isLikedByMe;
+  reel.likeCount = reel.isLikedByMe ? reel.likeCount + 1 : reel.likeCount - 1;
+};
+
+const toggleSaveLocal = (reel: Reel) => {
+  reel.isSavedByMe = !reel.isSavedByMe;
+};
+
+const removePendingId = (state: ReelsState, key: "likingIds" | "savingIds", id: number) => {
+  state[key] = state[key].filter((i) => i !== id);
+};
+
+/**
+ * ======================================
  * ASYNC THUNKS
  * ======================================
  */
@@ -220,18 +262,11 @@ const reelsSlice = createSlice({
     },
     optimisticLike(state, action: PayloadAction<number>) {
       const reel = state.feed.find((r) => r.id === action.payload);
-      if (reel) {
-        reel.isLikedByMe = !reel.isLikedByMe;
-        reel.likeCount = reel.isLikedByMe
-          ? reel.likeCount + 1
-          : reel.likeCount - 1;
-      }
+      if (reel) toggleLikeLocal(reel);
     },
     optimisticSave(state, action: PayloadAction<number>) {
       const reel = state.feed.find((r) => r.id === action.payload);
-      if (reel) {
-        reel.isSavedByMe = !reel.isSavedByMe;
-      }
+      if (reel) toggleSaveLocal(reel);
     },
     resetFeed(state) {
       state.feed = [];
@@ -266,16 +301,7 @@ const reelsSlice = createSlice({
       })
       .addCase(fetchReelFeed.fulfilled, (state, action) => {
         state.feedLoading = false;
-        if (action.meta.arg.page === 0) {
-          state.feed = action.payload.content;
-        } else {
-          // Deduplicate
-          const existingIds = new Set(state.feed.map((r) => r.id));
-          const newReels = action.payload.content.filter((r) => !existingIds.has(r.id));
-          state.feed.push(...newReels);
-        }
-        state.feedPage = action.payload.page;
-        state.feedHasMore = action.payload.hasMore;
+        updateReelList(state, "feed", action.payload, action.meta.arg.page === 0);
       })
       .addCase(fetchReelFeed.rejected, (state, action) => {
         state.feedLoading = false;
@@ -324,7 +350,7 @@ const reelsSlice = createSlice({
         state.likingIds.push(action.meta.arg);
       })
       .addCase(toggleReelLike.fulfilled, (state, action) => {
-        state.likingIds = state.likingIds.filter((id) => id !== action.payload.id);
+        removePendingId(state, "likingIds", action.payload.id);
         const reel = state.feed.find((r) => r.id === action.payload.id);
         if (reel) {
           reel.isLikedByMe = action.payload.isLikedByMe;
@@ -332,15 +358,10 @@ const reelsSlice = createSlice({
         }
       })
       .addCase(toggleReelLike.rejected, (state, action) => {
-        state.likingIds = state.likingIds.filter((id) => id !== action.meta.arg);
+        removePendingId(state, "likingIds", action.meta.arg);
         // Revert optimistic update
         const reel = state.feed.find((r) => r.id === action.meta.arg);
-        if (reel) {
-          reel.isLikedByMe = !reel.isLikedByMe;
-          reel.likeCount = reel.isLikedByMe
-            ? reel.likeCount + 1
-            : reel.likeCount - 1;
-        }
+        if (reel) toggleLikeLocal(reel);
       });
 
     // Toggle save
@@ -349,19 +370,17 @@ const reelsSlice = createSlice({
         state.savingIds.push(action.meta.arg);
       })
       .addCase(toggleReelSave.fulfilled, (state, action) => {
-        state.savingIds = state.savingIds.filter((id) => id !== action.payload.id);
+        removePendingId(state, "savingIds", action.payload.id);
         const reel = state.feed.find((r) => r.id === action.payload.id);
         if (reel) {
           reel.isSavedByMe = action.payload.isSavedByMe;
         }
       })
       .addCase(toggleReelSave.rejected, (state, action) => {
-        state.savingIds = state.savingIds.filter((id) => id !== action.meta.arg);
+        removePendingId(state, "savingIds", action.meta.arg);
         // Revert
         const reel = state.feed.find((r) => r.id === action.meta.arg);
-        if (reel) {
-          reel.isSavedByMe = !reel.isSavedByMe;
-        }
+        if (reel) toggleSaveLocal(reel);
       });
 
     // Record view - increment viewCount locally
@@ -379,15 +398,7 @@ const reelsSlice = createSlice({
       })
       .addCase(searchReelsThunk.fulfilled, (state, action) => {
         state.feedLoading = false;
-        if (action.meta.arg.page === 0) {
-          state.feed = action.payload.content;
-        } else {
-          const existingIds = new Set(state.feed.map((r) => r.id));
-          const newReels = action.payload.content.filter((r) => !existingIds.has(r.id));
-          state.feed.push(...newReels);
-        }
-        state.feedPage = action.payload.page;
-        state.feedHasMore = action.payload.hasMore;
+        updateReelList(state, "feed", action.payload, action.meta.arg.page === 0);
       })
       .addCase(searchReelsThunk.rejected, (state, action) => {
         state.feedLoading = false;
@@ -401,15 +412,7 @@ const reelsSlice = createSlice({
       })
       .addCase(fetchMyReelsThunk.fulfilled, (state, action) => {
         state.myReelsLoading = false;
-        if (action.meta.arg === 0) {
-          state.myReels = action.payload.content;
-        } else {
-          const existingIds = new Set(state.myReels.map((r) => r.id));
-          const newReels = action.payload.content.filter((r) => !existingIds.has(r.id));
-          state.myReels.push(...newReels);
-        }
-        state.myReelsPage = action.payload.page;
-        state.myReelsHasMore = action.payload.hasMore;
+        updateReelList(state, "myReels", action.payload, action.meta.arg === 0);
       })
       .addCase(fetchMyReelsThunk.rejected, (state) => {
         state.myReelsLoading = false;
