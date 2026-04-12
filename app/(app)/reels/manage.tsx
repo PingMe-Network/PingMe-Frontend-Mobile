@@ -4,11 +4,11 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  Image,
   Dimensions,
   ActivityIndicator,
   RefreshControl,
   StatusBar,
+  ListRenderItem,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft, Play, Trash2, Video } from "lucide-react-native";
@@ -35,7 +35,7 @@ export default function MyReelsScreen() {
     handleDelete 
   } = useMyReels();
 
-  const renderItem = useCallback(({ item }: { item: Reel }) => (
+  const renderItem: ListRenderItem<Reel> = useCallback(({ item }) => (
     <View 
       style={{ width: ITEM_SIZE, height: ITEM_SIZE * 1.5 }}
       className="p-[1px] relative"

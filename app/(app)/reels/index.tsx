@@ -7,8 +7,9 @@ import {
   StatusBar,
   Animated,
   RefreshControl,
+  FlatList,
+  ListRenderItem
 } from "react-native";
-import { FlatList } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { RefreshCw } from "lucide-react-native";
 import { Colors } from "@/constants/Colors";
@@ -79,8 +80,8 @@ export default function ReelsScreen() {
     setTimeout(() => setIsRefreshing(false), 1000);
   }, [handleRefresh]);
 
-  const renderReel = useCallback(
-    ({ item, index }: { item: Reel; index: number }) => (
+  const renderReel: ListRenderItem<Reel> = useCallback(
+    ({ item, index }) => (
       <ReelCard
         reel={item}
         isActive={index === activeReelIndex}
@@ -118,11 +119,11 @@ export default function ReelsScreen() {
 
   // Active reel comments
   const activeComments =
-    activeCommentReelId !== null ? comments[activeCommentReelId] ?? [] : [];
+    activeCommentReelId === null ? [] : comments[activeCommentReelId] ?? [];
   const activeCommentPage =
-    activeCommentReelId !== null ? (comments[activeCommentReelId]?.length ?? 0) : 0;
+    activeCommentReelId === null ? 0 : comments[activeCommentReelId]?.length ?? 0;
   const activeHasMore =
-    activeCommentReelId !== null ? commentHasMore[activeCommentReelId] ?? false : false;
+    activeCommentReelId === null ? false : commentHasMore[activeCommentReelId] ?? false;
 
   // Error state
   if (feedError && feed.length === 0) {

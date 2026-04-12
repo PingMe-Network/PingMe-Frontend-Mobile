@@ -5,8 +5,6 @@ import {
   TouchableOpacity,
   Text,
   Animated,
-  StyleSheet,
-  Platform,
 } from "react-native";
 import { Search, PlusSquare, User, X } from "lucide-react-native";
 import { router } from "expo-router";
@@ -19,7 +17,7 @@ interface ReelHeaderProps {
   onOpenCreate?: () => void;
 }
 
-export const ReelHeader = ({ isDark, onOpenCreate }: ReelHeaderProps) => {
+export const ReelHeader = ({ isDark, onOpenCreate }: Readonly<ReelHeaderProps>) => {
   const dispatch = useAppDispatch();
   const { searchQuery, isSearching } = useAppSelector((state) => state.reels);
   const [localQuery, setLocalQuery] = useState(searchQuery);

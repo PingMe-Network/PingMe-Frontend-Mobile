@@ -12,13 +12,13 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  StyleSheet,
   Animated,
   ActivityIndicator,
   Image,
   Modal,
   Dimensions,
   PanResponder,
+  ListRenderItem,
 } from "react-native";
 import { X, Send, Heart } from "lucide-react-native";
 import type { ReelComment } from "@/types/reels";
@@ -54,7 +54,7 @@ export default function ReelCommentSheet({
   onSubmit,
   onClose,
   visible,
-}: ReelCommentSheetProps) {
+}: Readonly<ReelCommentSheetProps>) {
   const { mode } = useAppSelector((state) => state.theme);
   const isDark = mode === "dark";
 
@@ -142,8 +142,8 @@ export default function ReelCommentSheet({
     onLoadMore(reelId, currentPage);
   }, [reelId, hasMore, commentsLoading, onLoadMore, currentPage]);
 
-  const renderComment = useCallback(
-    ({ item }: { item: ReelComment }) => (
+  const renderComment: ListRenderItem<ReelComment> = useCallback(
+    ({ item }) => (
       <CommentItem comment={item} isDark={isDark} />
     ),
     [isDark]
@@ -315,16 +315,10 @@ function CommentItem({
     return `${Math.floor(hours / 24)} ngày`;
   };
 
+  const pinnedStyle = comment.isPinned ? "bg-primary/5 rounded-xl px-2 mb-1" : "";
+
   return (
-    <View
-      className={`flex-row gap-2.5 py-2.5 ${
-        comment.isPinned
-          ? isDark
-            ? "bg-primary/5 rounded-xl px-2 mb-1"
-            : "bg-primary/5 rounded-xl px-2 mb-1"
-          : ""
-      }`}
-    >
+    <View className={`flex-row gap-2.5 py-2.5 ${pinnedStyle}`}>
       {/* Avatar */}
       <View className="relative">
         {comment.userAvatarUrl ? (

@@ -270,8 +270,8 @@ export default function ReelCard({
           {/* Hashtags */}
           {reel.hashtags && reel.hashtags.length > 0 && (
             <View className="flex-row flex-wrap">
-              {reel.hashtags.slice(0, 4).map((tag, i) => (
-                <Text key={i} className="text-secondary text-[13px] font-semibold">
+              {reel.hashtags.slice(0, 4).map((tag) => (
+                <Text key={tag} className="text-secondary text-[13px] font-semibold">
                   #{tag}{" "}
                 </Text>
               ))}

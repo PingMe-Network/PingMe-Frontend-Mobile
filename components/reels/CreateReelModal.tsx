@@ -24,7 +24,7 @@ interface CreateReelModalProps {
   isDark: boolean;
 }
 
-export const CreateReelModal = ({ visible, onClose, isDark }: CreateReelModalProps) => {
+export const CreateReelModal = ({ visible, onClose, isDark }: Readonly<CreateReelModalProps>) => {
   const dispatch = useAppDispatch();
   const [videoUri, setVideoUri] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
