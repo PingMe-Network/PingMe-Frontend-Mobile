@@ -162,9 +162,8 @@ export default function MessagesScreen() {
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={() => openChatRoom(item)}
-        className="flex-row items-center py-3.5 px-4 mb-2 mx-4 bg-card border border-border rounded-custom shadow-sm"
+        className="flex-row items-center py-3.5 px-4 mb-2 mx-4 bg-card rounded-3xl shadow-sm"
       >
-        <View className="relative">
           {avatar ? (
             <Image
               source={{ uri: avatar }}

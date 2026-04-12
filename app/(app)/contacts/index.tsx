@@ -280,7 +280,7 @@ export default function ContactsScreen() {
     const isOnline = item.status === "ONLINE";
 
     return (
-      <View className="flex-row items-center py-3 px-4 mb-2 mx-4 bg-card border border-border rounded-custom shadow-sm">
+      <View className="flex-row items-center py-3 px-4 mb-2 mx-4 bg-card rounded-[20px] shadow-sm">
         {/* Avatar */}
         <View className="relative">
           {item.avatarUrl ? (
@@ -407,7 +407,7 @@ export default function ContactsScreen() {
 
       {/* Add Friend */}
       {showAddFriend && (
-        <View className="mx-6 mb-2.5 p-4 rounded-xl bg-card border border-border shadow-sm">
+        <View className="mx-6 mb-2.5 p-4 rounded-[20px] bg-card shadow-sm">
           <Text className="text-[14px] font-bold text-foreground mb-3">
             Thêm bạn bè
           </Text>

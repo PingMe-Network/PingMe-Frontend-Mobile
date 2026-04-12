@@ -40,7 +40,7 @@ export default function AccountScreen() {
   };
 
   const bgClass = "bg-background";
-  const bgCardClass = "bg-card border border-border shadow-sm";
+  const bgCardClass = "bg-card shadow-sm";
   const textTitleClass = "text-foreground";
   const textSubClass = "text-muted-foreground";
   const iconColor = "#71717A"; 
