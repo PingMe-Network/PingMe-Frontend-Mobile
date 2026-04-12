@@ -48,8 +48,6 @@ import type {
 type TabId = "friends" | "received" | "sent";
 
 export default function ContactsScreen() {
-  const { mode } = useAppSelector((state) => state.theme);
-  const isDark = mode === "dark";
   const { userSession } = useAppSelector((state) => state.auth);
   const tabBarHeight = useTabBarHeight();
   const router = useRouter();
@@ -275,7 +273,7 @@ export default function ContactsScreen() {
     sent: "Chưa gửi lời mời nào",
   };
   
-  const iconColor = isDark ? "#c084fc" : "#9333ea";
+  const iconColor = "#c026d3";
 
   const renderUserCard = ({ item }: { item: UserSummaryResponse }) => {
     const isProcessing = item.friendshipSummary ? processingIds.has(item.friendshipSummary.id) : false;
@@ -414,12 +412,12 @@ export default function ContactsScreen() {
             Thêm bạn bè
           </Text>
           <View className="flex-row gap-2">
-            <View className="flex-1 flex-row items-center h-[42px] px-3.5 rounded-xl bg-muted/40 border border-border">
-              <Search size={16} className="text-muted-foreground" color={isDark ? "#9CA3AF" : "#6B7280"} />
+            <View className="flex-1 flex-row items-center h-[42px] px-3.5 rounded-[16px] bg-muted/60 border border-border">
+              <Search size={16} className="text-muted-foreground" color="#71717A" />
               <TextInput
                 className="flex-1 ml-2 text-[13px] text-foreground"
                 placeholder="Nhập email..."
-                placeholderTextColor={isDark ? "#9CA3AF" : "#6B7280"}
+                placeholderTextColor="#71717A"
                 value={searchEmail}
                 onChangeText={setSearchEmail}
                 keyboardType="email-address"
@@ -487,7 +485,7 @@ export default function ContactsScreen() {
                 isActive ? "bg-primary/10 border-primary/30" : "bg-card border-transparent"
               }`}
             >
-              <Icon size={15} className={isActive ? "text-primary" : "text-muted-foreground"} color={isActive ? iconColor : isDark ? "#9CA3AF" : "#6B7280"} />
+              <Icon size={15} className={isActive ? "text-primary" : "text-muted-foreground"} color={isActive ? iconColor : "#71717A"} />
               <Text
                 className={`ml-1.5 text-[12px] font-bold ${
                   isActive ? "text-primary" : "text-muted-foreground"
@@ -513,12 +511,12 @@ export default function ContactsScreen() {
 
       {/* Search */}
       <View className="px-6 mb-2">
-        <View className="flex-row items-center h-[42px] px-3.5 rounded-xl bg-muted/30 border border-border">
-          <Search size={16} className="text-muted-foreground" color={isDark ? "#9CA3AF" : "#6B7280"} />
+        <View className="flex-row items-center h-[42px] px-3.5 rounded-[16px] bg-muted/60 border border-border">
+          <Search size={16} className="text-muted-foreground" color="#71717A" />
           <TextInput
             className="flex-1 ml-2.5 text-[13px] text-foreground"
             placeholder="Tìm kiếm..."
-            placeholderTextColor={isDark ? "#9CA3AF" : "#6B7280"}
+            placeholderTextColor="#71717A"
             value={searchQuery}
             onChangeText={setSearchQuery}
           />

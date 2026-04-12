@@ -1,9 +1,6 @@
 import { Stack } from "expo-router";
-import { useAppSelector } from "@/features/store";
 
 export default function MessagesLayout() {
-  const { mode } = useAppSelector((state) => state.theme);
-
   return (
     <Stack
       screenOptions={{

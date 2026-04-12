@@ -32,8 +32,6 @@ import type {
 } from "@/features/chat";
 
 export default function MessagesScreen() {
-  const { mode } = useAppSelector((state) => state.theme);
-  const isDark = mode === "dark";
   const { userSession } = useAppSelector((state) => state.auth);
   const tabBarHeight = useTabBarHeight();
   const router = useRouter();
@@ -174,7 +172,7 @@ export default function MessagesScreen() {
             />
           ) : (
             <View className="w-14 h-14 rounded-full bg-primary/10 items-center justify-center border-2 border-primary/20">
-              <Users size={22} color={isDark ? "#C084FC" : "#9333EA"} className="text-primary" />
+              <Users size={22} color="#c026d3" className="text-primary" />
             </View>
           )}
           {isOnline && (
@@ -198,7 +196,7 @@ export default function MessagesScreen() {
     );
   };
 
-  const iconColor = isDark ? "#c084fc" : "#9333ea"; // Fallback purple if text-primary class doesn't pass down color
+  const iconColor = "#c026d3"; // Vibrant Pink-Violet
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
@@ -227,12 +225,12 @@ export default function MessagesScreen() {
 
       {/* Search */}
       <View className="px-6 mt-2 mb-3">
-        <View className="flex-row items-center h-11 px-4 rounded-xl bg-muted/30 border border-border">
-          <Search size={18} className="text-muted-foreground" color={isDark ? "#9CA3AF" : "#6B7280"} />
+        <View className="flex-row items-center h-11 px-4 rounded-[16px] bg-muted/60 border border-border">
+          <Search size={18} className="text-muted-foreground" color="#71717A" />
           <TextInput
             className="flex-1 ml-2.5 text-[14px] text-foreground"
             placeholder="Tìm cuộc trò chuyện..."
-            placeholderTextColor={isDark ? "#9CA3AF" : "#6B7280"}
+            placeholderTextColor="#71717A"
             value={searchQuery}
             onChangeText={setSearchQuery}
           />

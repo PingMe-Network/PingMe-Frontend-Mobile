@@ -13,10 +13,12 @@ const themeSlice = createSlice({
   initialState,
   reducers: {
     toggleTheme: (state) => {
-      state.mode = state.mode === "light" ? "dark" : "light";
+      // Disabled: Forced Light Mode
+      state.mode = "light";
     },
     setTheme: (state, action: PayloadAction<"light" | "dark">) => {
-      state.mode = action.payload;
+      // Disabled: Forced Light Mode
+      state.mode = "light";
     },
   },
 });
