@@ -1,95 +1,238 @@
-import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, Image, FlatList } from "react-native";
+import { useState, useEffect, useCallback } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Image,
+  FlatList,
+  ActivityIndicator,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Search, Plus, MoreHorizontal } from "lucide-react-native";
+import { Search, Plus, Users, MessageCircle } from "lucide-react-native";
+import { useRouter } from "expo-router";
 import { useAppSelector } from "@/features/store";
 import { useTabBarHeight } from "@/hooks/useTabBarHeight";
-
-const DUMMY_CHATS = [
-  { id: '1', name: 'Nhóm Thiết Kế', lastMessage: 'Đã cập nhật hệ thống màu', time: '10:30', unread: 2, isOnline: true, avatar: 'https://i.pravatar.cc/150?img=33' },
-  { id: '2', name: 'Nguyễn Văn A', lastMessage: 'Ok bạn nhé 👍', time: 'Hôm qua', unread: 0, isOnline: false, avatar: 'https://i.pravatar.cc/150?img=12' },
-  { id: '3', name: 'Trần Thị B', lastMessage: 'Cuối tuần đi cafe không?', time: 'T6', unread: 5, isOnline: true, avatar: 'https://i.pravatar.cc/150?img=5' },
-  { id: '4', name: 'DevOps Team', lastMessage: 'Server staging deploy xong', time: '11:00', unread: 0, isOnline: false, avatar: 'https://i.pravatar.cc/150?img=14' },
-  { id: '5', name: 'Bảo Anh', lastMessage: 'Gửi mình link design PingMe', time: '14:20', unread: 1, isOnline: true, avatar: 'https://i.pravatar.cc/150?img=9' },
-  { id: '6', name: 'Team Marketing', lastMessage: 'Kế hoạch event tuần tới', time: 'T2', unread: 0, isOnline: true, avatar: 'https://i.pravatar.cc/150?img=41' },
-  { id: '7', name: 'Sếp', lastMessage: 'Báo cáo tháng này đâu em?', time: '09:00', unread: 1, isOnline: true, avatar: 'https://i.pravatar.cc/150?img=68' },
-];
+import { getCurrentUserRoomsApi } from "@/services/chat";
+import { SocketManager } from "@/features/chat";
+import type { RoomResponse } from "@/types/chat/room";
+import {
+  getRoomDisplayName,
+  getRoomAvatar,
+  getLastMessagePreview,
+  isOtherParticipantOnline,
+} from "@/utils/roomInfo";
+import { formatMessageTime } from "@/utils/formatMessageTime";
+import type {
+  MessageCreatedEventPayload,
+  RoomCreatedEventPayload,
+  RoomUpdatedEventPayload,
+  RoomMemberAddedEventPayload,
+  RoomMemberRemovedEventPayload,
+} from "@/features/chat";
 
 export default function MessagesScreen() {
   const { mode } = useAppSelector((state) => state.theme);
-  const { userSession } = useAppSelector((state) => state.auth);
   const isDark = mode === "dark";
+  const { userSession } = useAppSelector((state) => state.auth);
   const tabBarHeight = useTabBarHeight();
-  
-  const [searchQuery, setSearchQuery] = useState("");
+  const router = useRouter();
 
-  const bgClass = isDark ? "bg-background-dark" : "bg-background-light";
-  const textTitleClass = isDark ? "text-white" : "text-gray-900";
-  const textSubClass = isDark ? "text-gray-400" : "text-gray-500";
-  const searchBgClass = isDark ? "bg-gray-900 border border-gray-800" : "bg-white border border-gray-100 shadow-sm";
-  const iconColor = isDark ? "#9CA3AF" : "#6B7280";
-  
-  const renderItem = ({ item }: { item: typeof DUMMY_CHATS[0] }) => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [rooms, setRooms] = useState<RoomResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [pagination, setPagination] = useState({
+    currentPage: 0,
+    hasMore: true,
+    isLoadingMore: false,
+  });
+
+  const fetchRooms = useCallback(
+    async (page: number, append = false) => {
+      try {
+        if (!append) setIsLoading(true);
+        else setPagination((p) => ({ ...p, isLoadingMore: true }));
+
+        const res = (await getCurrentUserRoomsApi({ page, size: 20 })).data.data;
+
+        setRooms((prev) => (append ? [...prev, ...res.content] : res.content));
+        setPagination({
+          currentPage: res.page,
+          hasMore: res.hasMore,
+          isLoadingMore: false,
+        });
+      } catch (err) {
+        console.error("[Chat] Failed to fetch rooms:", err);
+      } finally {
+        setIsLoading(false);
+        setPagination((p) => ({ ...p, isLoadingMore: false }));
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    fetchRooms(1);
+  }, [fetchRooms]);
+
+  useEffect(() => {
+    const upsertRoom = (incoming: RoomResponse) => {
+      setRooms((prev) => {
+        const idx = prev.findIndex((r) => r.roomId === incoming.roomId);
+        if (idx === -1) return [incoming, ...prev];
+        const merged = { ...prev[idx], ...incoming };
+        const filtered = prev.filter((r) => r.roomId !== incoming.roomId);
+        return [merged, ...filtered];
+      });
+    };
+
+    const unsubs = [
+      SocketManager.on("MESSAGE_CREATED", (ev: MessageCreatedEventPayload) => {
+        const message = ev.messageResponse;
+        setRooms((prev) => {
+          const targetRoom = prev.find((r) => r.roomId === message.roomId);
+          if (!targetRoom) return prev;
+          const updatedRoom = {
+            ...targetRoom,
+            lastMessage: {
+              messageId: message.id,
+              senderId: message.senderId,
+              preview: message.content,
+              messageType: message.type as any,
+              createdAt: message.createdAt,
+            },
+          };
+          const otherRooms = prev.filter((r) => r.roomId !== message.roomId);
+          return [updatedRoom, ...otherRooms];
+        });
+      }),
+      SocketManager.on("ROOM_CREATED", (ev: RoomCreatedEventPayload) => upsertRoom(ev.roomResponse)),
+      SocketManager.on("ROOM_UPDATED", (ev: RoomUpdatedEventPayload) => upsertRoom(ev.roomResponse)),
+      SocketManager.on("ROOM_MEMBER_ADDED", (ev: RoomMemberAddedEventPayload) => upsertRoom(ev.roomResponse)),
+      SocketManager.on("ROOM_MEMBER_REMOVED", (ev: RoomMemberRemovedEventPayload) => {
+          if (ev.targetUserId === userSession?.id) {
+            setRooms((prev) => prev.filter((r) => r.roomId !== ev.roomResponse.roomId));
+          } else {
+            upsertRoom(ev.roomResponse);
+          }
+        }
+      ),
+      SocketManager.on("USER_STATUS", (statusPayload) => {
+        setRooms((prevRooms) =>
+          prevRooms.map((room) => ({
+            ...room,
+            participants: room.participants.map((p) =>
+              p.userId === Number(statusPayload.userId)
+                ? { ...p, status: statusPayload.isOnline ? "ONLINE" : "OFFLINE" }
+                : p
+            ),
+          }))
+        );
+      }),
+    ];
+
+    return () => unsubs.forEach((unsub) => unsub());
+  }, [userSession?.id]);
+
+  const handleLoadMore = () => {
+    if (pagination.hasMore && !pagination.isLoadingMore) {
+      fetchRooms(pagination.currentPage + 1, true);
+    }
+  };
+
+  const openChatRoom = (room: RoomResponse) => {
+    router.push({
+      pathname: "/(app)/messages/[roomId]",
+      params: { roomId: room.roomId.toString() },
+    });
+  };
+
+  const filteredRooms = rooms.filter((room) => {
+    if (!searchQuery) return true;
+    const displayName = getRoomDisplayName(room, userSession);
+    return displayName.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
+  const renderItem = ({ item }: { item: RoomResponse }) => {
+    const displayName = getRoomDisplayName(item, userSession);
+    const avatar = getRoomAvatar(item, userSession);
+    const preview = getLastMessagePreview(item, userSession);
+    const isOnline = isOtherParticipantOnline(item, userSession);
+    const time = item.lastMessage ? formatMessageTime(item.lastMessage.createdAt) : "";
+
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         activeOpacity={0.7}
-        className={`flex-row items-center py-3 px-4 mb-3 rounded-2xl mx-6 ${isDark ? "bg-[#252123]" : "bg-white border border-gray-50 shadow-sm"}`}
+        onPress={() => openChatRoom(item)}
+        className="flex-row items-center py-3.5 px-4 mb-2 mx-4 bg-card border border-border rounded-custom shadow-sm"
       >
         <View className="relative">
-          <Image source={{ uri: item.avatar }} className="w-14 h-14 rounded-full bg-gray-200" />
-          {item.isOnline && (
-            <View className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2" style={{ borderColor: isDark ? '#252123' : '#fff' }} />
+          {avatar ? (
+            <Image
+              source={{ uri: avatar }}
+              className="w-14 h-14 rounded-full border-2 border-primary/20"
+            />
+          ) : (
+            <View className="w-14 h-14 rounded-full bg-primary/10 items-center justify-center border-2 border-primary/20">
+              <Users size={22} color={isDark ? "#C084FC" : "#9333EA"} className="text-primary" />
+            </View>
+          )}
+          {isOnline && (
+            <View className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-[2.5px] border-card z-10" />
           )}
         </View>
-        <View className="flex-1 ml-4 justify-center">
+        <View className="flex-1 ml-3.5">
           <View className="flex-row justify-between items-center mb-1">
-            <Text className={`font-semibold text-[15px] ${textTitleClass}`} numberOfLines={1}>{item.name}</Text>
-            <Text className={`text-xs ${item.unread > 0 ? "text-primary font-bold" : textSubClass}`}>{item.time}</Text>
-          </View>
-          <View className="flex-row justify-between items-center">
-            <Text className={`text-[13px] flex-1 mr-4 ${item.unread > 0 ? (isDark ? "text-gray-200 font-medium" : "text-gray-800 font-medium") : textSubClass}`} numberOfLines={1}>
-              {item.lastMessage}
+            <Text className="font-bold text-[15px] text-foreground flex-1 mr-2" numberOfLines={1}>
+              {displayName}
             </Text>
-            {item.unread > 0 && (
-              <View className="bg-primary rounded-full px-2 py-0.5 min-w-[20px] items-center justify-center">
-                <Text className="text-white text-[10px] font-bold">{item.unread}</Text>
-              </View>
-            )}
+            <Text className="text-[11px] text-muted-foreground font-medium">
+              {time}
+            </Text>
           </View>
+          <Text className="text-[13px] text-muted-foreground" numberOfLines={1}>
+            {preview}
+          </Text>
         </View>
       </TouchableOpacity>
     );
   };
 
+  const iconColor = isDark ? "#c084fc" : "#9333ea"; // Fallback purple if text-primary class doesn't pass down color
+
   return (
-    <SafeAreaView className={`flex-1 ${bgClass}`} edges={['top', 'left', 'right']}>
+    <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       {/* Header */}
-      <View className="px-6 py-4 pt-6 flex-row items-center justify-between">
+      <View className="px-6 pt-5 pb-2 flex-row items-center justify-between">
         <View className="flex-row items-center">
-          <Image 
-            source={{ uri: userSession?.avatarUrl || "https://i.pravatar.cc/150?img=11" }} 
-            className="w-11 h-11 rounded-full bg-gray-300"
-          />
-          <Text className={`ml-3 text-3xl font-black tracking-tight ${textTitleClass}`}>Tin nhắn</Text>
+          <View className="w-11 h-11 rounded-full overflow-hidden border-2 border-primary/30">
+            <Image
+              source={{ uri: userSession?.avatarUrl || "https://i.pravatar.cc/150?img=11" }}
+              className="w-full h-full"
+            />
+          </View>
+          <View className="ml-3">
+            <Text className="text-2xl font-black text-foreground tracking-tight">
+              Tin nhắn
+            </Text>
+            <Text className="text-xs text-muted-foreground mt-0.5">
+              {rooms.length} cuộc trò chuyện
+            </Text>
+          </View>
         </View>
-        <View className="flex-row gap-3">
-          <TouchableOpacity className={`w-10 h-10 rounded-full items-center justify-center ${isDark ? "bg-[#252123]" : "bg-white shadow-sm border border-gray-50"}`}>
-            <Plus size={22} color={isDark ? "#FFF" : "#111"} />
-          </TouchableOpacity>
-          <TouchableOpacity className={`w-10 h-10 rounded-full items-center justify-center ${isDark ? "bg-[#252123]" : "bg-white shadow-sm border border-gray-50"}`}>
-            <MoreHorizontal size={22} color={isDark ? "#FFF" : "#111"} />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center border border-primary/20">
+          <Plus size={20} className="text-primary" color={iconColor} />
+        </TouchableOpacity>
       </View>
 
       {/* Search */}
-      <View className="px-6 mb-5 mt-2">
-        <View className={`flex-row items-center h-12 px-4 rounded-xl ${searchBgClass}`}>
-          <Search size={20} color={iconColor} />
-          <TextInput 
-            className={`flex-1 ml-3 text-[15px] ${isDark ? "text-white" : "text-gray-900"}`}
-            placeholder="Tìm kiếm..."
-            placeholderTextColor={iconColor}
+      <View className="px-6 mt-2 mb-3">
+        <View className="flex-row items-center h-11 px-4 rounded-xl bg-muted/30 border border-border">
+          <Search size={18} className="text-muted-foreground" color={isDark ? "#9CA3AF" : "#6B7280"} />
+          <TextInput
+            className="flex-1 ml-2.5 text-[14px] text-foreground"
+            placeholder="Tìm cuộc trò chuyện..."
+            placeholderTextColor={isDark ? "#9CA3AF" : "#6B7280"}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -97,18 +240,44 @@ export default function MessagesScreen() {
       </View>
 
       {/* Chat List */}
-      <FlatList
-        data={DUMMY_CHATS.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()))}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: tabBarHeight + 20 }}
-        ListEmptyComponent={
-          <View className="items-center justify-center mt-10">
-            <Text className={textSubClass}>Không tìm thấy cuộc trò chuyện nào</Text>
-          </View>
-        }
-      />
+      {isLoading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color={iconColor} />
+          <Text className="mt-3 text-[13px] text-muted-foreground">
+            Đang tải tin nhắn...
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredRooms}
+          keyExtractor={(item) => item.roomId.toString()}
+          renderItem={renderItem}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: tabBarHeight + 20, paddingTop: 4 }}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            pagination.isLoadingMore ? (
+              <View className="py-4 items-center">
+                <ActivityIndicator size="small" color={iconColor} />
+              </View>
+            ) : null
+          }
+          ListEmptyComponent={
+            <View className="items-center justify-center mt-14">
+              <View className="w-16 h-16 rounded-full bg-primary/10 items-center justify-center mb-4 border border-primary/20">
+                <MessageCircle size={32} className="text-primary" color={iconColor} />
+              </View>
+              <Text className="text-base font-semibold text-foreground mb-1.5">
+                Chưa có tin nhắn
+              </Text>
+              <Text className="text-[13px] text-muted-foreground">
+                Bắt đầu cuộc trò chuyện mới nhé!
+              </Text>
+            </View>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }

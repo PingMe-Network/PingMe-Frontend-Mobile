@@ -11,9 +11,6 @@ export default function ContactsLayout() {
       screenOptions={{
         headerShown: false,
         animation: "none",
-        contentStyle: {
-          backgroundColor: isDark ? Colors.background.dark : Colors.background.light,
-        },
       }}
     />
   );
