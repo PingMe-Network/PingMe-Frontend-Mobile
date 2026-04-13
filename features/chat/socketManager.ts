@@ -1,4 +1,4 @@
-import { Client, type IMessage, type StompSubscription } from "@stomp/stompjs";
+import { Client, type StompSubscription } from "@stomp/stompjs";
 import "react-native-url-polyfill/auto";
 import { getTokens } from "@/utils/storage";
 import { isTokenExpired } from "@/utils/jwtDecode";
@@ -8,15 +8,13 @@ import {
   messageRecalled,
   userTyping,
   readStateChanged,
-  type MessageCreatedEventPayload,
-  type MessageRecalledEventPayload,
 } from "./chatSlice";
 
 // Polyfill for TextEncoder/Decoder
 import { TextEncoder, TextDecoder } from "text-encoding";
-if (typeof (global as any).TextEncoder === "undefined") {
-  (global as any).TextEncoder = TextEncoder;
-  (global as any).TextDecoder = TextDecoder;
+if ((globalThis as any).TextEncoder === "undefined") {
+  (globalThis as any).TextEncoder = TextEncoder;
+  (globalThis as any).TextDecoder = TextDecoder;
 }
 
 export interface SocketManagerOptions {
@@ -115,7 +113,6 @@ class SocketManagerClass extends EventEmitter {
 
   disconnect(): void {
     if (this.manualDisconnect) return;
-    // console.log("[PingMe] Manual disconnect triggered");
     this.manualDisconnect = true;
     this.client?.deactivate();
     this.client = null;
@@ -124,7 +121,6 @@ class SocketManagerClass extends EventEmitter {
 
   enterRoom(roomId: number): void {
     const rId = Number(roomId);
-    // console.log("[PingMe] Preparing to enter room:", rId);
     this.currentRoomIdRef = rId;
 
     if (!this.isConnected()) {
@@ -136,7 +132,6 @@ class SocketManagerClass extends EventEmitter {
   }
 
   leaveRoom(): void {
-    // console.log("[PingMe] Leaving current room");
     this.unsubscribeRoom();
     this.currentRoomIdRef = null;
   }
@@ -151,12 +146,9 @@ class SocketManagerClass extends EventEmitter {
 
   private subscribeRoom(roomId: number): void {
     this.unsubscribeRoom();
-    // console.log("[PingMe] Subscribing to room topics for:", roomId);
-
     this.roomMsgSub = this.client!.subscribe(`/topic/rooms/${roomId}/messages`, (msg) => {
       try {
         const ev = JSON.parse(msg.body);
-        // console.log("[PingMe] New Event:", ev.chatEventType);
         if (ev.chatEventType === "MESSAGE_CREATED") {
           this.options?.dispatch(messageCreated(ev));
         } else if (ev.chatEventType === "MESSAGE_RECALLED") {
@@ -188,9 +180,6 @@ class SocketManagerClass extends EventEmitter {
     this.userRoomsSub = this.client.subscribe("/user/queue/rooms", (msg) => {
       try {
         const ev = JSON.parse(msg.body);
-        // console.log("[PingMe] Global Room Event:", ev.chatEventType);
-        
-        // Phát sự kiện cụ thể để màn hình danh sách nhận được
         if (ev.chatEventType) {
           this.emit(ev.chatEventType, ev);
         }

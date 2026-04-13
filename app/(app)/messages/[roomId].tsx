@@ -18,7 +18,6 @@ import {
   Phone,
   Video,
   MoreVertical,
-  Image as ImageIcon,
   Users,
   Smile,
   Plus,
@@ -50,7 +49,7 @@ import { formatMessageTime } from "@/utils/formatMessageTime";
 import { addUniqueMessage } from "@/utils/addUniqueMessage";
 
 function generateUUID(): string {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replaceAll(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
@@ -61,10 +60,7 @@ export default function ChatRoomScreen() {
   const { roomId: roomIdParam } = useLocalSearchParams<{ roomId: string }>();
   const roomId = Number(roomIdParam);
   const router = useRouter();
-  const dispatch = useAppDispatch();
-
-  const { mode } = useAppSelector((state) => state.theme);
-  const isDark = mode === "dark";
+  const dispatch = useAppDispatch(); 
   const { userSession } = useAppSelector((state) => state.auth);
   const reduxMessages = useAppSelector(selectMessages) as MessageResponse[];
   const recalledMessageIds = useAppSelector(selectRecalledMessageIds) as string[];
@@ -327,6 +323,21 @@ export default function ChatRoomScreen() {
     );
   };
 
+  let headerStatusNode: React.ReactNode = null;
+  if (otherUsersTyping.length > 0) {
+    headerStatusNode = (
+      <Text className="text-[12px] font-medium text-primary mt-0.5">
+        {otherUsersTyping[0].name} đang nhập...
+      </Text>
+    );
+  } else if (isOnline) {
+    headerStatusNode = (
+      <Text className="text-[11px] font-semibold text-muted-foreground mt-0.5 tracking-wide uppercase">
+        ONLINE
+      </Text>
+    );
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       <KeyboardAvoidingView
@@ -360,15 +371,7 @@ export default function ChatRoomScreen() {
             <Text className="font-bold text-[16px] text-foreground" numberOfLines={1}>
               {roomName}
             </Text>
-            {otherUsersTyping.length > 0 ? (
-              <Text className="text-[12px] font-medium text-primary mt-0.5">
-                {otherUsersTyping[0].name} đang nhập...
-              </Text>
-            ) : isOnline ? (
-              <Text className="text-[11px] font-semibold text-muted-foreground mt-0.5 tracking-wide uppercase">
-                ONLINE
-              </Text>
-            ) : null}
+            {headerStatusNode}
           </View>
 
           <TouchableOpacity className="p-2">

@@ -9,13 +9,13 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Search, Plus, Users, MessageCircle } from "lucide-react-native";
+import { Search, Users, MessageCircle } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useAppSelector } from "@/features/store";
 import { useTabBarHeight } from "@/hooks/useTabBarHeight";
 import { getCurrentUserRoomsApi } from "@/services/chat";
 import { SocketManager } from "@/features/chat";
-import type { RoomResponse } from "@/types/chat/room";
+import type { RoomResponse, UserStatus } from "@/types/chat/room";
 import {
   getRoomDisplayName,
   getRoomAvatar,
@@ -30,6 +30,57 @@ import type {
   RoomMemberAddedEventPayload,
   RoomMemberRemovedEventPayload,
 } from "@/features/chat";
+
+type MessageEventRoomPayload = MessageCreatedEventPayload["messageResponse"];
+
+const removeRoomById = (rooms: RoomResponse[], roomId: number) =>
+  rooms.filter((room) => room.roomId !== roomId);
+
+const upsertRoomToTop = (rooms: RoomResponse[], incoming: RoomResponse) => {
+  const existing = rooms.find((room) => room.roomId === incoming.roomId);
+  if (!existing) return [incoming, ...rooms];
+
+  const merged = { ...existing, ...incoming };
+  return [merged, ...removeRoomById(rooms, incoming.roomId)];
+};
+
+const applyMessageToRoomList = (
+  rooms: RoomResponse[],
+  message: MessageEventRoomPayload
+) => {
+  const targetRoom = rooms.find((room) => room.roomId === message.roomId);
+  if (!targetRoom) return rooms;
+
+  const updatedRoom: RoomResponse = {
+    ...targetRoom,
+    lastMessage: {
+      messageId: message.id,
+      senderId: message.senderId,
+      preview: message.content,
+      messageType: message.type as any,
+      createdAt: message.createdAt,
+    },
+  };
+
+  return [updatedRoom, ...removeRoomById(rooms, message.roomId)];
+};
+
+const applyParticipantStatus = (
+  rooms: RoomResponse[],
+  targetUserId: number,
+  isOnline: boolean
+) => {
+  const nextStatus: UserStatus = isOnline ? "ONLINE" : "OFFLINE";
+
+  return rooms.map((room) => ({
+    ...room,
+    participants: room.participants.map((participant) =>
+      participant.userId === targetUserId
+        ? { ...participant, status: nextStatus }
+        : participant
+    ),
+  }));
+};
 
 export default function MessagesScreen() {
   const { userSession } = useAppSelector((state) => state.auth);
@@ -75,41 +126,19 @@ export default function MessagesScreen() {
 
   useEffect(() => {
     const upsertRoom = (incoming: RoomResponse) => {
-      setRooms((prev) => {
-        const idx = prev.findIndex((r) => r.roomId === incoming.roomId);
-        if (idx === -1) return [incoming, ...prev];
-        const merged = { ...prev[idx], ...incoming };
-        const filtered = prev.filter((r) => r.roomId !== incoming.roomId);
-        return [merged, ...filtered];
-      });
+      setRooms((prev) => upsertRoomToTop(prev, incoming));
     };
 
     const unsubs = [
       SocketManager.on("MESSAGE_CREATED", (ev: MessageCreatedEventPayload) => {
-        const message = ev.messageResponse;
-        setRooms((prev) => {
-          const targetRoom = prev.find((r) => r.roomId === message.roomId);
-          if (!targetRoom) return prev;
-          const updatedRoom = {
-            ...targetRoom,
-            lastMessage: {
-              messageId: message.id,
-              senderId: message.senderId,
-              preview: message.content,
-              messageType: message.type as any,
-              createdAt: message.createdAt,
-            },
-          };
-          const otherRooms = prev.filter((r) => r.roomId !== message.roomId);
-          return [updatedRoom, ...otherRooms];
-        });
+        setRooms((prev) => applyMessageToRoomList(prev, ev.messageResponse));
       }),
       SocketManager.on("ROOM_CREATED", (ev: RoomCreatedEventPayload) => upsertRoom(ev.roomResponse)),
       SocketManager.on("ROOM_UPDATED", (ev: RoomUpdatedEventPayload) => upsertRoom(ev.roomResponse)),
       SocketManager.on("ROOM_MEMBER_ADDED", (ev: RoomMemberAddedEventPayload) => upsertRoom(ev.roomResponse)),
       SocketManager.on("ROOM_MEMBER_REMOVED", (ev: RoomMemberRemovedEventPayload) => {
           if (ev.targetUserId === userSession?.id) {
-            setRooms((prev) => prev.filter((r) => r.roomId !== ev.roomResponse.roomId));
+            setRooms((prev) => removeRoomById(prev, ev.roomResponse.roomId));
           } else {
             upsertRoom(ev.roomResponse);
           }
@@ -117,14 +146,11 @@ export default function MessagesScreen() {
       ),
       SocketManager.on("USER_STATUS", (statusPayload) => {
         setRooms((prevRooms) =>
-          prevRooms.map((room) => ({
-            ...room,
-            participants: room.participants.map((p) =>
-              p.userId === Number(statusPayload.userId)
-                ? { ...p, status: statusPayload.isOnline ? "ONLINE" : "OFFLINE" }
-                : p
-            ),
-          }))
+          applyParticipantStatus(
+            prevRooms,
+            Number(statusPayload.userId),
+            statusPayload.isOnline
+          )
         );
       }),
     ];
@@ -170,10 +196,6 @@ export default function MessagesScreen() {
     const customItem = item as any;
     const isUnread = customItem.unreadCount ? customItem.unreadCount > 0 : false;
     const displayUnreadCount = customItem.unreadCount || 0;
-
-    const containerStyle = isUnread
-      ? "flex-row items-center py-4 px-4 mb-1 mx-3 bg-white rounded-[32px] shadow-sm border border-black/5"
-      : "flex-row items-center py-4 px-4 mb-1 mx-3 bg-transparent";
 
     return (
       <TouchableOpacity

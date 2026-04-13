@@ -48,7 +48,7 @@ function ProfileHeader({
   isDark,
   updatingAvatar,
   onUpdateAvatar,
-}: ProfileHeaderProps) {
+}: Readonly<ProfileHeaderProps>) {
   return (
     <>
       <View className="h-40 bg-primary w-full" />
@@ -141,7 +141,7 @@ function SettingsSection({
   isThemeEnabled,
   thumbColor,
   onToggleTheme,
-}: SettingsSectionProps) {
+}: Readonly<SettingsSectionProps>) {
   return (
     <View className="px-6 mt-8">
       <View className="flex-row items-center justify-between mb-4">
@@ -279,7 +279,7 @@ type LogoutSectionProps = {
   onLogout: () => void;
 };
 
-function LogoutSection({ onLogout }: LogoutSectionProps) {
+function LogoutSection({ onLogout }: Readonly<LogoutSectionProps>) {
   return (
     <View className="px-6 mt-10">
       <TouchableOpacity

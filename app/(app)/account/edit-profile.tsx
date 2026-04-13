@@ -97,23 +97,34 @@ export default function EditProfileScreen() {
             <View className="mb-4 z-50 relative">
               <Text className={`mb-2 font-medium ${isDark ? "text-gray-300" : "text-gray-700"}`}>Giới tính</Text>
               <View className="flex-row gap-3">
-                {(["MALE", "FEMALE", "OTHER"] as const).map((g) => (
-                  <TouchableOpacity
-                    key={g}
-                    className={`flex-1 p-3 rounded-xl border flex-row justify-center items-center ${
-                      gender === g 
-                        ? "border-primary bg-primary/10" 
-                        : (isDark ? "border-gray-800 bg-gray-900" : "border-gray-200 bg-white")
-                    }`}
-                    onPress={() => setGender(g)}
-                  >
-                    <Text className={`font-medium ${
-                      gender === g ? "text-primary" : (isDark ? "text-white" : "text-gray-900")
-                    }`}>
-                      {genderLabels[g]}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {(["MALE", "FEMALE", "OTHER"] as const).map((g) => {
+                  const isSelected = gender === g;
+                  const unselectedClasses = isDark
+                    ? "border-gray-800 bg-gray-900"
+                    : "border-gray-200 bg-white";
+                  const optionContainerClasses = isSelected
+                    ? "border-primary bg-primary/10"
+                    : unselectedClasses;
+                  let optionTextColor = "text-gray-900";
+
+                  if (isSelected) {
+                    optionTextColor = "text-primary";
+                  } else if (isDark) {
+                    optionTextColor = "text-white";
+                  }
+
+                  return (
+                    <TouchableOpacity
+                      key={g}
+                      className={`flex-1 p-3 rounded-xl border flex-row justify-center items-center ${optionContainerClasses}`}
+                      onPress={() => setGender(g)}
+                    >
+                      <Text className={`font-medium ${optionTextColor}`}>
+                        {genderLabels[g]}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
 

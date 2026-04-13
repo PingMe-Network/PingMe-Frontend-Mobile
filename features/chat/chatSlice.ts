@@ -77,17 +77,6 @@ export interface RoomMemberRoleChangedEventPayload {
 }
 
 // =================================================================
-// Typing User Type
-// =================================================================
-export interface TypingUser {
-  userId: number;
-  name: string;
-  avatar?: string;
-  isTyping: boolean;
-  timestamp: number;
-}
-
-// =================================================================
 // State
 // =================================================================
 export interface ChatState {
@@ -195,10 +184,11 @@ const chatSlice = createSlice({
         } else {
           state.typingUsers[roomId].push(typingUser);
         }
-      } else {
-        if (existingIdx >= 0) {
-          state.typingUsers[roomId].splice(existingIdx, 1);
-        }
+        return;
+      }
+
+      if (existingIdx >= 0) {
+        state.typingUsers[roomId].splice(existingIdx, 1);
       }
     },
 

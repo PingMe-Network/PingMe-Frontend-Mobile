@@ -15,7 +15,6 @@ import { registerThunk } from "@/features/auth/authThunk";
 import { checkEmailExistsApi } from "@/services/auth";
 import { InputField } from "@/components/ui/InputField";
 import { Button } from "@/components/ui/Button";
-import { Colors } from "@/constants/Colors";
 import { TurnstileWidget } from "@/components/ui/TurnstileWidget";
 
 export default function RegisterScreen() {

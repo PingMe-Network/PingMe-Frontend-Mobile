@@ -33,7 +33,7 @@ import {
   sendInvitationApi,
 } from "@/services/friendship";
 import { createOrGetDirectRoomApi } from "@/services/chat";
-import type { UserSummaryResponse } from "@/types/common/userSummary";
+import type { UserSummaryResponse, UserStatus } from "@/types/common/userSummary";
 import type {
   UserFriendshipStatsResponse,
   FriendshipEventPayload,
@@ -45,6 +45,45 @@ const mergeUniqueUsersById = (
 ) => {
   const ids = new Set(prev.map((f) => f.id));
   return [...prev, ...next.filter((f) => !ids.has(f.id))];
+};
+
+const prependUniqueUserById = (
+  prev: UserSummaryResponse[],
+  user: UserSummaryResponse
+) => {
+  const exists = prev.some((u) => u.id === user.id);
+  if (exists) return prev;
+  return [user, ...prev];
+};
+
+const removeUserById = (prev: UserSummaryResponse[], userId: number) =>
+  prev.filter((u) => u.id !== userId);
+
+const removeUserByFriendshipId = (
+  prev: UserSummaryResponse[],
+  friendshipId: number
+) => prev.filter((u) => u.friendshipSummary?.id !== friendshipId);
+
+const patchUserOnlineStatus = (
+  prev: UserSummaryResponse[],
+  userId: number,
+  isOnline: boolean
+) => {
+  const nextStatus: UserStatus = isOnline ? "ONLINE" : "OFFLINE";
+  return prev.map((u) => (u.id === userId ? { ...u, status: nextStatus } : u));
+};
+
+const dec = (value: number) => Math.max(0, value - 1);
+
+const getListByTab = (
+  tab: TabId,
+  friends: UserSummaryResponse[],
+  receivedInvites: UserSummaryResponse[],
+  sentInvites: UserSummaryResponse[]
+) => {
+  if (tab === "friends") return friends;
+  if (tab === "received") return receivedInvites;
+  return sentInvites;
 };
 
 export default function ContactsScreen() {
@@ -125,28 +164,30 @@ export default function ContactsScreen() {
 
   useEffect(() => {
     const unsub = SocketManager.on("FRIENDSHIP", (ev: FriendshipEventPayload) => {
-      if (ev.userSummaryResponse.id === userSession?.id) return;
+      const targetUser = ev.userSummaryResponse;
+      if (targetUser.id === userSession?.id) return;
+
       switch (ev.type) {
         case "INVITED":
-          setReceivedInvites((p) => p.some((u) => u.id === ev.userSummaryResponse.id) ? p : [ev.userSummaryResponse, ...p]);
+          setReceivedInvites((p) => prependUniqueUserById(p, targetUser));
           setStats((p) => ({ ...p, totalReceivedInvites: p.totalReceivedInvites + 1 }));
           break;
         case "ACCEPTED":
-          setFriends((p) => p.some((u) => u.id === ev.userSummaryResponse.id) ? p : [ev.userSummaryResponse, ...p]);
-          setSentInvites((p) => p.filter((u) => u.id !== ev.userSummaryResponse.id));
-          setStats((p) => ({ ...p, totalFriends: p.totalFriends + 1, totalSentInvites: Math.max(0, p.totalSentInvites - 1) }));
+          setFriends((p) => prependUniqueUserById(p, targetUser));
+          setSentInvites((p) => removeUserById(p, targetUser.id));
+          setStats((p) => ({ ...p, totalFriends: p.totalFriends + 1, totalSentInvites: dec(p.totalSentInvites) }));
           break;
         case "REJECTED":
-          setSentInvites((p) => p.filter((u) => u.id !== ev.userSummaryResponse.id));
-          setStats((p) => ({ ...p, totalSentInvites: Math.max(0, p.totalSentInvites - 1) }));
+          setSentInvites((p) => removeUserById(p, targetUser.id));
+          setStats((p) => ({ ...p, totalSentInvites: dec(p.totalSentInvites) }));
           break;
         case "CANCELED":
-          setReceivedInvites((p) => p.filter((u) => u.id !== ev.userSummaryResponse.id));
-          setStats((p) => ({ ...p, totalReceivedInvites: Math.max(0, p.totalReceivedInvites - 1) }));
+          setReceivedInvites((p) => removeUserById(p, targetUser.id));
+          setStats((p) => ({ ...p, totalReceivedInvites: dec(p.totalReceivedInvites) }));
           break;
         case "DELETED":
-          setFriends((p) => p.filter((u) => u.id !== ev.userSummaryResponse.id));
-          setStats((p) => ({ ...p, totalFriends: Math.max(0, p.totalFriends - 1) }));
+          setFriends((p) => removeUserById(p, targetUser.id));
+          setStats((p) => ({ ...p, totalFriends: dec(p.totalFriends) }));
           break;
       }
     });
@@ -155,18 +196,14 @@ export default function ContactsScreen() {
 
   useEffect(() => {
     const unsub = SocketManager.on("USER_STATUS", (s) => {
-      setFriends((p) =>
-        p.map((f) =>
-          f.id === Number(s.userId) ? { ...f, status: s.isOnline ? "ONLINE" : "OFFLINE" } : f
-        )
-      );
+      setFriends((p) => patchUserOnlineStatus(p, Number(s.userId), s.isOnline));
     });
     return () => unsub();
   }, []);
 
   const handleLoadMore = () => {
     if (!hasMore || isLoadingMore) return;
-    const list = activeTab === "friends" ? friends : activeTab === "received" ? receivedInvites : sentInvites;
+    const list = getListByTab(activeTab, friends, receivedInvites, sentInvites);
     if (list.length > 0) fetchData(activeTab, list[list.length - 1].id, true);
   };
 
@@ -182,29 +219,29 @@ export default function ContactsScreen() {
   const handleRemoveFriend = (fid: number) =>
     withProcessing(fid, async () => {
       await deleteFriendshipApi(fid);
-      setFriends((p) => p.filter((f) => f.friendshipSummary?.id !== fid));
-      setStats((p) => ({ ...p, totalFriends: Math.max(0, p.totalFriends - 1) }));
+      setFriends((p) => removeUserByFriendshipId(p, fid));
+      setStats((p) => ({ ...p, totalFriends: dec(p.totalFriends) }));
     });
 
   const handleAccept = (fid: number) =>
     withProcessing(fid, async () => {
       await acceptInvitationApi(fid);
-      setReceivedInvites((p) => p.filter((f) => f.friendshipSummary?.id !== fid));
-      setStats((p) => ({ ...p, totalFriends: p.totalFriends + 1, totalReceivedInvites: Math.max(0, p.totalReceivedInvites - 1) }));
+      setReceivedInvites((p) => removeUserByFriendshipId(p, fid));
+      setStats((p) => ({ ...p, totalFriends: p.totalFriends + 1, totalReceivedInvites: dec(p.totalReceivedInvites) }));
     });
 
   const handleReject = (fid: number) =>
     withProcessing(fid, async () => {
       await rejectInvitationApi(fid);
-      setReceivedInvites((p) => p.filter((f) => f.friendshipSummary?.id !== fid));
-      setStats((p) => ({ ...p, totalReceivedInvites: Math.max(0, p.totalReceivedInvites - 1) }));
+      setReceivedInvites((p) => removeUserByFriendshipId(p, fid));
+      setStats((p) => ({ ...p, totalReceivedInvites: dec(p.totalReceivedInvites) }));
     });
 
   const handleCancel = (fid: number) =>
     withProcessing(fid, async () => {
       await cancelInvitationApi(fid);
-      setSentInvites((p) => p.filter((f) => f.friendshipSummary?.id !== fid));
-      setStats((p) => ({ ...p, totalSentInvites: Math.max(0, p.totalSentInvites - 1) }));
+      setSentInvites((p) => removeUserByFriendshipId(p, fid));
+      setStats((p) => ({ ...p, totalSentInvites: dec(p.totalSentInvites) }));
     });
 
   const handleSearchUser = async () => {
@@ -247,7 +284,7 @@ export default function ContactsScreen() {
     }
   };
 
-  const currentList = activeTab === "friends" ? friends : activeTab === "received" ? receivedInvites : sentInvites;
+  const currentList = getListByTab(activeTab, friends, receivedInvites, sentInvites);
   const filteredList = currentList.filter((u) =>
     !searchQuery || u.name.toLowerCase().includes(searchQuery.toLowerCase())
   );

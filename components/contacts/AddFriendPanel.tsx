@@ -27,6 +27,15 @@ export function AddFriendPanel({
 }: Readonly<AddFriendPanelProps>) {
   if (!visible) return null;
 
+  const friendshipStatusLabel =
+    searchResult?.friendshipSummary?.friendshipStatus === "ACCEPTED"
+      ? "Đã là bạn"
+      : "Đang chờ";
+  const canSendInvitation =
+    !!searchResult &&
+    !searchResult.friendshipSummary &&
+    searchResult.id !== currentUserId;
+
   return (
     <View className="mx-6 mb-2.5 p-4 rounded-xl bg-card border border-border shadow-sm">
       <Text className="text-[14px] font-bold text-foreground mb-3">Thêm bạn bè</Text>
@@ -77,22 +86,19 @@ export function AddFriendPanel({
             </Text>
             <Text className="text-[12px] text-muted-foreground">{searchResult.email}</Text>
           </View>
-          {searchResult.friendshipSummary ? (
+          {searchResult?.friendshipSummary && (
             <View className="bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20">
-              <Text className="text-[11px] font-semibold text-primary">
-                {searchResult.friendshipSummary.friendshipStatus === "ACCEPTED"
-                  ? "Đã là bạn"
-                  : "Đang chờ"}
-              </Text>
+              <Text className="text-[11px] font-semibold text-primary">{friendshipStatusLabel}</Text>
             </View>
-          ) : searchResult.id !== currentUserId ? (
+          )}
+          {canSendInvitation && (
             <TouchableOpacity
               onPress={() => onSendInvitation(searchResult.id)}
               className="bg-primary px-4 py-2 rounded-full shadow-sm"
             >
               <Text className="text-primary-foreground text-[12px] font-bold">Kết bạn</Text>
             </TouchableOpacity>
-          ) : null}
+          )}
         </View>
       )}
     </View>
