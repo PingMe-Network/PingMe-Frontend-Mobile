@@ -166,90 +166,111 @@ export default function MessagesScreen() {
     const preview = getLastMessagePreview(item, userSession);
     const isOnline = isOtherParticipantOnline(item, userSession);
     const time = item.lastMessage ? formatMessageTime(item.lastMessage.createdAt) : "";
+    // Unread logic mock: normally you'd check a real unreadCount.
+    const customItem = item as any;
+    const isUnread = customItem.unreadCount ? customItem.unreadCount > 0 : false;
+    const displayUnreadCount = customItem.unreadCount || 0;
+
+    const containerStyle = isUnread
+      ? "flex-row items-center py-4 px-4 mb-1 mx-3 bg-white rounded-[32px] shadow-sm border border-black/5"
+      : "flex-row items-center py-4 px-4 mb-1 mx-3 bg-transparent";
 
     return (
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={() => openChatRoom(item)}
-        className="flex-row items-center py-3.5 px-4 mb-2 mx-4 bg-card border border-border rounded-custom shadow-sm"
+        className="flex-row items-center py-3.5 px-4 mb-2 bg-transparent"
       >
         <View className="relative">
           {avatar ? (
             <Image
               source={{ uri: avatar }}
-              className="w-14 h-14 rounded-full border-2 border-primary/20"
+              className="w-14 h-14 rounded-full"
             />
           ) : (
-            <View className="w-14 h-14 rounded-full bg-primary/10 items-center justify-center border-2 border-primary/20">
-              <Users size={22} color="#c026d3" className="text-primary" />
+            <View className="w-14 h-14 rounded-full bg-primary/10 items-center justify-center">
+              <Users size={22} color={primaryColor} />
             </View>
           )}
           {isOnline && (
-            <View className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-[2.5px] border-card z-10" />
+            <View className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-[2.5px] border-background z-10" />
           )}
         </View>
-        <View className="flex-1 ml-3.5">
-          <View className="flex-row justify-between items-center mb-1">
-            <Text className="font-bold text-[15px] text-foreground flex-1 mr-2" numberOfLines={1}>
+        
+        <View className="flex-1 ml-3.5 justify-center">
+          <View className="flex-row justify-between items-center mb-0.5">
+            <Text className="text-[16px] flex-1 mr-2 font-semibold text-foreground" numberOfLines={1}>
               {displayName}
             </Text>
-            <Text className="text-[11px] text-muted-foreground font-medium">
+            <Text className="text-[12px] font-medium text-muted-foreground">
               {time}
             </Text>
           </View>
-          <Text className="text-[13px] text-muted-foreground" numberOfLines={1}>
-            {preview}
-          </Text>
+          
+          <View className="flex-row justify-between items-center pr-1">
+            <Text className="text-[13px] flex-1 mr-4 text-muted-foreground" numberOfLines={1}>
+              {preview}
+            </Text>
+            {isUnread && (
+              <View className="bg-primary min-w-[20px] h-5 rounded-full items-center justify-center px-1">
+                <Text className="text-white text-[11px] font-bold">{displayUnreadCount}</Text>
+              </View>
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     );
   };
 
-  const iconColor = "#c026d3"; // Vibrant Pink-Violet
+  const primaryColor = "#DF40A3";
+  const grayColor = "#9CA3AF";
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       {/* Header */}
-      <View className="px-6 pt-5 pb-2 flex-row items-center justify-between">
+      <View className="px-6 pt-5 pb-3 flex-row items-center justify-between">
         <View className="flex-row items-center">
-          <View className="w-11 h-11 rounded-full overflow-hidden border-2 border-primary/30">
+          <View className="w-10 h-10 rounded-full overflow-hidden">
             <Image
               source={{ uri: userSession?.avatarUrl || "https://i.pravatar.cc/150?img=11" }}
               className="w-full h-full"
             />
           </View>
-          <View className="ml-3">
-            <Text className="text-2xl font-black text-foreground tracking-tight">
-              Tin nhắn
-            </Text>
-            <Text className="text-xs text-muted-foreground mt-0.5">
-              {rooms.length} cuộc trò chuyện
-            </Text>
-          </View>
+          <Text className="ml-3 text-[22px] font-bold text-primary tracking-tight">
+            PingMe
+          </Text>
         </View>
-        <TouchableOpacity className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center border border-primary/20">
-          <Plus size={20} className="text-primary" color={iconColor} />
+        <TouchableOpacity className="p-2 -mr-2">
+          <Search size={22} color={grayColor} />
         </TouchableOpacity>
       </View>
 
-      {/* Search */}
-      <View className="px-6 mt-2 mb-3">
-        <View className="flex-row items-center h-11 px-4 rounded-[16px] bg-muted/60 border border-border">
-          <Search size={18} className="text-muted-foreground" color="#71717A" />
+      {/* Search Bar */}
+      <View className="px-5 mt-2 mb-4">
+        <View className="flex-row items-center h-12 px-5 rounded-[16px] bg-card border border-border">
+          <Search size={18} color={grayColor} />
           <TextInput
-            className="flex-1 ml-2.5 text-[14px] text-foreground"
-            placeholder="Tìm cuộc trò chuyện..."
-            placeholderTextColor="#71717A"
+            className="flex-1 ml-3 text-[15px] text-foreground"
+            placeholder="Tìm kiếm cuộc trò chuyện"
+            placeholderTextColor={grayColor}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
         </View>
       </View>
 
+      {/* List Header */}
+      <View className="px-6 flex-row justify-between items-center mb-2">
+        <Text className="text-[15px] font-medium text-foreground">Gần đây</Text>
+        <TouchableOpacity>
+          <Text className="text-[13px] font-medium text-primary">Đánh dấu đã đọc</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Chat List */}
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={iconColor} />
+          <ActivityIndicator size="large" color={primaryColor} />
           <Text className="mt-3 text-[13px] text-muted-foreground">
             Đang tải tin nhắn...
           </Text>
@@ -266,14 +287,14 @@ export default function MessagesScreen() {
           ListFooterComponent={
             pagination.isLoadingMore ? (
               <View className="py-4 items-center">
-                <ActivityIndicator size="small" color={iconColor} />
+                <ActivityIndicator size="small" color={primaryColor} />
               </View>
             ) : null
           }
           ListEmptyComponent={
             <View className="items-center justify-center mt-14">
               <View className="w-16 h-16 rounded-full bg-primary/10 items-center justify-center mb-4 border border-primary/20">
-                <MessageCircle size={32} className="text-primary" color={iconColor} />
+                <MessageCircle size={32} color={primaryColor} />
               </View>
               <Text className="text-base font-semibold text-foreground mb-1.5">
                 Chưa có tin nhắn

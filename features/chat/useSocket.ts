@@ -12,18 +12,12 @@ export const useSocket = () => {
     const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
     if (!BASE_URL) return;
 
-    console.log("[PingMe] Connecting SocketManager via useSocket...");
-
     SocketManager.connect({
       baseUrl: BASE_URL,
       dispatch: dispatch,
-      onDisconnect: (reason?: string) => {
-        console.warn("[PingMe] SocketManager disconnected:", reason);
-      },
     });
 
     return () => {
-      console.log("[PingMe] Disconnecting SocketManager...");
       SocketManager.disconnect();
     };
   }, [userSession?.id, isLogin, dispatch]);

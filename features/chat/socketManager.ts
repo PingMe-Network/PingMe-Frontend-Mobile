@@ -74,28 +74,19 @@ class SocketManagerClass extends EventEmitter {
       return;
     }
 
-    console.log("[PingMe] Initializing STOMP Client...");
-
     this.client = new Client({
       webSocketFactory: () => {
         const SockJS = require("sockjs-client");
         const url = `${opts.baseUrl}/core-service/ws`;
-        console.log("[PingMe] Creating SockJS connection to:", url);
         return new SockJS(url);
       },
       connectHeaders: { Authorization: `Bearer ${accessToken}` },
       heartbeatIncoming: 20000,
       heartbeatOutgoing: 20000,
       reconnectDelay: 10000,
-      debug: (msg) => {
-        if (msg.includes("CONNECTED") || msg.includes("ERROR")) {
-          console.log("[PingMe STOMP Debug]", msg);
-        }
-      },
     });
 
     this.client.onConnect = () => {
-      console.log("[PingMe] >>> CONNECTED SUCCESSFULLY <<<");
       this.connecting = false;
       this.setupSubscriptions();
       this.options?.onConnect?.();
@@ -112,7 +103,7 @@ class SocketManagerClass extends EventEmitter {
     };
 
     this.client.onDisconnect = () => {
-      console.log("[PingMe] Socket disconnected");
+      // console.log("[PingMe] Socket disconnected");
       this.connecting = false;
       if (this.manualDisconnect) {
         this.cleanupAllSubscriptions();
@@ -124,7 +115,7 @@ class SocketManagerClass extends EventEmitter {
 
   disconnect(): void {
     if (this.manualDisconnect) return;
-    console.log("[PingMe] Manual disconnect triggered");
+    // console.log("[PingMe] Manual disconnect triggered");
     this.manualDisconnect = true;
     this.client?.deactivate();
     this.client = null;
@@ -133,11 +124,11 @@ class SocketManagerClass extends EventEmitter {
 
   enterRoom(roomId: number): void {
     const rId = Number(roomId);
-    console.log("[PingMe] Preparing to enter room:", rId);
+    // console.log("[PingMe] Preparing to enter room:", rId);
     this.currentRoomIdRef = rId;
 
     if (!this.isConnected()) {
-      console.log("[PingMe] Connection not ready, entry queued for roomId:", rId);
+      console.warn(`[PingMe] Connection not ready, entry queued for roomId: ${rId}`);
       return;
     }
 
@@ -145,7 +136,7 @@ class SocketManagerClass extends EventEmitter {
   }
 
   leaveRoom(): void {
-    console.log("[PingMe] Leaving current room");
+    // console.log("[PingMe] Leaving current room");
     this.unsubscribeRoom();
     this.currentRoomIdRef = null;
   }
@@ -160,12 +151,12 @@ class SocketManagerClass extends EventEmitter {
 
   private subscribeRoom(roomId: number): void {
     this.unsubscribeRoom();
-    console.log("[PingMe] Subscribing to room topics for:", roomId);
+    // console.log("[PingMe] Subscribing to room topics for:", roomId);
 
     this.roomMsgSub = this.client!.subscribe(`/topic/rooms/${roomId}/messages`, (msg) => {
       try {
         const ev = JSON.parse(msg.body);
-        console.log("[PingMe] New Event:", ev.chatEventType);
+        // console.log("[PingMe] New Event:", ev.chatEventType);
         if (ev.chatEventType === "MESSAGE_CREATED") {
           this.options?.dispatch(messageCreated(ev));
         } else if (ev.chatEventType === "MESSAGE_RECALLED") {
@@ -197,7 +188,7 @@ class SocketManagerClass extends EventEmitter {
     this.userRoomsSub = this.client.subscribe("/user/queue/rooms", (msg) => {
       try {
         const ev = JSON.parse(msg.body);
-        console.log("[PingMe] Global Room Event:", ev.chatEventType);
+        // console.log("[PingMe] Global Room Event:", ev.chatEventType);
         
         // Phát sự kiện cụ thể để màn hình danh sách nhận được
         if (ev.chatEventType) {
