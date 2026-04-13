@@ -1,6 +1,10 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Platform, Image, Switch } from "react-native";
 import { router } from "expo-router";
+import { 
+  LogOut, ChevronRight, User,
+  Shield, Globe, MapPin, Calendar, Activity, Laptop
+} from "lucide-react-native";
 import { useAppDispatch, useAppSelector } from "@/features/store";
 import { logoutThunk } from "@/features/auth/authThunk";
 import { useTabBarHeight } from "@/hooks/useTabBarHeight";
@@ -10,6 +14,8 @@ import { useAvatarUpdate } from "@/hooks/useAvatarUpdate";
 import { useColorScheme } from "nativewind";
 import { toggleTheme } from "@/features/theme/themeSlice";
 import { AccountLayout } from "@/components/ui/AccountLayout";
+import { getCurrentUserInfoApi } from "@/services/user/currentUserProfileApi";
+import type { CurrentUserProfileResponse } from "@/types/auth";
 
 export default function AccountScreen() {
   const dispatch = useAppDispatch();
@@ -20,10 +26,32 @@ export default function AccountScreen() {
   const tabBarHeight = useTabBarHeight();
   const { updatingAvatar, handleUpdateAvatar } = useAvatarUpdate();
 
+  const [profile, setProfile] = useState<CurrentUserProfileResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
   // Sync Redux theme with NativeWind colorscheme
-  React.useEffect(() => {
+  useEffect(() => {
     setColorScheme(mode);
   }, [mode]);
+
+  useEffect(() => {
+    let mounted = true;
+    getCurrentUserInfoApi()
+      .then((res) => {
+        if (mounted && res.data.data) {
+          setProfile(res.data.data);
+        }
+      })
+      .catch((err) => {
+        console.log("Error fetching full profile", err);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleLogout = async () => {
     await dispatch(logoutThunk());
@@ -32,20 +60,28 @@ export default function AccountScreen() {
 
   const menuItems = [
     {
-      id: "profile",
-      title: "Thông tin cá nhân",
-      description: "Quản lý thông tin cá nhân của bạn",
+      id: "edit-profile",
+      title: "Chỉnh sửa thông tin",
+      description: "Cập nhật tên, địa chỉ, ngày sinh",
       icon: "user",
       iconType: "feather",
-      onPress: () => router.push("/(app)/account/profile"),
+      onPress: () => router.push("/(app)/account/edit-profile"),
+    },
+    {
+      id: "devices",
+      title: "Quản lý thiết bị",
+      description: "Xem các phiên đăng nhập",
+      icon: "laptop",
+      iconType: "feather",
+      onPress: () => router.push("/(app)/account/devices"),
     },
     {
       id: "password",
       title: "Thay đổi mật khẩu",
       description: "Bảo vệ tài khoản với mật khẩu mới",
-      icon: "key",
+      icon: "shield",
       iconType: "feather",
-      onPress: () => router.push("/(app)/account/password"),
+      onPress: () => router.push("/(app)/account/change-password"),
     },
   ];
 
@@ -54,8 +90,10 @@ export default function AccountScreen() {
     default: isDark ? "#fff" : "#f4f3f4",
   });
 
-  const avatarUrl = (user?.avatarUrl || "").trim();
-  const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "User")}&background=DF40A3&color=fff&size=200`;
+  const avatarUrl = (profile?.avatarUrl || user?.avatarUrl || "").trim();
+  const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+    profile?.name || user?.name || "User"
+  )}&background=DF40A3&color=fff&size=200`;
   const avatarSource = avatarUrl ? { uri: avatarUrl } : { uri: defaultAvatar };
 
   return (
@@ -67,7 +105,7 @@ export default function AccountScreen() {
       >
         {/* Cover Image Area */}
         <View className="h-40 bg-primary w-full" />
-        
+
         {/* Profile Info Overlapping Cover */}
         <View className="items-center -mt-16 px-6">
           <View className="relative">
@@ -76,7 +114,7 @@ export default function AccountScreen() {
               className="w-32 h-32 rounded-full border-4 border-white dark:border-background-dark bg-white"
               resizeMode="cover"
             />
-            <TouchableOpacity 
+            <TouchableOpacity
               className="absolute bottom-0 right-0 bg-white p-2 border border-gray-200 rounded-full shadow-sm"
               activeOpacity={0.8}
               onPress={handleUpdateAvatar}
@@ -89,71 +127,185 @@ export default function AccountScreen() {
               )}
             </TouchableOpacity>
           </View>
-          
-          <Text className={`text-2xl font-bold mt-4 ${isDark ? "text-white" : "text-midnight-velvet"}`}>
-            {user?.name || "Người dùng"}
+
+          <Text
+            className={`text-2xl font-bold mt-4 ${
+              isDark ? "text-white" : "text-midnight-velvet"
+            }`}
+          >
+            {profile?.name || user?.name || "Người dùng"}
           </Text>
           <View className="bg-gray-200 dark:bg-white/10 px-4 py-1.5 rounded-full mt-2">
             <Text className={`text-sm ${isDark ? "text-gray-300" : "text-gray-600"}`}>
-              {user?.email || "email@example.com"}
+              {profile?.email || user?.email || "email@example.com"}
             </Text>
           </View>
+          
+          <View className="flex-row flex-wrap gap-2 mt-3">
+            <View className="px-3 py-1 rounded-full bg-primary/10">
+              <Text className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                {profile?.roleName || user?.roleName || "MEMBER"}
+              </Text>
+            </View>
+            <View className="px-3 py-1 rounded-full bg-secondary/10">
+              <Text className="text-[10px] font-bold uppercase tracking-wider text-secondary">
+                {profile?.gender || "OTHER"}
+              </Text>
+            </View>
+          </View>
+
+          {loading ? (
+            <ActivityIndicator size="small" className="mt-4" color={Colors.primary} />
+          ) : (
+            <View className="mt-4 flex-row justify-center space-x-6">
+              {profile?.address && (
+                <View className="flex-row items-center space-x-1">
+                  <MapPin size={14} color={isDark ? "#9ca3af" : "#6b7280"} />
+                  <Text className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                    {profile.address}
+                  </Text>
+                </View>
+              )}
+              {profile?.dob && (
+                <View className="flex-row items-center space-x-1">
+                  <Calendar size={14} color={isDark ? "#9ca3af" : "#6b7280"} />
+                  <Text className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                    {profile.dob}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         {/* Cài đặt tài khoản section */}
         <View className="px-6 mt-8">
           <View className="flex-row items-center justify-between mb-4">
-            <Text className={`text-xl font-bold ${isDark ? "text-white" : "text-midnight-velvet"}`}>
+            <Text
+              className={`text-xl font-bold ${
+                isDark ? "text-white" : "text-midnight-velvet"
+              }`}
+            >
               Cài đặt tài khoản
             </Text>
             <TouchableOpacity>
-              <Feather name="help-circle" size={20} color={isDark ? "#9ca3af" : "#6b7280"} />
+              <Feather
+                name="help-circle"
+                size={20}
+                color={isDark ? "#9ca3af" : "#6b7280"}
+              />
             </TouchableOpacity>
           </View>
 
-          <View className={`${isDark ? "bg-white/5" : "bg-white"} rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 overflow-hidden`}>
+          <View
+            className={`${
+              isDark ? "bg-white/5" : "bg-white"
+            } rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 overflow-hidden`}
+          >
             {menuItems.map((item, index) => (
               <TouchableOpacity
                 key={item.id}
-                className={`flex-row items-center p-4 ${index === menuItems.length - 1 ? '' : 'border-b border-gray-100 dark:border-white/5'}`}
+                className={`flex-row items-center p-4 ${
+                  index === menuItems.length - 1
+                    ? ""
+                    : "border-b border-gray-100 dark:border-white/5"
+                }`}
                 onPress={item.onPress}
                 activeOpacity={0.7}
               >
-                <View className={`w-10 h-10 rounded-full items-center justify-center ${isDark ? 'bg-primary/20' : 'bg-primary/10'}`}>
-                  {item.iconType === "feather" ? (
-                    <Feather name={item.icon as any} size={20} color={Colors.primary} />
-                  ) : (
-                    <Ionicons name={item.icon as any} size={20} color={Colors.primary} />
-                  )}
+                <View
+                  className={`w-10 h-10 rounded-full items-center justify-center ${
+                    isDark ? "bg-primary/20" : "bg-primary/10"
+                  }`}
+                >
+                  <Feather name={item.icon as any} size={20} color={Colors.primary} />
                 </View>
                 <View className="ml-4 flex-1">
-                  <Text className={`text-base font-semibold ${isDark ? "text-white" : "text-midnight-velvet"}`}>
+                  <Text
+                    className={`text-base font-semibold ${
+                      isDark ? "text-white" : "text-midnight-velvet"
+                    }`}
+                  >
                     {item.title}
                   </Text>
-                  <Text className={`text-xs mt-0.5 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                  <Text
+                    className={`text-xs mt-0.5 ${
+                      isDark ? "text-gray-400" : "text-gray-500"
+                    }`}
+                  >
                     {item.description}
                   </Text>
                 </View>
-                <Feather name="chevron-right" size={20} color={isDark ? "#4b5563" : "#d1d5db"} />
+                <Feather
+                  name="chevron-right"
+                  size={20}
+                  color={isDark ? "#4b5563" : "#d1d5db"}
+                />
               </TouchableOpacity>
             ))}
 
+            {/* Language Selection Row */}
+            <TouchableOpacity className="flex-row items-center p-4 border-t border-gray-100 dark:border-white/5">
+              <View
+                className={`w-10 h-10 rounded-full items-center justify-center ${
+                  isDark ? "bg-primary/20" : "bg-primary/10"
+                }`}
+              >
+                <Globe size={20} color={Colors.primary} />
+              </View>
+              <View className="ml-4 flex-1">
+                <Text
+                  className={`text-base font-semibold ${
+                    isDark ? "text-white" : "text-midnight-velvet"
+                  }`}
+                >
+                  Ngôn ngữ
+                </Text>
+                <Text
+                  className={`text-xs mt-0.5 ${
+                    isDark ? "text-gray-400" : "text-gray-500"
+                  }`}
+                >
+                  Tiếng Việt
+                </Text>
+              </View>
+              <Feather
+                name="chevron-right"
+                size={20}
+                color={isDark ? "#4b5563" : "#d1d5db"}
+              />
+            </TouchableOpacity>
+
             {/* Theme Toggle Row */}
             <View className="flex-row items-center p-4 border-t border-gray-100 dark:border-white/5">
-              <View className={`w-10 h-10 rounded-full items-center justify-center ${isDark ? 'bg-primary/20' : 'bg-primary/10'}`}>
+              <View
+                className={`w-10 h-10 rounded-full items-center justify-center ${
+                  isDark ? "bg-primary/20" : "bg-primary/10"
+                }`}
+              >
                 <Feather name={isDark ? "moon" : "sun"} size={20} color={Colors.primary} />
               </View>
               <View className="ml-4 flex-1">
-                <Text className={`text-base font-semibold ${isDark ? "text-white" : "text-midnight-velvet"}`}>
+                <Text
+                  className={`text-base font-semibold ${
+                    isDark ? "text-white" : "text-midnight-velvet"
+                  }`}
+                >
                   Chế độ tối
                 </Text>
-                <Text className={`text-xs mt-0.5 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                <Text
+                  className={`text-xs mt-0.5 ${
+                    isDark ? "text-gray-400" : "text-gray-500"
+                  }`}
+                >
                   {isDark ? "Đang bật" : "Đang tắt"}
                 </Text>
               </View>
               <Switch
                 value={isDark}
-                onValueChange={() => { dispatch(toggleTheme()); }}
+                onValueChange={() => {
+                  dispatch(toggleTheme());
+                }}
                 trackColor={{ false: "#d1d5db", true: Colors.primary }}
                 thumbColor={thumbColor}
               />

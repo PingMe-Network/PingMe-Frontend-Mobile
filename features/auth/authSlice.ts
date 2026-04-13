@@ -84,8 +84,10 @@ const authSlice = createSlice({
       state.error = null;
     });
 
-    builder.addCase(registerThunk.fulfilled, (state) => {
+    builder.addCase(registerThunk.fulfilled, (state, action) => {
+      state.userSession = action.payload.userSession;
       state.isLoading = false;
+      state.isLogin = true;
     });
 
     builder.addCase(registerThunk.rejected, (state, action) => {

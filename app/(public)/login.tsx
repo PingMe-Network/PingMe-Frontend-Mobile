@@ -45,17 +45,21 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1 bg-background-dark"
+      className="flex-1 bg-background-light relative overflow-hidden"
     >
+      {/* Background Decorators (Bubbles matching Web UI vibe) */}
+      <View className="absolute -top-10 -right-10 w-64 h-64 bg-primary/10 rounded-full" />
+      <View className="absolute top-40 -left-20 w-48 h-48 bg-secondary/10 rounded-full" />
+      <View className="absolute -bottom-10 right-10 w-56 h-56 bg-purple-500/10 rounded-full" />
       <View className="flex-1 justify-center px-6">
         {/* Header */}
-        <View className="items-center mb-10">
+        <View className="items-center mb-10 z-10">
           <Image
             source={require("../../assets/app/icon.png")}
-            className="w-28 h-28 mb-4 rounded-2xl"
+            className="w-24 h-24 mb-4 rounded-2xl"
           />
-          <Text className="text-3xl font-bold text-primary">PingMe</Text>
-          <Text className="text-gray-400 mt-2">Chào mừng trở lại</Text>
+          <Text className="text-3xl font-black text-gray-900 tracking-tight">PingMe</Text>
+          <Text className="text-gray-500 mt-2 font-medium">Chào mừng trở lại</Text>
         </View>
 
         {/* Error Message */}
@@ -99,8 +103,8 @@ export default function LoginScreen() {
         />
 
         {/* Register Link */}
-        <View className="flex-row justify-center mt-6">
-          <Text className="text-gray-400">Chưa có tài khoản? </Text>
+        <View className="flex-row justify-center mt-6 z-10">
+          <Text className="text-gray-500 text-sm">Chưa có tài khoản? </Text>
           <Link href={"/(public)/register" as never} asChild>
             <TouchableOpacity>
               <Text className="text-primary font-semibold">Đăng ký ngay</Text>

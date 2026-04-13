@@ -23,6 +23,7 @@ import playerReducer from "./music/playerSlice";
 import playlistReducer from "./music/playlistSlice";
 import playlistCoversReducer from "./music/playlistCoversSlice";
 import reelsReducer from "./reels/reelsSlice";
+import chatReducer from "./chat/chatSlice";
 
 const createNoopStorage = () => {
   return {
@@ -74,6 +75,7 @@ const rootReducer = combineReducers({
   playlistCovers: playlistCoversReducer,
   theme: themeReducer,
   reels: reelsReducer,
+  chat: chatReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

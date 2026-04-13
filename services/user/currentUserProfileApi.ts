@@ -8,7 +8,9 @@ import type {
 import axiosClient from "@/lib/axiosClient";
 
 export const getCurrentUserSessionApi = () => {
-  return axiosClient.get<ApiResponse<CurrentUserSessionResponse>>("/auth-service/users/me");
+  return axiosClient.get<ApiResponse<CurrentUserSessionResponse>>(
+    "/auth-service/users/me",
+  );
 };
 
 export const getCurrentUserInfoApi = () => {
@@ -44,5 +46,11 @@ export const updateCurrentUserAvatarApi = (data: FormData) => {
         "Content-Type": "multipart/form-data",
       },
     },
+  );
+};
+
+export const activateAccountApi = () => {
+  return axiosClient.post<ApiResponse<{ isActivated: boolean }>>(
+    "/auth-service/users/me/activate",
   );
 };
