@@ -99,8 +99,11 @@ export default function MessagesScreen() {
   const fetchRooms = useCallback(
     async (page: number, append = false) => {
       try {
-        if (!append) setIsLoading(true);
-        else setPagination((p) => ({ ...p, isLoadingMore: true }));
+        if (append) {
+          setPagination((p) => ({ ...p, isLoadingMore: true }));
+        } else {
+          setIsLoading(true);
+        }
 
         const res = (await getCurrentUserRoomsApi({ page, size: 20 })).data.data;
 
