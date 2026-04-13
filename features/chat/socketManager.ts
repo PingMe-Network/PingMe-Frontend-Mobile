@@ -1,214 +1,121 @@
-// =================================================================
-// Socket Manager - Singleton cho React Native (STOMP over SockJS)
-// =================================================================
-
-// TextEncoder/TextDecoder polyfill required by @stomp/stompjs in React Native
-import { TextEncoder, TextDecoder } from "text-encoding";
-if (typeof global.TextEncoder === "undefined") {
-  (global as any).TextEncoder = TextEncoder;
-}
-if (typeof global.TextDecoder === "undefined") {
-  (global as any).TextDecoder = TextDecoder;
-}
-
-import SockJS from "sockjs-client";
 import { Client, type IMessage, type StompSubscription } from "@stomp/stompjs";
 import "react-native-url-polyfill/auto";
 import { getTokens } from "@/utils/storage";
+import { isTokenExpired } from "@/utils/jwtDecode";
+import EventEmitter from "eventemitter3";
 import {
   messageCreated,
   messageRecalled,
-  readStateChanged,
   userTyping,
+  readStateChanged,
   type MessageCreatedEventPayload,
   type MessageRecalledEventPayload,
-  type ReadStateChangedEvent,
-  type RoomCreatedEventPayload,
-  type RoomUpdatedEventPayload,
-  type RoomMemberAddedEventPayload,
-  type RoomMemberRemovedEventPayload,
-  type RoomMemberRoleChangedEventPayload,
-  type TypingSignalPayload,
 } from "./chatSlice";
 
-// =================================================================
-// Event Emitter Types
-// =================================================================
-export interface SocketEventMap {
-  MESSAGE_CREATED: MessageCreatedEventPayload;
-  MESSAGE_RECALLED: MessageRecalledEventPayload;
-  READ_STATE_CHANGED: ReadStateChangedEvent;
-  USER_TYPING: TypingSignalPayload;
-
-  ROOM_CREATED: RoomCreatedEventPayload;
-  ROOM_UPDATED: RoomUpdatedEventPayload;
-  ROOM_MEMBER_ADDED: RoomMemberAddedEventPayload;
-  ROOM_MEMBER_REMOVED: RoomMemberRemovedEventPayload;
-  ROOM_MEMBER_ROLE_CHANGED: RoomMemberRoleChangedEventPayload;
-
-  FRIENDSHIP: import("@/types/friendship").FriendshipEventPayload;
-  USER_STATUS: { userId: string; name: string; isOnline: boolean };
+// Polyfill for TextEncoder/Decoder
+import { TextEncoder, TextDecoder } from "text-encoding";
+if (typeof (global as any).TextEncoder === "undefined") {
+  (global as any).TextEncoder = TextEncoder;
+  (global as any).TextDecoder = TextDecoder;
 }
 
-// =================================================================
-// Types
-// =================================================================
 export interface SocketManagerOptions {
   baseUrl: string;
-  dispatch: (action: unknown) => void;
+  dispatch: any;
+  onConnect?: () => void;
   onDisconnect?: (reason?: string) => void;
 }
 
-// =================================================================
-// JWT Helper
-// =================================================================
-function isJwtExpired(token: string | null): boolean {
-  if (!token) return true;
-  try {
-    const payloadBase64 = token.split(".")[1];
-    if (!payloadBase64) return true;
-    const decodedJson = atob(payloadBase64);
-    const payload = JSON.parse(decodedJson);
-    if (!payload.exp) return false;
-    return payload.exp * 1000 < Date.now() + 15000;
-  } catch {
-    return true;
-  }
-}
-
-// =================================================================
-// Singleton Class
-// =================================================================
-class SocketManagerClass {
+class SocketManagerClass extends EventEmitter {
   private client: Client | null = null;
-  private manualDisconnect = false;
   private options: SocketManagerOptions | null = null;
+  private manualDisconnect = false;
+  private connecting = false;
 
-  // Chat subscriptions
+  // Subscriptions
   private userRoomsSub: StompSubscription | null = null;
-  private currentRoomIdRef: number | null = null;
+  private statusSub: StompSubscription | null = null;
+  private friendshipSub: StompSubscription | null = null;
   private roomMsgSub: StompSubscription | null = null;
   private roomReadSub: StompSubscription | null = null;
   private roomTypingSub: StompSubscription | null = null;
 
-  // Global subscriptions
-  private statusSub: StompSubscription | null = null;
-  private friendshipSub: StompSubscription | null = null;
+  private currentRoomIdRef: number | null = null;
 
-  // =================================================================
-  // EventEmitter
-  // =================================================================
-  private listeners: {
-    [K in keyof SocketEventMap]?: Array<(payload: SocketEventMap[K]) => void>;
-  } = {};
-
-  public on<K extends keyof SocketEventMap>(
-    event: K,
-    listener: (payload: SocketEventMap[K]) => void
-  ) {
-    if (!this.listeners[event]) {
-      (this.listeners as Record<string, unknown[]>)[event as string] = [];
-    }
-    (this.listeners as Record<string, unknown[]>)[event as string].push(
-      listener
-    );
-    return () => this.off(event, listener);
+  constructor() {
+    super();
   }
 
-  public off<K extends keyof SocketEventMap>(
-    event: K,
-    listener: (payload: SocketEventMap[K]) => void
-  ) {
-    if (!this.listeners[event]) return;
-    (this.listeners as Record<string, unknown[]>)[event as string] = (
-      this.listeners as Record<string, unknown[]>
-    )[event as string].filter((l) => l !== listener);
+  /**
+   * Override on to return an unsubscribe function for easier cleanup in React effects.
+   */
+  override on(event: string | symbol, fn: (...args: any[]) => void, context?: any): any {
+    super.on(event, fn, context);
+    return (() => {
+      this.off(event, fn, context);
+    }) as any;
   }
 
-  private emit<K extends keyof SocketEventMap>(
-    event: K,
-    payload: SocketEventMap[K]
-  ) {
-    if (!this.listeners[event]) return;
-    this.listeners[event]!.forEach((l) => {
-      try {
-        l(payload);
-      } catch (err) {
-        console.error(`[PingMe] Error in event listener for ${event}:`, err);
-      }
-    });
-  }
-
-  // =================================================================
-  // Public Methods
-  // =================================================================
   isConnected(): boolean {
     return !!this.client?.connected;
   }
 
   async connect(opts: SocketManagerOptions): Promise<void> {
-    if (this.isConnected()) {
-      console.log("[PingMe] Already connected, skipping connect");
-      return;
-    }
+    if (this.isConnected() || this.connecting) return;
 
+    this.connecting = true;
     this.manualDisconnect = false;
     this.options = opts;
 
-    console.log("[PingMe] Initializing WebSocket connection...");
-
     const { accessToken } = await getTokens();
-    if (!accessToken || isJwtExpired(accessToken)) {
-      console.warn("[PingMe] No valid token, cannot connect WebSocket");
+    if (!accessToken || isTokenExpired(accessToken, 5000)) {
+      console.warn("[PingMe] No valid token, aborting connection");
+      this.connecting = false;
       return;
     }
 
+    console.log("[PingMe] Initializing STOMP Client...");
+
     this.client = new Client({
-      // React Native stability: Use SockJS fallback if raw WebSocket has issues
       webSocketFactory: () => {
+        const SockJS = require("sockjs-client");
         const url = `${opts.baseUrl}/core-service/ws`;
         console.log("[PingMe] Creating SockJS connection to:", url);
         return new SockJS(url);
       },
-
-      connectHeaders: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-
-      // Standard STOMP settings
-      heartbeatIncoming: 15000,
-      heartbeatOutgoing: 15000,
-      reconnectDelay: 3000,
-      
+      connectHeaders: { Authorization: `Bearer ${accessToken}` },
+      heartbeatIncoming: 20000,
+      heartbeatOutgoing: 20000,
+      reconnectDelay: 10000,
       debug: (msg) => {
-        console.log("[PingMe STOMP Debug]", msg);
+        if (msg.includes("CONNECTED") || msg.includes("ERROR")) {
+          console.log("[PingMe STOMP Debug]", msg);
+        }
       },
     });
 
     this.client.onConnect = () => {
-      console.log("[PingMe] Connected successfully!");
+      console.log("[PingMe] >>> CONNECTED SUCCESSFULLY <<<");
+      this.connecting = false;
       this.setupSubscriptions();
+      this.options?.onConnect?.();
     };
 
     this.client.onStompError = (frame) => {
-      console.error(
-        "[PingMe] STOMP error:",
-        frame.headers["message"],
-        frame.body
-      );
+      console.error("[PingMe] STOMP error:", frame.headers["message"]);
+      this.connecting = false;
     };
 
-    this.client.onWebSocketError = (ev) => {
-      console.error("[PingMe] WebSocket error:", ev);
+    this.client.onWebSocketError = () => {
+      console.warn("[PingMe] WebSocket error occurred");
+      this.connecting = false;
     };
 
-    this.client.onDisconnect = (frame) => {
-      console.log("[PingMe] Disconnected");
-      this.options?.onDisconnect?.(frame?.headers?.message);
-
+    this.client.onDisconnect = () => {
+      console.log("[PingMe] Socket disconnected");
+      this.connecting = false;
       if (this.manualDisconnect) {
         this.cleanupAllSubscriptions();
-        this.currentRoomIdRef = null;
       }
     };
 
@@ -216,43 +123,25 @@ class SocketManagerClass {
   }
 
   disconnect(): void {
-    console.log("[PingMe] Manual disconnect initiated");
+    if (this.manualDisconnect) return;
+    console.log("[PingMe] Manual disconnect triggered");
     this.manualDisconnect = true;
-    this.cleanupAllSubscriptions();
-    this.currentRoomIdRef = null;
     this.client?.deactivate();
     this.client = null;
+    this.connecting = false;
   }
 
-  sendTyping(roomId: number, isTyping: boolean): void {
-    if (!this.isConnected() || !this.client) return;
-
-    this.client.publish({
-      destination: `/app/rooms/${roomId}/typing`,
-      body: JSON.stringify({ isTyping }),
-    });
-  }
-
-  // =================================================================
-  // Chat-specific Methods
-  // =================================================================
   enterRoom(roomId: number): void {
-    if (!this.isConnected() || !this.client) {
-      console.warn("[PingMe] Cannot enter room: not connected");
+    const rId = Number(roomId);
+    console.log("[PingMe] Preparing to enter room:", rId);
+    this.currentRoomIdRef = rId;
+
+    if (!this.isConnected()) {
+      console.log("[PingMe] Connection not ready, entry queued for roomId:", rId);
       return;
     }
 
-    if (this.currentRoomIdRef === roomId) {
-      console.log("[PingMe] Already in room:", roomId);
-      return;
-    }
-
-    console.log("[PingMe] Entering room:", roomId);
-    this.unsubscribeRoom();
-    this.subscribeRoomMessages(roomId);
-    this.subscribeRoomReadStates(roomId);
-    this.subscribeRoomTyping(roomId);
-    this.currentRoomIdRef = roomId;
+    this.subscribeRoom(rId);
   }
 
   leaveRoom(): void {
@@ -261,200 +150,93 @@ class SocketManagerClass {
     this.currentRoomIdRef = null;
   }
 
-  // =================================================================
-  // Private - Subscription Management
-  // =================================================================
-  private setupSubscriptions(): void {
-    console.log("[PingMe] Setting up subscriptions...");
-    this.cleanupAllSubscriptions();
-    this.setupChatSubscriptions();
-    this.setupGlobalSubscriptions();
-
-    if (this.currentRoomIdRef !== null) {
-      this.resubscribeCurrentRoom();
-    }
+  sendTyping(roomId: number, isTyping: boolean): void {
+    if (!this.isConnected()) return;
+    this.client?.publish({
+      destination: `/app/rooms/${roomId}/typing`,
+      body: JSON.stringify({ isTyping }),
+    });
   }
 
-  private resubscribeCurrentRoom(): void {
-    if (this.currentRoomIdRef === null) return;
-    console.log("[PingMe] Resubscribing to room:", this.currentRoomIdRef);
-    this.subscribeRoomMessages(this.currentRoomIdRef);
-    this.subscribeRoomReadStates(this.currentRoomIdRef);
-    this.subscribeRoomTyping(this.currentRoomIdRef);
-  }
+  private subscribeRoom(roomId: number): void {
+    this.unsubscribeRoom();
+    console.log("[PingMe] Subscribing to room topics for:", roomId);
 
-  private parsePayload<T>(message: IMessage, context: string): T | null {
-    try {
-      return JSON.parse(message.body) as T;
-    } catch (err) {
-      console.error(`[PingMe] Error parsing ${context}:`, err);
-      return null;
-    }
-  }
-
-  private safeUnsubscribe(
-    subscription: StompSubscription | null,
-    context: string
-  ): void {
-    try {
-      subscription?.unsubscribe();
-    } catch (err) {
-      console.warn(`[PingMe] Error unsubscribing ${context}:`, err);
-    }
-  }
-
-  private setupChatSubscriptions(): void {
-    if (!this.client) return;
-    console.log("[PingMe] Setting up chat subscriptions");
-
-    this.userRoomsSub = this.client.subscribe(
-      "/user/queue/rooms",
-      (msg: IMessage) => {
-        try {
-          const ev = JSON.parse(msg.body);
-
-          switch (ev.chatEventType) {
-            case "ROOM_CREATED":
-              this.emit("ROOM_CREATED", ev);
-              break;
-            case "ROOM_UPDATED":
-              this.emit("ROOM_UPDATED", ev);
-              break;
-            case "MEMBER_ADDED":
-              this.emit("ROOM_MEMBER_ADDED", ev);
-              break;
-            case "MEMBER_REMOVED":
-              this.emit("ROOM_MEMBER_REMOVED", ev);
-              break;
-            case "MEMBER_ROLE_CHANGED":
-              this.emit("ROOM_MEMBER_ROLE_CHANGED", ev);
-              break;
-            default:
-              console.warn("[PingMe] Unknown chat event:", ev);
-          }
-        } catch (err) {
-          console.error("[PingMe] Error parsing chat event:", err);
-        }
-      }
-    );
-  }
-
-  private setupGlobalSubscriptions(): void {
-    if (!this.client) return;
-    console.log("[PingMe] Setting up global subscriptions");
-
-    this.statusSub = this.client.subscribe(
-      "/user/queue/status",
-      (msg: IMessage) => {
-        try {
-          const ev = JSON.parse(msg.body);
-          this.emit("USER_STATUS", ev);
-        } catch (err) {
-          console.error("[PingMe] Error parsing status event:", err);
-        }
-      }
-    );
-
-    this.friendshipSub = this.client.subscribe(
-      "/user/queue/friendship",
-      (msg: IMessage) => {
-        try {
-          const ev = JSON.parse(msg.body);
-          this.emit("FRIENDSHIP", ev);
-        } catch (err) {
-          console.error("[PingMe] Error parsing friendship event:", err);
-        }
-      }
-    );
-  }
-
-  private subscribeRoomMessages(roomId: number): void {
-    if (!this.isConnected() || !this.client) return;
-    this.safeUnsubscribe(this.roomMsgSub, "room messages");
-
-    const dest = `/topic/rooms/${roomId}/messages`;
-    console.log("[PingMe] Subscribing to:", dest);
-
-    this.roomMsgSub = this.client.subscribe(dest, (msg: IMessage) => {
+    this.roomMsgSub = this.client!.subscribe(`/topic/rooms/${roomId}/messages`, (msg) => {
       try {
-        const ev = this.parsePayload<
-          MessageCreatedEventPayload | MessageRecalledEventPayload
-        >(msg, "message event");
-        if (!ev) return;
-
-        switch (ev.chatEventType) {
-          case "MESSAGE_CREATED":
-            this.options?.dispatch(
-              messageCreated(ev as MessageCreatedEventPayload)
-            );
-            this.emit("MESSAGE_CREATED", ev as MessageCreatedEventPayload);
-            break;
-          case "MESSAGE_RECALLED":
-            this.options?.dispatch(
-              messageRecalled(ev as MessageRecalledEventPayload)
-            );
-            this.emit("MESSAGE_RECALLED", ev as MessageRecalledEventPayload);
-            break;
+        const ev = JSON.parse(msg.body);
+        console.log("[PingMe] New Event:", ev.chatEventType);
+        if (ev.chatEventType === "MESSAGE_CREATED") {
+          this.options?.dispatch(messageCreated(ev));
+        } else if (ev.chatEventType === "MESSAGE_RECALLED") {
+          this.options?.dispatch(messageRecalled(ev));
         }
-      } catch (err) {
-        console.error("[PingMe] Error handling message event:", err);
+        this.emit("MESSAGE_EVENT", ev);
+      } catch (e) {
+        console.error("[PingMe] Parse error in room messages", e);
       }
     });
-  }
 
-  private subscribeRoomReadStates(roomId: number): void {
-    if (!this.isConnected() || !this.client) return;
-    this.safeUnsubscribe(this.roomReadSub, "room read states");
-
-    const dest = `/topic/rooms/${roomId}/read-states`;
-    this.roomReadSub = this.client.subscribe(dest, (msg: IMessage) => {
-      const ev = this.parsePayload<ReadStateChangedEvent>(
-        msg,
-        "read state event"
-      );
-      if (!ev || ev.chatEventType !== "READ_STATE_CHANGED") return;
-
+    this.roomReadSub = this.client!.subscribe(`/topic/rooms/${roomId}/read-states`, (msg) => {
+      const ev = JSON.parse(msg.body);
       this.options?.dispatch(readStateChanged(ev));
-      this.emit("READ_STATE_CHANGED", ev);
+      this.emit("READ_STATE", ev);
     });
-  }
 
-  private subscribeRoomTyping(roomId: number): void {
-    if (!this.isConnected() || !this.client) return;
-    this.safeUnsubscribe(this.roomTypingSub, "room typing");
-
-    const dest = `/topic/rooms/${roomId}/typing`;
-    this.roomTypingSub = this.client.subscribe(dest, (msg: IMessage) => {
-      const ev = this.parsePayload<TypingSignalPayload>(msg, "typing event");
-      if (!ev) return;
-
+    this.roomTypingSub = this.client!.subscribe(`/topic/rooms/${roomId}/typing`, (msg) => {
+      const ev = JSON.parse(msg.body);
       this.options?.dispatch(userTyping(ev));
       this.emit("USER_TYPING", ev);
     });
   }
 
+  private setupSubscriptions(): void {
+    if (!this.client || !this.isConnected()) return;
+    this.cleanupAllSubscriptions();
+
+    this.userRoomsSub = this.client.subscribe("/user/queue/rooms", (msg) => {
+      try {
+        const ev = JSON.parse(msg.body);
+        console.log("[PingMe] Global Room Event:", ev.chatEventType);
+        
+        // Phát sự kiện cụ thể để màn hình danh sách nhận được
+        if (ev.chatEventType) {
+          this.emit(ev.chatEventType, ev);
+        }
+        this.emit("ROOM_EVENT", ev);
+      } catch (e) {
+        console.error("[PingMe] Error parsing global room event", e);
+      }
+    });
+
+    this.statusSub = this.client.subscribe("/user/queue/status", (msg) => {
+      this.emit("USER_STATUS", JSON.parse(msg.body));
+    });
+
+    this.friendshipSub = this.client.subscribe("/user/queue/friendship", (msg) => {
+      this.emit("FRIENDSHIP", JSON.parse(msg.body));
+    });
+
+    if (this.currentRoomIdRef) {
+      this.subscribeRoom(this.currentRoomIdRef);
+    }
+  }
+
   private unsubscribeRoom(): void {
-    this.safeUnsubscribe(this.roomMsgSub, "room messages");
-    this.safeUnsubscribe(this.roomReadSub, "room read states");
-    this.safeUnsubscribe(this.roomTypingSub, "room typing");
+    this.roomMsgSub?.unsubscribe();
+    this.roomReadSub?.unsubscribe();
+    this.roomTypingSub?.unsubscribe();
     this.roomMsgSub = null;
     this.roomReadSub = null;
     this.roomTypingSub = null;
   }
 
   private cleanupAllSubscriptions(): void {
-    console.log("[PingMe] Cleaning up all subscriptions");
-    this.safeUnsubscribe(this.userRoomsSub, "user rooms");
-    this.safeUnsubscribe(this.roomMsgSub, "room messages");
-    this.safeUnsubscribe(this.roomReadSub, "room read states");
-    this.safeUnsubscribe(this.roomTypingSub, "room typing");
-    this.safeUnsubscribe(this.statusSub, "status");
-    this.safeUnsubscribe(this.friendshipSub, "friendship");
-
+    this.userRoomsSub?.unsubscribe();
+    this.statusSub?.unsubscribe();
+    this.friendshipSub?.unsubscribe();
+    this.unsubscribeRoom();
     this.userRoomsSub = null;
-    this.roomMsgSub = null;
-    this.roomReadSub = null;
-    this.roomTypingSub = null;
     this.statusSub = null;
     this.friendshipSub = null;
   }

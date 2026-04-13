@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -138,11 +138,20 @@ export default function MessagesScreen() {
     }
   };
 
+  const isNavigating = useRef(false);
   const openChatRoom = (room: RoomResponse) => {
+    if (isNavigating.current) return;
+    isNavigating.current = true;
+
     router.push({
       pathname: "/(app)/messages/[roomId]",
       params: { roomId: room.roomId.toString() },
     });
+
+    // Reset flag after a short delay to allow future navigations
+    setTimeout(() => {
+      isNavigating.current = false;
+    }, 500);
   };
 
   const filteredRooms = rooms.filter((room) => {

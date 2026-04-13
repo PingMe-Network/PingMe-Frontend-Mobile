@@ -22,6 +22,7 @@ export type {
   RoomMemberRemovedEventPayload,
   RoomMemberRoleChangedEventPayload,
   TypingSignalPayload,
+  TypingUser,
 } from "./chatSlice";
 export { SocketManager } from "./socketManager";
 export { useSocket } from "./useSocket";

@@ -30,6 +30,7 @@ import {
   selectMessages,
   selectRecalledMessageIds,
   selectTypingUsers,
+  type TypingUser,
 } from "@/features/chat";
 import {
   sendMessageApi,
@@ -63,9 +64,9 @@ export default function ChatRoomScreen() {
   const { mode } = useAppSelector((state) => state.theme);
   const isDark = mode === "dark";
   const { userSession } = useAppSelector((state) => state.auth);
-  const reduxMessages = useAppSelector(selectMessages);
-  const recalledMessageIds = useAppSelector(selectRecalledMessageIds);
-  const typingUsers = useAppSelector(selectTypingUsers(roomId));
+  const reduxMessages = useAppSelector(selectMessages) as MessageResponse[];
+  const recalledMessageIds = useAppSelector(selectRecalledMessageIds) as string[];
+  const typingUsers = useAppSelector(selectTypingUsers(roomId)) as TypingUser[];
 
   const [room, setRoom] = useState<RoomResponse | null>(null);
   const [historyMessages, setHistoryMessages] = useState<MessageResponse[]>([]);
@@ -76,6 +77,7 @@ export default function ChatRoomScreen() {
   const [isSending, setIsSending] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
+  const isInitialLoad = useRef(true);
 
   useEffect(() => {
     const fetchRoom = async () => {
@@ -110,9 +112,10 @@ export default function ChatRoomScreen() {
 
         if (append) {
           setHistoryMessages((prev) => {
-            const ids = new Set(prev.map((m) => m.id));
-            const unique = hist.messageResponses.filter((m) => !ids.has(m.id));
-            return [...unique, ...prev];
+            const ids = new Set(prev.map((m) => String(m.id)));
+            const unique = hist.messageResponses.filter((m) => !ids.has(String(m.id)));
+            // Trong inverted list, tin nhắn cũ phải nằm ở CUỐI mảng
+            return [...prev, ...unique];
           });
         } else {
           setHistoryMessages(hist.messageResponses);
@@ -130,6 +133,7 @@ export default function ChatRoomScreen() {
 
   useEffect(() => {
     if (roomId) {
+      isInitialLoad.current = true;
       setHistoryMessages([]);
       setHasMoreMessages(true);
       fetchMessages();
@@ -141,18 +145,30 @@ export default function ChatRoomScreen() {
     const updatedHistory = historyMessages.map((m) =>
       recalledIds.has(m.id) ? { ...m, isActive: false } : m
     );
-    if (reduxMessages.length === 0) return updatedHistory;
-    const historyIds = new Set(historyMessages.map((m) => m.id));
+    const historyIds = new Set(historyMessages.map((m) => String(m.id)));
     const historyClientIds = new Set(
-      historyMessages.map((m) => m.clientMsgId).filter(Boolean)
+      historyMessages.map((m) => m.clientMsgId ? String(m.clientMsgId) : "")
     );
+
     const newFromRedux = reduxMessages.filter(
-      (m) => !historyIds.has(m.id) && !historyClientIds.has(m.clientMsgId)
+      (m) =>
+        !historyIds.has(String(m.id)) &&
+        (!m.clientMsgId || !historyClientIds.has(String(m.clientMsgId)))
     );
+
     const merged = [...updatedHistory, ...newFromRedux];
-    merged.sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
+
+    // SẮP XẾP: LUÔN LUÔN Mới nhất ở index 0 (Dưới cùng màn hình)
+    merged.sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+
+      if (timeA !== timeB) {
+        return timeB - timeA;
+      }
+      return String(b.id).localeCompare(String(a.id));
+    });
+
     return merged;
   }, [historyMessages, reduxMessages, recalledMessageIds]);
 
@@ -165,7 +181,8 @@ export default function ChatRoomScreen() {
 
   const handleLoadMore = () => {
     if (hasMoreMessages && !isLoadingMore && messages.length > 0) {
-      fetchMessages(messages[0].id, true);
+      // In inverted mode, the "top" of the list (older messages) is the end of the array
+      fetchMessages(messages[messages.length - 1].id, true);
     }
   };
 
@@ -184,7 +201,6 @@ export default function ChatRoomScreen() {
       setHistoryMessages((prev) =>
         addUniqueMessage(prev, res.data.data as MessageResponse)
       );
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     } catch {
       Alert.alert("Lỗi", "Không thể gửi tin nhắn.");
       setMessageText(text);
@@ -363,22 +379,15 @@ export default function ChatRoomScreen() {
           <FlatList
             ref={flatListRef}
             data={messages}
+            inverted
             keyExtractor={(item, index) => item.id || `msg-${index}`}
             renderItem={renderMessage}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{
               paddingVertical: 12,
-              flexGrow: 1,
-              justifyContent: messages.length === 0 ? "center" : "flex-end",
             }}
-            onContentSizeChange={() => {
-              if (!isLoadingMore) flatListRef.current?.scrollToEnd({ animated: false });
-            }}
-            onScroll={({ nativeEvent }) => {
-              if (nativeEvent.contentOffset.y < 50 && hasMoreMessages && !isLoadingMore && messages.length > 0) {
-                handleLoadMore();
-              }
-            }}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.2}
             scrollEventThrottle={200}
             ListHeaderComponent={
               isLoadingMore ? (

@@ -31,6 +31,14 @@ export interface TypingSignalPayload {
   isTyping: boolean;
 }
 
+export interface TypingUser {
+  userId: number;
+  name: string;
+  avatar?: string;
+  isTyping: boolean;
+  timestamp: number;
+}
+
 export interface RoomCreatedEventPayload {
   chatEventType: "ROOM_CREATED";
   roomResponse: import("@/types/chat/room").RoomResponse;
@@ -104,9 +112,17 @@ const chatSlice = createSlice({
   initialState,
   reducers: {
     setCurrentRoom(state, action: PayloadAction<number | null>) {
-      state.currentRoomId = action.payload;
-      state.messages = [];
-      state.recalledMessageIds = [];
+      const nextRoomId = action.payload;
+      
+      if (nextRoomId !== null && state.currentRoomId !== nextRoomId) {
+          const firstMsg = state.messages[0];
+          if (firstMsg && Number(firstMsg.roomId) !== Number(nextRoomId)) {
+            state.messages = [];
+            state.recalledMessageIds = [];
+          }
+      }
+      
+      state.currentRoomId = nextRoomId;
     },
 
     clearMessages(state) {
@@ -116,14 +132,21 @@ const chatSlice = createSlice({
 
     messageCreated(state, action: PayloadAction<MessageCreatedEventPayload>) {
       const message = action.payload.messageResponse;
-      if (state.currentRoomId === message.roomId) {
+      const targetRoomId = Number(message.roomId);
+      const currentRoomId = Number(state.currentRoomId);
+
+      console.log(`[ChatSlice] Processing message for room ${targetRoomId} (Current: ${currentRoomId})`);
+
+      if (currentRoomId === targetRoomId) {
         const isDuplicate = state.messages.some(
-          (m) =>
-            m.id === message.id ||
-            (message.clientMsgId && m.clientMsgId === message.clientMsgId),
+          (m) => String(m.id) === String(message.id) || 
+                 (message.clientMsgId && m.clientMsgId === message.clientMsgId)
         );
+
         if (!isDuplicate) {
+          // Immer sẽ tự xử lý việc tạo reference mới cho state.messages
           state.messages.push(message);
+          console.log("[ChatSlice] Message pushed to state successfully");
         }
       }
     },
@@ -200,6 +223,8 @@ export const {
 
 export default chatSlice.reducer;
 
+const EMPTY_ARRAY: any[] = [];
+
 // =================================================================
 // Selectors
 // =================================================================
@@ -208,4 +233,4 @@ export const selectCurrentRoomId = (state: any) => state.chat.currentRoomId;
 export const selectMessages = (state: any) => state.chat.messages;
 export const selectRecalledMessageIds = (state: any) => state.chat.recalledMessageIds;
 export const selectTypingUsers = (roomId: number) => (state: any) => 
-  state.chat?.typingUsers?.[roomId] || [];
+  state.chat?.typingUsers?.[roomId] || EMPTY_ARRAY;
