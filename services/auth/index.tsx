@@ -42,3 +42,16 @@ export const refreshMobileApi = async (data: { refreshToken: string }) => {
     } as RefreshMobileRequest,
   );
 };
+
+export const checkEmailExistsApi = (email: string) => {
+  return axiosClient.get<ApiResponse<{ exists: boolean }>>(
+    `/auth-service/auth/check-email?email=${encodeURIComponent(email)}`,
+  );
+};
+
+export const registerLocalApi = (data: RegisterRequest) => {
+  return axiosClient.post<ApiResponse<MobileAuthResponse>>(
+    "/auth-service/auth/mobile/register",
+    data,
+  );
+};

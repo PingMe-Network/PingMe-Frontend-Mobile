@@ -17,8 +17,8 @@ import {
 } from "@/features/auth/authThunk";
 import { updateUserSession } from "@/features/auth/authSlice";
 import { getTokens, isRefreshTokenExpired } from "@/utils/storage";
-import { Colors } from "@/constants/Colors";
 import { AlertProvider } from "@/components/ui/AlertProvider";
+import { useSocket } from "@/features/chat/useSocket";
 import "../global.css";
 
 // ===============================
@@ -29,6 +29,9 @@ function RootLayoutNav() {
   const segments = useSegments();
   const dispatch = useAppDispatch();
   const { isLogin } = useAppSelector((state) => state.auth);
+
+  // Connect WebSocket when logged in
+  useSocket();
 
   // =======================
   // Session Bootstrap
@@ -84,7 +87,8 @@ function RootLayoutNav() {
 
 // ===============================
 // ROOT
-// ===============================
+import { StatusBar } from "expo-status-bar";
+
 export default function RootLayout() {
   useEffect(() => {
     setupAxiosInterceptors({
@@ -104,13 +108,14 @@ export default function RootLayout() {
       <PersistGate
         persistor={persistor}
         loading={
-          <View className="flex-1 items-center justify-center bg-black">
-            <ActivityIndicator size="large" color={Colors.primary} />
+          <View className="flex-1 items-center justify-center bg-background">
+            <ActivityIndicator size="large" color="#9333ea" />
           </View>
         }
       >
         <SafeAreaProvider>
           <AlertProvider>
+            <StatusBar style="auto" />
             <RootLayoutNav />
           </AlertProvider>
         </SafeAreaProvider>

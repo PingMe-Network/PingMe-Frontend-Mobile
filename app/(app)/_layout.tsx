@@ -1,5 +1,5 @@
 import { Tabs, usePathname } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   MessageCircle,
   Users,
@@ -100,20 +100,18 @@ const MusicTabIconWithState = ({
 
 export default function AppLayout() {
   const dispatch = useAppDispatch();
-  const { mode } = useAppSelector((state) => state.theme);
   const { isPlaying } = useAppSelector((state) => state.player);
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
-  const isDark = mode === "dark";
+  
   const bottomPadding = insets.bottom > 0 ? insets.bottom : 20;
   const tabBarHeight = 65 + bottomPadding;
 
-  // Animation for music icon
   const [pulseAnim] = useState(() => new Animated.Value(1));
   const isMusicTab = pathname?.includes('/music');
   const isReelsTab = pathname?.includes('/reels');
+  const isChatRoom = pathname?.match(/\/messages\/\d+/);
 
-  // Pause music when switching to reels tab
   useEffect(() => {
     if (isReelsTab && isPlaying) {
       dispatch(pauseSong());
@@ -122,7 +120,6 @@ export default function AppLayout() {
 
   useEffect(() => {
     if (isPlaying && !isMusicTab) {
-      // Start pulse animation
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
@@ -140,45 +137,15 @@ export default function AppLayout() {
         ])
       ).start();
     } else {
-      // Reset animation
       pulseAnim.setValue(1);
     }
   }, [isPlaying, isMusicTab, pulseAnim]);
 
-  // Helper to determine tab bar background color
-  const getTabBarBackground = () => {
-    if (Platform.OS === "ios") {
-      if (isDark) {
-        return "rgba(28, 25, 27, 0.85)";
-      }
-      return "rgba(255, 249, 250, 0.85)";
-    }
-
-    if (isDark) {
-      return Colors.background.dark;
-    }
-    return Colors.background.light;
-  };
-
-  const getTabBarInactiveColor = () => {
-    if (isDark) {
-      return Colors.tabBar.inactiveDark;
-    }
-    return Colors.tabBar.inactiveLight;
-  };
-
-  const getIosBlurClass = () => {
-    if (isDark) {
-      return "bg-black/80";
-    }
-    return "bg-white/90";
-  }
-
   const colors = {
-    tabBarBackground: getTabBarBackground(),
-    tabBarActive: Colors.primary,
-    tabBarInactive: getTabBarInactiveColor(),
-    iosBlur: getIosBlurClass(),
+    tabBarBackground: Platform.OS === "ios" ? "rgba(255, 255, 255, 0.9)" : "#FFFFFF",
+    tabBarActive: "#c026d3", // New Primary Pink/Violet
+    tabBarInactive: "#A1A1AA", // Zinc 400
+    iosBlur: "bg-white/90",
   };
 
   const renderTabBarBackground = useCallback(() => (
@@ -202,8 +169,10 @@ export default function AppLayout() {
         tabBarInactiveTintColor: colors.tabBarInactive,
         tabBarLabelPosition: "below-icon",
         tabBarStyle: {
+          display: isChatRoom ? "none" : "flex",
           backgroundColor: colors.tabBarBackground,
-          borderTopWidth: 0,
+          borderTopWidth: 1,
+          borderTopColor: "#FFE8EF",
           elevation: 0,
           position: "absolute",
           bottom: 0,
@@ -215,7 +184,7 @@ export default function AppLayout() {
         },
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: "500",
+          fontWeight: "600",
           marginTop: 4,
         },
         tabBarBackground: renderTabBarBackground,
@@ -225,6 +194,7 @@ export default function AppLayout() {
         name="messages"
         options={{
           title: "Tin nhắn",
+          tabBarLabel: "Tin nhắn",
           tabBarIcon: MessagesIcon,
         }}
       />
@@ -232,6 +202,7 @@ export default function AppLayout() {
         name="contacts"
         options={{
           title: "Danh bạ",
+          tabBarLabel: "Danh bạ",
           tabBarIcon: ContactsIcon,
         }}
       />
@@ -239,13 +210,15 @@ export default function AppLayout() {
         name="music"
         options={{
           title: "Âm nhạc",
+          tabBarLabel: "Âm nhạc",
           tabBarIcon: renderMusicTabIcon,
         }}
       />
       <Tabs.Screen
         name="reels"
         options={{
-          title: "Thước Phim",
+          title: "Thước phim",
+          tabBarLabel: "Thước phim",
           tabBarIcon: ReelsIcon,
         }}
       />
@@ -253,6 +226,7 @@ export default function AppLayout() {
         name="account"
         options={{
           title: "Tài khoản",
+          tabBarLabel: "Tài khoản",
           tabBarIcon: AccountIcon,
         }}
       />

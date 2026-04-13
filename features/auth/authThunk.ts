@@ -1,5 +1,5 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
-import { loginMobileApi, logoutApi, registerApi } from "@/services/auth";
+import { loginMobileApi, logoutApi, registerLocalApi } from "@/services/auth";
 import type {
   CurrentUserSessionResponse,
   LoginRequest,
@@ -67,12 +67,17 @@ export const getCurrentUserSession = createAsyncThunk<
 // THUNK REGISTER
 // =========================================================
 export const registerThunk = createAsyncThunk<
-  void,
+  MobileAuthResponse,
   RegisterRequest,
   { rejectValue: string }
 >("auth/register", async (payload, { rejectWithValue }) => {
   try {
-    await registerApi(payload);
+    const response = await registerLocalApi(payload);
+    const data = response.data.data;
+
+    await saveTokens(data.accessToken, data.refreshToken);
+
+    return data;
   } catch (error: any) {
     return rejectWithValue(getErrorMessage(error));
   }
