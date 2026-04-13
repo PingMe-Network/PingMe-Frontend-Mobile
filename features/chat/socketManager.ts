@@ -11,6 +11,7 @@ if (typeof global.TextDecoder === "undefined") {
   (global as any).TextDecoder = TextDecoder;
 }
 
+import SockJS from "sockjs-client";
 import { Client, type IMessage, type StompSubscription } from "@stomp/stompjs";
 import "react-native-url-polyfill/auto";
 import { getTokens } from "@/utils/storage";
@@ -163,19 +164,25 @@ class SocketManagerClass {
     }
 
     this.client = new Client({
-      brokerURL: `${opts.baseUrl.replace("https://", "wss://").replace("http://", "ws://")}/core-service/ws/websocket`,
+      // React Native stability: Use SockJS fallback if raw WebSocket has issues
+      webSocketFactory: () => {
+        const url = `${opts.baseUrl}/core-service/ws`;
+        console.log("[PingMe] Creating SockJS connection to:", url);
+        return new SockJS(url);
+      },
 
       connectHeaders: {
         Authorization: `Bearer ${accessToken}`,
       },
 
-      // React Native does not support SockJS natively, use raw WebSocket
-      forceBinaryWSFrames: true,
-      appendMissingNULLonIncoming: true,
-
+      // Standard STOMP settings
       heartbeatIncoming: 15000,
       heartbeatOutgoing: 15000,
       reconnectDelay: 3000,
+      
+      debug: (msg) => {
+        console.log("[PingMe STOMP Debug]", msg);
+      },
     });
 
     this.client.onConnect = () => {

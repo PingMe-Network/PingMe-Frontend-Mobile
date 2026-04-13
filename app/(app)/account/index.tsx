@@ -71,7 +71,7 @@ export default function AccountScreen() {
       id: "devices",
       title: "Quản lý thiết bị",
       description: "Xem các phiên đăng nhập",
-      icon: "laptop",
+      icon: "monitor",
       iconType: "feather",
       onPress: () => router.push("/(app)/account/devices"),
     },

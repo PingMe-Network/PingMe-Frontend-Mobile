@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { MessageResponse } from "@/types/chat/message";
-import type { RootState } from "@/features/store";
+
 
 // =================================================================
 // Event Payload Types (from WebSocket)
@@ -203,10 +203,9 @@ export default chatSlice.reducer;
 // =================================================================
 // Selectors
 // =================================================================
-export const selectCurrentRoomId = (state: RootState) =>
-  state.chat.currentRoomId;
-export const selectMessages = (state: RootState) => state.chat.messages;
-export const selectRecalledMessageIds = (state: RootState) =>
-  state.chat.recalledMessageIds;
-export const selectTypingUsers = (roomId: number) => (state: RootState) =>
-  state.chat.typingUsers[roomId] || [];
+// Selectors - Use a local type for state to avoid circular dependency with store.ts
+export const selectCurrentRoomId = (state: any) => state.chat.currentRoomId;
+export const selectMessages = (state: any) => state.chat.messages;
+export const selectRecalledMessageIds = (state: any) => state.chat.recalledMessageIds;
+export const selectTypingUsers = (roomId: number) => (state: any) => 
+  state.chat?.typingUsers?.[roomId] || [];
