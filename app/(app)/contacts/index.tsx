@@ -204,7 +204,8 @@ export default function ContactsScreen() {
   const handleLoadMore = () => {
     if (!hasMore || isLoadingMore) return;
     const list = getListByTab(activeTab, friends, receivedInvites, sentInvites);
-    if (list.length > 0) fetchData(activeTab, list[list.length - 1].id, true);
+    const lastItem = list.at(-1);
+    if (lastItem) fetchData(activeTab, lastItem.id, true);
   };
 
   const withProcessing = async (id: number, fn: () => Promise<void>) => {

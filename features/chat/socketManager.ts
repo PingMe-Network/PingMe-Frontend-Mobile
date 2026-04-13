@@ -101,7 +101,6 @@ class SocketManagerClass extends EventEmitter {
     };
 
     this.client.onDisconnect = () => {
-      // console.log("[PingMe] Socket disconnected");
       this.connecting = false;
       if (this.manualDisconnect) {
         this.cleanupAllSubscriptions();

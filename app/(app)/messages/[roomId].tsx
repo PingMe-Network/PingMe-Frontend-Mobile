@@ -48,12 +48,30 @@ import { getRoomDisplayName, getRoomAvatar, isOtherParticipantOnline } from "@/u
 import { formatMessageTime } from "@/utils/formatMessageTime";
 import { addUniqueMessage } from "@/utils/addUniqueMessage";
 
+type CryptoLike = {
+  randomUUID?: () => string;
+  getRandomValues: (array: Uint8Array) => Uint8Array;
+};
+
 function generateUUID(): string {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replaceAll(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
+  const cryptoApi = (globalThis as { crypto?: CryptoLike }).crypto;
+
+  if (cryptoApi?.randomUUID) {
+    return cryptoApi.randomUUID();
+  }
+
+  if (!cryptoApi?.getRandomValues) {
+    throw new Error("Secure random generator is unavailable.");
+  }
+
+  const bytes = cryptoApi.getRandomValues(new Uint8Array(16));
+
+  // RFC 4122 v4: set version and variant bits.
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0"));
+  return `${hex[0]}${hex[1]}${hex[2]}${hex[3]}-${hex[4]}${hex[5]}-${hex[6]}${hex[7]}-${hex[8]}${hex[9]}-${hex[10]}${hex[11]}${hex[12]}${hex[13]}${hex[14]}${hex[15]}`;
 }
 
 export default function ChatRoomScreen() {
@@ -102,8 +120,11 @@ export default function ChatRoomScreen() {
   const fetchMessages = useCallback(
     async (beforeId?: string, append = false) => {
       try {
-        if (!append) setIsLoadingMessages(true);
-        else setIsLoadingMore(true);
+        if (append) {
+          setIsLoadingMore(true);
+        } else {
+          setIsLoadingMessages(true);
+        }
 
         const response = await getHistoryMessagesApi(roomId, beforeId, 20);
         const hist: HistoryMessageResponse = response.data.data;

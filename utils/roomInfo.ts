@@ -46,7 +46,7 @@ export const getLastMessagePreview = (
   );
   const senderName = senderParticipant?.name || "Unknown";
 
-  let messageContent = room.lastMessage.preview;
+  let messageContent = "";
 
   switch (room.lastMessage.messageType) {
     case "IMAGE":
@@ -67,7 +67,7 @@ export const getLastMessagePreview = (
       break;
   }
 
-  if (userSession && senderName === userSession.name) {
+  if (senderName === userSession?.name) {
     return `Bạn: ${messageContent}`;
   } else {
     return `${senderName}: ${messageContent}`;
