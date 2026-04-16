@@ -56,7 +56,7 @@ const applyMessageToRoomList = (
     lastMessage: {
       messageId: message.id,
       senderId: message.senderId,
-      preview: message.content,
+      preview: message.content ?? "",
       messageType: message.type as any,
       createdAt: message.createdAt,
     },
@@ -135,6 +135,28 @@ export default function MessagesScreen() {
     const unsubs = [
       SocketManager.on("MESSAGE_CREATED", (ev: MessageCreatedEventPayload) => {
         setRooms((prev) => applyMessageToRoomList(prev, ev.messageResponse));
+      }),
+      SocketManager.on("MESSAGE_UPDATED" as any, (ev: any) => {
+        // If the updated message is the last message in a room, refresh preview
+        if (ev?.messageResponse) {
+          setRooms((prev) => {
+            const msg = ev.messageResponse;
+            const targetRoom = prev.find((r) => r.roomId === msg.roomId);
+            if (!targetRoom || targetRoom.lastMessage?.messageId !== msg.id) return prev;
+            const existingLastMsg = targetRoom.lastMessage!;
+            const updatedRoom: RoomResponse = {
+              ...targetRoom,
+              lastMessage: {
+                messageId: existingLastMsg.messageId,
+                senderId: existingLastMsg.senderId,
+                messageType: existingLastMsg.messageType,
+                createdAt: existingLastMsg.createdAt,
+                preview: (msg.content as string | null) ?? existingLastMsg.preview,
+              },
+            };
+            return [updatedRoom, ...removeRoomById(prev, targetRoom.roomId)] as RoomResponse[];
+          });
+        }
       }),
       SocketManager.on("ROOM_CREATED", (ev: RoomCreatedEventPayload) => upsertRoom(ev.roomResponse)),
       SocketManager.on("ROOM_UPDATED", (ev: RoomUpdatedEventPayload) => upsertRoom(ev.roomResponse)),

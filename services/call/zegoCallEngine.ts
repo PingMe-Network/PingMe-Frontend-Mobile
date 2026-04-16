@@ -1,6 +1,6 @@
 import { Platform } from "react-native";
 import EventEmitter from "eventemitter3";
-import ZegoExpressEngine, {
+import type {
   ZegoPublishChannel,
   ZegoEngineProfile,
   ZegoScenario,
@@ -10,7 +10,50 @@ import ZegoExpressEngine, {
   ZegoViewMode,
   ZegoUpdateType,
 } from "zego-express-engine-reactnative";
+import type { default as ZegoExpressEngineType } from "zego-express-engine-reactnative";
 import type { CallType } from "@/types/call/call";
+
+// Lazy-load Zego native module only when actually needed.
+// Top-level import causes an immediate native bridge call that crashes
+// on devices/emulators where the native module isn't registered yet.
+function getZegoModule(): typeof import("zego-express-engine-reactnative") {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  return require("zego-express-engine-reactnative");
+}
+
+function getZego(): typeof ZegoExpressEngineType {
+  return getZegoModule().default;
+}
+
+function makeEngineProfile(appId: number, appSign: string, scenario: ZegoScenario): ZegoEngineProfile {
+  const { ZegoEngineProfile } = getZegoModule();
+  return new ZegoEngineProfile(appId, appSign, scenario);
+}
+
+function makeRoomConfig(maxMemberCount: number, isUserStatusNotify: boolean, token: string): ZegoRoomConfig {
+  const { ZegoRoomConfig } = getZegoModule();
+  return new ZegoRoomConfig(maxMemberCount, isUserStatusNotify, token);
+}
+
+function makeUser(userId: string, userName: string): ZegoUser {
+  const { ZegoUser } = getZegoModule();
+  return new ZegoUser(userId, userName);
+}
+
+function makeView(reactTag: number, viewMode: ZegoViewMode, bgColor: number): ZegoView {
+  const { ZegoView } = getZegoModule();
+  return new ZegoView(reactTag, viewMode, bgColor);
+}
+
+function getZegoEnums() {
+  const mod = getZegoModule();
+  return {
+    ZegoPublishChannel: mod.ZegoPublishChannel,
+    ZegoScenario: mod.ZegoScenario,
+    ZegoViewMode: mod.ZegoViewMode,
+    ZegoUpdateType: mod.ZegoUpdateType,
+  };
+}
 
 type JoinCallParams = {
   appId: number;
@@ -28,7 +71,7 @@ type AttachRemoteViewParams = {
 };
 
 class ZegoCallEngineService extends EventEmitter {
-  private engine: ZegoExpressEngine | null = null;
+  private engine: ZegoExpressEngineType | null = null;
   private currentRoomKey: string | null = null;
   private localStreamId: string | null = null;
   private remoteStreamId: string | null = null;
@@ -56,7 +99,8 @@ class ZegoCallEngineService extends EventEmitter {
 
   private createVideoView(reactTag?: number) {
     if (!reactTag) return undefined;
-    return new ZegoView(reactTag, ZegoViewMode.AspectFill, 0x000000);
+    const { ZegoViewMode } = getZegoEnums();
+    return makeView(reactTag, ZegoViewMode.AspectFill, 0x000000);
   }
 
   private ensureSupportedPlatform() {
@@ -68,13 +112,14 @@ class ZegoCallEngineService extends EventEmitter {
   private registerEngineEvents() {
     if (!this.engine) return;
 
-    this.engine.on("roomStateChanged", (roomID, reason, errorCode) => {
+    this.engine.on("roomStateChanged", (roomID: any, reason: any, errorCode: any) => {
       this.emit("room-state", { roomID, reason, errorCode });
     });
 
-    this.engine.on("roomStreamUpdate", async (_roomID, updateType, streamList) => {
+    this.engine.on("roomStreamUpdate", async (_roomID: any, updateType: any, streamList: any[]) => {
+      const { ZegoUpdateType } = getZegoEnums();
       if (updateType === ZegoUpdateType.Add) {
-        const remote = streamList.find((stream) => stream.streamID !== this.localStreamId);
+        const remote = streamList.find((stream: any) => stream.streamID !== this.localStreamId);
         if (!remote) return;
 
         this.remoteStreamId = remote.streamID;
@@ -89,7 +134,7 @@ class ZegoCallEngineService extends EventEmitter {
       }
 
       if (updateType === ZegoUpdateType.Delete) {
-        const deleted = streamList.find((stream) => stream.streamID === this.remoteStreamId);
+        const deleted = streamList.find((stream: any) => stream.streamID === this.remoteStreamId);
         if (!deleted) return;
 
         if (this.remoteStreamId) {
@@ -101,11 +146,11 @@ class ZegoCallEngineService extends EventEmitter {
       }
     });
 
-    this.engine.on("publisherStateUpdate", (_streamID, state, errorCode) => {
+    this.engine.on("publisherStateUpdate", (_streamID: any, state: any, errorCode: any) => {
       this.emit("publisher-state", { state, errorCode });
     });
 
-    this.engine.on("playerStateUpdate", (streamID, state, errorCode) => {
+    this.engine.on("playerStateUpdate", (streamID: any, state: any, errorCode: any) => {
       this.emit("player-state", { streamID, state, errorCode });
     });
   }
@@ -116,16 +161,17 @@ class ZegoCallEngineService extends EventEmitter {
     if (this.engine && this.initializedAppId === appId) return this.engine;
 
     if (this.engine) {
-      await ZegoExpressEngine.destroyEngine().catch(() => {});
+      await getZego().destroyEngine().catch(() => {});
       this.engine = null;
       this.initializedAppId = undefined;
     }
 
+    const { ZegoScenario } = getZegoEnums();
     const scenario =
       callType === "VIDEO" ? ZegoScenario.StandardVideoCall : ZegoScenario.StandardVoiceCall;
 
-    this.engine = await ZegoExpressEngine.createEngineWithProfile(
-      new ZegoEngineProfile(appId, appSign, scenario)
+    this.engine = await getZego().createEngineWithProfile(
+      makeEngineProfile(appId, appSign, scenario)
     );
 
     this.initializedAppId = appId;
@@ -142,7 +188,7 @@ class ZegoCallEngineService extends EventEmitter {
   }
 
   private async loginToAnyRoom(
-    engine: ZegoExpressEngine,
+    engine: ZegoExpressEngineType,
     roomCandidates: string[],
     user: ZegoUser,
     roomConfig: ZegoRoomConfig,
@@ -192,10 +238,12 @@ class ZegoCallEngineService extends EventEmitter {
       }
 
       if (this.localStreamId) {
+        const { ZegoPublishChannel } = getZegoEnums();
         await this.engine?.stopPublishingStream(ZegoPublishChannel.Main).catch(() => {});
       }
 
-      await this.engine?.stopPreview(ZegoPublishChannel.Main).catch(() => {});
+      const { ZegoPublishChannel: ZPC } = getZegoEnums();
+      await this.engine?.stopPreview(ZPC.Main).catch(() => {});
 
       if (this.currentRoomKey) {
         await this.engine?.logoutRoom(this.currentRoomKey).catch(() => {});
@@ -209,7 +257,7 @@ class ZegoCallEngineService extends EventEmitter {
     this.currentRoomKey = null;
     this.remoteViewTag = undefined;
 
-    await ZegoExpressEngine.destroyEngine().catch(() => {});
+    await getZego().destroyEngine().catch(() => {});
     this.engine = null;
     this.initializedAppId = undefined;
   }
@@ -227,14 +275,15 @@ class ZegoCallEngineService extends EventEmitter {
 
           this.localStreamId = this.toStreamId(roomId, userId);
 
-          const roomConfig = new ZegoRoomConfig(0, true, roomToken ?? "");
-          const user = new ZegoUser(String(userId), userName || `user_${userId}`);
+          const roomConfig = makeRoomConfig(0, true, roomToken ?? "");
+          const user = makeUser(String(userId), userName || `user_${userId}`);
           this.currentRoomKey = null;
 
           this.currentRoomKey = await this.loginToAnyRoom(engine, roomCandidates, user, roomConfig);
 
           this.assertOperationActive(operationId);
 
+          const { ZegoPublishChannel } = getZegoEnums();
           await engine.setAudioRouteToSpeaker(callType === "VIDEO");
           this.assertOperationActive(operationId);
 
@@ -277,6 +326,7 @@ class ZegoCallEngineService extends EventEmitter {
 
   async setMicrophoneMuted(muted: boolean) {
     if (!this.engine) return;
+    const { ZegoPublishChannel } = getZegoEnums();
     await this.engine.muteMicrophone(muted);
     await this.engine.mutePublishStreamAudio(muted, ZegoPublishChannel.Main);
   }
@@ -288,6 +338,7 @@ class ZegoCallEngineService extends EventEmitter {
 
   async setCameraEnabled(enabled: boolean) {
     if (!this.engine) return;
+    const { ZegoPublishChannel } = getZegoEnums();
     await this.engine.enableCamera(enabled, ZegoPublishChannel.Main);
     await this.engine.mutePublishStreamVideo(!enabled, ZegoPublishChannel.Main);
   }
@@ -303,10 +354,12 @@ class ZegoCallEngineService extends EventEmitter {
       }
 
       if (this.localStreamId) {
+        const { ZegoPublishChannel } = getZegoEnums();
         await this.engine.stopPublishingStream(ZegoPublishChannel.Main).catch(() => {});
       }
 
-      await this.engine.stopPreview(ZegoPublishChannel.Main).catch(() => {});
+      const { ZegoPublishChannel: ZPC } = getZegoEnums();
+      await this.engine.stopPreview(ZPC.Main).catch(() => {});
 
       if (this.currentRoomKey) {
         await this.engine.logoutRoom(this.currentRoomKey).catch(() => {});
@@ -317,7 +370,7 @@ class ZegoCallEngineService extends EventEmitter {
       this.currentRoomKey = null;
       this.remoteViewTag = undefined;
 
-      await ZegoExpressEngine.destroyEngine().catch(() => {});
+      await getZego().destroyEngine().catch(() => {});
       this.engine = null;
       this.initializedAppId = undefined;
     });

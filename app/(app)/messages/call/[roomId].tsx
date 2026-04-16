@@ -16,7 +16,14 @@ import { useAppDispatch, useAppSelector } from "@/features/store";
 import { receiveIncomingCall, useCallSignaling } from "@/features/call";
 import { getZegoCredentials, getZegoRoomTokenApi, ZegoCallEngine } from "@/services/call";
 import type { CallType } from "@/types/call/call";
-import { ZegoTextureView } from "zego-express-engine-reactnative";
+
+// Lazy-load ZegoTextureView to avoid native module crash at app startup.
+// Top-level imports of zego-express-engine-reactnative crash immediately
+// because the native bridge is null during Expo Router route scanning.
+function ZegoTextureViewLazy(props: any) {
+  const { ZegoTextureView } = require("zego-express-engine-reactnative");
+  return <ZegoTextureView {...props} />;
+}
 
 type CallMode = "incoming" | "outgoing";
 
@@ -377,7 +384,7 @@ export default function CallRoomScreen() {
         <View className="items-center mt-14">
           {callType === "VIDEO" && callState.status === "connected" ? (
             <View className="w-full h-[420px] rounded-[28px] overflow-hidden bg-[#1B1E2A] mb-6 relative">
-              <ZegoTextureView
+              <ZegoTextureViewLazy
                 ref={remoteViewRef}
                 className="w-full h-full"
                 onLayout={() => {
@@ -393,7 +400,7 @@ export default function CallRoomScreen() {
               )}
 
               <View className="absolute right-3 top-3 w-28 h-40 rounded-2xl overflow-hidden border border-white/20 bg-[#0F1118]">
-                <ZegoTextureView
+                <ZegoTextureViewLazy
                   ref={localViewRef}
                   className="w-full h-full"
                   onLayout={() => {

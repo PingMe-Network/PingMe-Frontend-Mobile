@@ -6,6 +6,7 @@ import EventEmitter from "eventemitter3";
 import {
   messageCreated,
   messageRecalled,
+  messageUpdated,
   userTyping,
   readStateChanged,
 } from "./chatSlice";
@@ -214,6 +215,8 @@ class SocketManagerClass extends EventEmitter {
           this.options?.dispatch(messageCreated(ev));
         } else if (ev.chatEventType === "MESSAGE_RECALLED") {
           this.options?.dispatch(messageRecalled(ev));
+        } else if (ev.chatEventType === "MESSAGE_UPDATED") {
+          this.options?.dispatch(messageUpdated(ev));
         }
         this.emit("MESSAGE_EVENT", ev);
       } catch (e) {
