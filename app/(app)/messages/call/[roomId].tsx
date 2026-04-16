@@ -40,6 +40,29 @@ const requestCallPermissions = async (callType: CallType) => {
   return required.every((permission) => result[permission] === PermissionsAndroid.RESULTS.GRANTED);
 };
 
+const resolveZegoRoomToken = async ({
+  roomId,
+  userId,
+  callType,
+}: {
+  roomId: number;
+  userId: number;
+  callType: CallType;
+}) => {
+  try {
+    return await getZegoRoomTokenApi({ roomId, userId, callType });
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return undefined;
+    }
+
+    throw error;
+  }
+};
+
+const isAbortedMediaStartError = (error: unknown) =>
+  error instanceof Error && error.message === "ZEGO operation aborted";
+
 export default function CallRoomScreen() {
   const params = useLocalSearchParams<{
     roomId: string;
@@ -173,25 +196,11 @@ export default function CallRoomScreen() {
 
     const startMedia = async () => {
       try {
-        const granted = await requestCallPermissions(callType);
-        if (!granted) {
+        if (!(await requestCallPermissions(callType))) {
           throw new Error("Permission denied");
         }
 
-        let roomToken: string | undefined;
-        try {
-          roomToken = await getZegoRoomTokenApi({
-            roomId,
-            userId: userSession.id,
-            callType,
-          });
-        } catch (error) {
-          if (axios.isAxiosError(error) && error.response?.status === 404) {
-            roomToken = undefined;
-          } else {
-            throw error;
-          }
-        }
+        const roomToken = await resolveZegoRoomToken({ roomId, userId: userSession.id, callType });
 
         await ZegoCallEngine.joinAndStart({
           appId: zego.appId,
@@ -210,7 +219,7 @@ export default function CallRoomScreen() {
         hasJoinedMediaRef.current = false;
 
         if (isCancelled) return;
-        if (error instanceof Error && error.message === "ZEGO operation aborted") return;
+        if (isAbortedMediaStartError(error)) return;
 
         console.error("[Call] Failed to start ZEGO media:", error);
         const detail = error instanceof Error ? error.message : undefined;
@@ -270,12 +279,13 @@ export default function CallRoomScreen() {
     }
   }, [callType, localViewTag, remoteViewTag]);
 
-  const title =
-    mode === "incoming"
-      ? "Cuoc goi den"
-      : callType === "VIDEO"
-      ? "Dang goi video"
-      : "Dang goi thoai";
+  let title = "Dang goi thoai";
+  if (callType === "VIDEO") {
+    title = "Dang goi video";
+  }
+  if (mode === "incoming") {
+    title = "Cuoc goi den";
+  }
 
   const subtitle = (() => {
     if (callState.status === "connected") {

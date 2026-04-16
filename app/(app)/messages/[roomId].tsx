@@ -50,8 +50,10 @@ import { addUniqueMessage } from "@/utils/addUniqueMessage";
 
 type CryptoLike = {
   randomUUID?: () => string;
-  getRandomValues: (array: Uint8Array) => Uint8Array;
+  getRandomValues?: (array: Uint8Array) => Uint8Array;
 };
+
+let clientMsgIdFallbackCounter = 0;
 
 function generateUUID(): string {
   const cryptoApi = (globalThis as { crypto?: CryptoLike }).crypto;
@@ -61,12 +63,8 @@ function generateUUID(): string {
   }
 
   if (!cryptoApi?.getRandomValues) {
-    // Fallback UUID v4-like format when secure random is unavailable.
-    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (ch) => {
-      const r = Math.floor(Math.random() * 16);
-      const v = ch === "x" ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
+    clientMsgIdFallbackCounter += 1;
+    return `client-${Date.now().toString(36)}-${clientMsgIdFallbackCounter.toString(36)}`;
   }
 
   const bytes = cryptoApi.getRandomValues(new Uint8Array(16));

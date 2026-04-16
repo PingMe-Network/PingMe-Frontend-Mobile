@@ -9,7 +9,6 @@ import ZegoExpressEngine, {
   ZegoView,
   ZegoViewMode,
   ZegoUpdateType,
-  type ZegoStream,
 } from "zego-express-engine-reactnative";
 import type { CallType } from "@/types/call/call";
 
@@ -142,6 +141,26 @@ class ZegoCallEngineService extends EventEmitter {
     await this.engine.startPlayingStream(streamID, remoteView, undefined);
   }
 
+  private async loginToAnyRoom(
+    engine: ZegoExpressEngine,
+    roomCandidates: string[],
+    user: ZegoUser,
+    roomConfig: ZegoRoomConfig,
+  ) {
+    let loginError: unknown;
+
+    for (const roomKey of roomCandidates) {
+      try {
+        await engine.loginRoom(roomKey, user, roomConfig);
+        return roomKey;
+      } catch (error) {
+        loginError = error;
+      }
+    }
+
+    throw loginError ?? new Error("Failed to login ZEGO room");
+  }
+
   private assertOperationActive(operationId: number) {
     if (operationId !== this.operationId || !this.engine) {
       throw new Error("ZEGO operation aborted");
@@ -210,23 +229,9 @@ class ZegoCallEngineService extends EventEmitter {
 
           const roomConfig = new ZegoRoomConfig(0, true, roomToken ?? "");
           const user = new ZegoUser(String(userId), userName || `user_${userId}`);
-
-          let loginError: unknown;
           this.currentRoomKey = null;
 
-          for (const roomKey of roomCandidates) {
-            try {
-              await engine.loginRoom(roomKey, user, roomConfig);
-              this.currentRoomKey = roomKey;
-              break;
-            } catch (error) {
-              loginError = error;
-            }
-          }
-
-          if (!this.currentRoomKey) {
-            throw loginError ?? new Error("Failed to login ZEGO room");
-          }
+          this.currentRoomKey = await this.loginToAnyRoom(engine, roomCandidates, user, roomConfig);
 
           this.assertOperationActive(operationId);
 
