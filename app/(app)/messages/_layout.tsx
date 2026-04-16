@@ -10,6 +10,7 @@ export default function MessagesLayout() {
     >
       <Stack.Screen name="index" />
       <Stack.Screen name="[roomId]" />
+      <Stack.Screen name="call/[roomId]" options={{ animation: "slide_from_bottom" }} />
     </Stack>
   );
 }

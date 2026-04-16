@@ -61,7 +61,12 @@ function generateUUID(): string {
   }
 
   if (!cryptoApi?.getRandomValues) {
-    throw new Error("Secure random generator is unavailable.");
+    // Fallback UUID v4-like format when secure random is unavailable.
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (ch) => {
+      const r = Math.floor(Math.random() * 16);
+      const v = ch === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
   }
 
   const bytes = cryptoApi.getRandomValues(new Uint8Array(16));
@@ -208,20 +213,43 @@ export default function ChatRoomScreen() {
   const handleSend = async () => {
     const text = messageText.trim();
     if (!text || isSending) return;
+    if (!Number.isFinite(roomId) || roomId <= 0) {
+      Alert.alert("Lỗi", "Room chat không hợp lệ.");
+      return;
+    }
+
+    const payload = {
+      content: text,
+      clientMsgId: generateUUID(),
+      type: "TEXT" as const,
+      roomId,
+    };
+
     setIsSending(true);
     setMessageText("");
     try {
-      const res = await sendMessageApi({
-        content: text,
-        clientMsgId: generateUUID(),
-        type: "TEXT",
-        roomId,
-      });
-      setHistoryMessages((prev) =>
-        addUniqueMessage(prev, res.data.data as MessageResponse)
-      );
-    } catch {
-      Alert.alert("Lỗi", "Không thể gửi tin nhắn.");
+      if (SocketManager.isConnected()) {
+        try {
+          await SocketManager.sendMessage(roomId, {
+            content: payload.content,
+            clientMsgId: payload.clientMsgId,
+            type: payload.type,
+          });
+          return;
+        } catch (socketErr) {
+          console.warn("[ChatRoom] Socket send failed, fallback REST:", socketErr);
+        }
+      }
+
+      const res = await sendMessageApi(payload);
+      setHistoryMessages((prev) => addUniqueMessage(prev, res.data.data as MessageResponse));
+    } catch (error: any) {
+      console.error("[ChatRoom] Send message failed:", error);
+      const apiMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.errorMessage ||
+        error?.message;
+      Alert.alert("Lỗi", apiMessage ? `Không thể gửi tin nhắn: ${apiMessage}` : "Không thể gửi tin nhắn.");
       setMessageText(text);
     } finally {
       setIsSending(false);
@@ -254,6 +282,26 @@ export default function ChatRoomScreen() {
   const otherUsersTyping = typingUsers.filter(
     (u) => u.userId !== userSession?.id && u.isTyping
   );
+  const directPeer = room?.participants.find((p) => p.userId !== userSession?.id);
+
+  const openCall = (callType: "AUDIO" | "VIDEO") => {
+    if (!directPeer) {
+      Alert.alert("Thong bao", "Chi ho tro goi 1-1 trong phong direct.");
+      return;
+    }
+
+    router.push({
+      pathname: "/(app)/messages/call/[roomId]",
+      params: {
+        roomId: String(roomId),
+        mode: "outgoing",
+        callType,
+        targetUserId: String(directPeer.userId),
+        targetName: directPeer.name,
+      },
+    });
+  };
+
   const roomName = room ? getRoomDisplayName(room, userSession) : "...";
   const roomAvatar = room ? getRoomAvatar(room, userSession) : undefined;
   const isOnline = room ? isOtherParticipantOnline(room, userSession) : false;
@@ -395,10 +443,10 @@ export default function ChatRoomScreen() {
             {headerStatusNode}
           </View>
 
-          <TouchableOpacity className="p-2">
+          <TouchableOpacity className="p-2" onPress={() => openCall("AUDIO")}>
             <Phone size={22} color={grayColor} />
           </TouchableOpacity>
-          <TouchableOpacity className="p-2">
+          <TouchableOpacity className="p-2" onPress={() => openCall("VIDEO")}>
             <Video size={22} color={grayColor} />
           </TouchableOpacity>
           <TouchableOpacity className="p-2 pl-1">

@@ -34,6 +34,8 @@ class SocketManagerClass extends EventEmitter {
   private userRoomsSub: StompSubscription | null = null;
   private statusSub: StompSubscription | null = null;
   private friendshipSub: StompSubscription | null = null;
+  private callSignalingSub: StompSubscription | null = null;
+  private callSub: StompSubscription | null = null;
   private roomMsgSub: StompSubscription | null = null;
   private roomReadSub: StompSubscription | null = null;
   private roomTypingSub: StompSubscription | null = null;
@@ -67,7 +69,6 @@ class SocketManagerClass extends EventEmitter {
 
     const { accessToken } = await getTokens();
     if (!accessToken || isTokenExpired(accessToken, 5000)) {
-      console.warn("[PingMe] No valid token, aborting connection");
       this.connecting = false;
       return;
     }
@@ -91,12 +92,10 @@ class SocketManagerClass extends EventEmitter {
     };
 
     this.client.onStompError = (frame) => {
-      console.error("[PingMe] STOMP error:", frame.headers["message"]);
       this.connecting = false;
     };
 
     this.client.onWebSocketError = () => {
-      console.warn("[PingMe] WebSocket error occurred");
       this.connecting = false;
     };
 
@@ -123,7 +122,6 @@ class SocketManagerClass extends EventEmitter {
     this.currentRoomIdRef = rId;
 
     if (!this.isConnected()) {
-      console.warn(`[PingMe] Connection not ready, entry queued for roomId: ${rId}`);
       return;
     }
 
@@ -140,6 +138,70 @@ class SocketManagerClass extends EventEmitter {
     this.client?.publish({
       destination: `/app/rooms/${roomId}/typing`,
       body: JSON.stringify({ isTyping }),
+    });
+  }
+
+  async sendMessage(
+    roomId: number,
+    payload: {
+      content: string;
+      clientMsgId: string;
+      type: "TEXT" | "IMAGE" | "VIDEO" | "FILE";
+    },
+    timeoutMs = 1500
+  ): Promise<void> {
+    if (!this.isConnected() || !this.client) {
+      throw new Error("Socket is not connected");
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      let isDone = false;
+
+      const finish = (error?: Error) => {
+        if (isDone) return;
+        isDone = true;
+        clearTimeout(timer);
+        unsub?.();
+
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve();
+      };
+
+      const unsub = this.on("MESSAGE_EVENT", (ev: any) => {
+        if (ev?.chatEventType !== "MESSAGE_CREATED") return;
+
+        const message = ev?.messageResponse;
+        if (!message) return;
+
+        if (
+          Number(message.roomId) === Number(roomId) &&
+          String(message.clientMsgId) === String(payload.clientMsgId)
+        ) {
+          finish();
+        }
+      });
+
+      const timer = setTimeout(() => {
+        finish(new Error("Socket send message ack timeout"));
+      }, timeoutMs);
+
+      try {
+        this.client?.publish({
+          destination: `/app/rooms/${roomId}/messages`,
+          body: JSON.stringify({
+            roomId,
+            content: payload.content,
+            clientMsgId: payload.clientMsgId,
+            type: payload.type,
+          }),
+        });
+      } catch (error) {
+        finish(error instanceof Error ? error : new Error("Socket publish failed"));
+      }
     });
   }
 
@@ -196,6 +258,25 @@ class SocketManagerClass extends EventEmitter {
       this.emit("FRIENDSHIP", JSON.parse(msg.body));
     });
 
+    this.callSignalingSub = this.client.subscribe("/user/queue/signaling", (msg) => {
+      try {
+        const ev = JSON.parse(msg.body);
+        this.emit("CALL_SIGNALING", ev);
+      } catch (e) {
+        console.error("[PingMe] Error parsing signaling event", e);
+      }
+    });
+
+    // Backward compatibility for older backend topic naming.
+    this.callSub = this.client.subscribe("/user/queue/call", (msg) => {
+      try {
+        const ev = JSON.parse(msg.body);
+        this.emit("CALL_SIGNALING", ev);
+      } catch (e) {
+        console.error("[PingMe] Error parsing call event", e);
+      }
+    });
+
     if (this.currentRoomIdRef) {
       this.subscribeRoom(this.currentRoomIdRef);
     }
@@ -214,10 +295,14 @@ class SocketManagerClass extends EventEmitter {
     this.userRoomsSub?.unsubscribe();
     this.statusSub?.unsubscribe();
     this.friendshipSub?.unsubscribe();
+    this.callSignalingSub?.unsubscribe();
+    this.callSub?.unsubscribe();
     this.unsubscribeRoom();
     this.userRoomsSub = null;
     this.statusSub = null;
     this.friendshipSub = null;
+    this.callSignalingSub = null;
+    this.callSub = null;
   }
 }
 

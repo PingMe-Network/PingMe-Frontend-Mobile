@@ -13,7 +13,11 @@
       "checkOnLaunch": "NEVER"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "PingMe can use your camera for video calls.",
+        "NSMicrophoneUsageDescription": "PingMe can use your microphone for voice and video calls."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -22,7 +26,11 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.huynhducphu.PingMe"
+      "package": "com.huynhducphu.PingMe",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "static",
