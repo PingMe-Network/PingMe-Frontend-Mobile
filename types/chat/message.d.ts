@@ -45,3 +45,15 @@ export interface MarkReadRequest {
   lastReadMessageId: string;
   roomId: number;
 }
+
+export interface ForwardMessageRequest {
+  sourceMessageId: string;
+  clientMsgId: string;
+  targetRoomId: number;
+}
+
+export interface BulkForwardMessageRequest {
+  sourceMessageId: string;
+  clientMsgId: string;
+  targetRoomIds: number[];
+}

@@ -5,16 +5,25 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: "#DF40A3", // Neon Orchid
-        secondary: "#00E5FF", // Aqua Tech
-        background: {
-          light: "#FFF9FA", // Rosy White - Nền Sáng
-          dark: "#1C191B", // Midnight Velvet - Nền Tối
-        },
-        "brand-pink": "#FF4D94",
-        "aqua-tech": "#00E5FF",
-        "rosy-white": "#FFF9FA",
-        "midnight-velvet": "#1C191B",
+        background: "var(--background)",
+        foreground: "var(--foreground)",
+        card: "var(--card)",
+        "card-foreground": "var(--card-foreground)",
+        popover: "var(--popover)",
+        "popover-foreground": "var(--popover-foreground)",
+        primary: "var(--primary)",
+        "primary-foreground": "var(--primary-foreground)",
+        secondary: "var(--secondary)",
+        "secondary-foreground": "var(--secondary-foreground)",
+        muted: "var(--muted)",
+        "muted-foreground": "var(--muted-foreground)",
+        accent: "var(--accent)",
+        "accent-foreground": "var(--accent-foreground)",
+        destructive: "var(--destructive)",
+        "destructive-foreground": "var(--destructive-foreground)",
+        border: "var(--border)",
+        input: "var(--input)",
+        ring: "var(--ring)",
       },
       borderRadius: {
         'custom': '20px',

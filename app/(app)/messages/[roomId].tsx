@@ -45,6 +45,7 @@ import type {
 import { getRoomDisplayName, getRoomAvatar } from "@/utils/roomInfo";
 import { formatMessageTime } from "@/utils/formatMessageTime";
 import { addUniqueMessage } from "@/utils/addUniqueMessage";
+import { ForwardMessageModal } from "@/components/chat/ForwardMessageModal";
 
 function generateUUID(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -74,6 +75,7 @@ export default function ChatRoomScreen() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [messageText, setMessageText] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [forwardMessageId, setForwardMessageId] = useState<string | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
 
@@ -161,7 +163,7 @@ export default function ChatRoomScreen() {
       const lastMsg = messages[messages.length - 1];
       markAsReadApi({ lastReadMessageId: lastMsg.id, roomId }).catch(() => {});
     }
-  }, [messages.length, roomId]);
+  }, [messages, roomId]);
 
   const handleLoadMore = () => {
     if (hasMoreMessages && !isLoadingMore && messages.length > 0) {
@@ -273,7 +275,9 @@ export default function ChatRoomScreen() {
             </View>
           )}
 
-          <View
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onLongPress={() => setForwardMessageId(item.id)}
             className={`px-4 py-2.5 rounded-2xl ${
               isMine
                 ? "bg-primary rounded-br-[6px]"
@@ -302,7 +306,7 @@ export default function ChatRoomScreen() {
             >
               {time}
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -433,6 +437,11 @@ export default function ChatRoomScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      <ForwardMessageModal
+        isVisible={forwardMessageId !== null}
+        onClose={() => setForwardMessageId(null)}
+        sourceMessageId={forwardMessageId}
+      />
     </SafeAreaView>
   );
 }
