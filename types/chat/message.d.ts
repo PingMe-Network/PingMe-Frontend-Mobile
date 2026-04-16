@@ -1,29 +1,76 @@
+// ======================================================
+// REPLIED MESSAGE (nested, not full MessageResponse)
+// ======================================================
+export interface RepliedMessageSnapshot {
+  id: string;
+  senderId: number;
+  content: string | null;
+  type: "TEXT" | "IMAGE" | "VIDEO" | "FILE" | "SYSTEM" | "WEATHER";
+  isActive: boolean;
+  fileFormat?: string | null;
+  mediaUrls?: string[] | null;
+}
+
+// ======================================================
+// FORWARD METADATA
+// ======================================================
+export interface ForwardMetadata {
+  sourceMessageId: string;
+  sourceRoomId: number;
+  sourceSenderId: number;
+}
+
+// ======================================================
+// MESSAGE RESPONSE  (server → client)
+// ======================================================
 export interface MessageResponse {
   id: string;
   roomId: number;
   clientMsgId: string;
   senderId: number;
-  content: string;
+  content: string | null;
   type: "TEXT" | "IMAGE" | "VIDEO" | "FILE" | "SYSTEM" | "WEATHER";
   createdAt: string;
   isActive: boolean;
+
+  // File / Media
+  fileFormat?: string | null;
+  mediaUrls?: string[] | null;
+
+  // Replied message
+  repliedMessage?: RepliedMessageSnapshot | null;
+
+  // Forward
+  isForwarded?: boolean;
+  forwardMetadata?: ForwardMetadata | null;
+
+  // Edit
+  isEdited?: boolean;
+  editedAt?: string | null;
 }
 
 export interface MessageRecalledResponse {
   id: string;
 }
 
+// ======================================================
+// HISTORY
+// ======================================================
 export interface HistoryMessageResponse {
   messageResponses: MessageResponse[];
   hasMore: boolean;
   nextBeforeId: string;
 }
 
+// ======================================================
+// SEND MESSAGE REQUEST
+// ======================================================
 export interface SendMessageRequest {
   content: string;
   clientMsgId: string;
   type: "TEXT" | "IMAGE" | "VIDEO" | "FILE";
   roomId: number;
+  repliedMessageId?: string | null;
 }
 
 export interface SendWeatherMessageRequest {
@@ -33,6 +80,31 @@ export interface SendWeatherMessageRequest {
   clientMsgId: string;
 }
 
+// ======================================================
+// FORWARD REQUESTS
+// ======================================================
+export interface ForwardMessageRequest {
+  sourceMessageId: string;
+  clientMsgId: string;
+  targetRoomId: number;
+}
+
+export interface BulkForwardMessageRequest {
+  sourceMessageId: string;
+  clientMsgId: string;
+  targetRoomIds: number[];
+}
+
+// ======================================================
+// EDIT REQUEST
+// ======================================================
+export interface EditMessageRequest {
+  content: string;
+}
+
+// ======================================================
+// READ STATE
+// ======================================================
 export interface ReadStateResponse {
   roomId: number;
   userId: number;

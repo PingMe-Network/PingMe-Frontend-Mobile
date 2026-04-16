@@ -1,7 +1,6 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { MessageResponse } from "@/types/chat/message";
 
-
 // =================================================================
 // Event Payload Types (from WebSocket)
 // =================================================================
@@ -13,6 +12,11 @@ export interface MessageCreatedEventPayload {
 export interface MessageRecalledEventPayload {
   chatEventType: "MESSAGE_RECALLED";
   messageRecalledResponse: { id: string };
+}
+
+export interface MessageUpdatedEventPayload {
+  chatEventType: "MESSAGE_UPDATED";
+  messageResponse: MessageResponse;
 }
 
 export interface ReadStateChangedEvent {
@@ -102,15 +106,15 @@ const chatSlice = createSlice({
   reducers: {
     setCurrentRoom(state, action: PayloadAction<number | null>) {
       const nextRoomId = action.payload;
-      
+
       if (nextRoomId !== null && state.currentRoomId !== nextRoomId) {
-          const firstMsg = state.messages[0];
-          if (firstMsg && Number(firstMsg.roomId) !== Number(nextRoomId)) {
-            state.messages = [];
-            state.recalledMessageIds = [];
-          }
+        const firstMsg = state.messages[0];
+        if (firstMsg && Number(firstMsg.roomId) !== Number(nextRoomId)) {
+          state.messages = [];
+          state.recalledMessageIds = [];
+        }
       }
-      
+
       state.currentRoomId = nextRoomId;
     },
 
@@ -124,18 +128,15 @@ const chatSlice = createSlice({
       const targetRoomId = Number(message.roomId);
       const currentRoomId = Number(state.currentRoomId);
 
-      console.log(`[ChatSlice] Processing message for room ${targetRoomId} (Current: ${currentRoomId})`);
-
       if (currentRoomId === targetRoomId) {
         const isDuplicate = state.messages.some(
-          (m) => String(m.id) === String(message.id) || 
-                 (message.clientMsgId && m.clientMsgId === message.clientMsgId)
+          (m) =>
+            String(m.id) === String(message.id) ||
+            (message.clientMsgId && m.clientMsgId === message.clientMsgId)
         );
 
         if (!isDuplicate) {
-          // Immer sẽ tự xử lý việc tạo reference mới cho state.messages
           state.messages.push(message);
-          console.log("[ChatSlice] Message pushed to state successfully");
         }
       }
     },
@@ -151,12 +152,22 @@ const chatSlice = createSlice({
       }
     },
 
+    messageUpdated(state, action: PayloadAction<MessageUpdatedEventPayload>) {
+      const updated = action.payload.messageResponse;
+      const idx = state.messages.findIndex((m) => String(m.id) === String(updated.id));
+      if (idx !== -1) {
+        state.messages[idx] = { ...state.messages[idx], ...updated };
+      }
+    },
+
+    messageDeletedForMe(state, action: PayloadAction<string>) {
+      const messageId = action.payload;
+      state.messages = state.messages.filter((m) => String(m.id) !== String(messageId));
+    },
+
     readStateChanged(state, action: PayloadAction<ReadStateChangedEvent>) {
-      state.messages.forEach((msg) => {
-        if (msg.roomId === action.payload.roomId) {
-          // Update lastReadMessageId logic if needed
-        }
-      });
+      // Placeholder – extend if per-message read state needed
+      void action;
     },
 
     userTyping(state, action: PayloadAction<TypingSignalPayload>) {
@@ -167,7 +178,7 @@ const chatSlice = createSlice({
       }
 
       const existingIdx = state.typingUsers[roomId].findIndex(
-        (u) => u.userId === userId,
+        (u) => u.userId === userId
       );
 
       if (isTyping) {
@@ -195,6 +206,17 @@ const chatSlice = createSlice({
     clearRoomTyping(state, action: PayloadAction<number>) {
       delete state.typingUsers[action.payload];
     },
+
+    // Expire stale typing users (older than maxAgeMs)
+    expireStaleTyping(state, action: PayloadAction<{ roomId: number; maxAgeMs: number }>) {
+      const { roomId, maxAgeMs } = action.payload;
+      const now = Date.now();
+      if (state.typingUsers[roomId]) {
+        state.typingUsers[roomId] = state.typingUsers[roomId].filter(
+          (u) => now - u.timestamp < maxAgeMs
+        );
+      }
+    },
   },
 });
 
@@ -206,9 +228,12 @@ export const {
   clearMessages,
   messageCreated,
   messageRecalled,
+  messageUpdated,
+  messageDeletedForMe,
   readStateChanged,
   userTyping,
   clearRoomTyping,
+  expireStaleTyping,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;
@@ -218,9 +243,8 @@ const EMPTY_ARRAY: any[] = [];
 // =================================================================
 // Selectors
 // =================================================================
-// Selectors - Use a local type for state to avoid circular dependency with store.ts
 export const selectCurrentRoomId = (state: any) => state.chat.currentRoomId;
 export const selectMessages = (state: any) => state.chat.messages;
 export const selectRecalledMessageIds = (state: any) => state.chat.recalledMessageIds;
-export const selectTypingUsers = (roomId: number) => (state: any) => 
+export const selectTypingUsers = (roomId: number) => (state: any) =>
   state.chat?.typingUsers?.[roomId] || EMPTY_ARRAY;

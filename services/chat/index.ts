@@ -5,6 +5,9 @@ import type {
   PaginationParams,
 } from "@/types/base/apiResponse";
 import type {
+  BulkForwardMessageRequest,
+  EditMessageRequest,
+  ForwardMessageRequest,
   HistoryMessageResponse,
   MarkReadRequest,
   MessageResponse,
@@ -64,9 +67,48 @@ export const sendFileMessageApi = (data: FormData) => {
   );
 };
 
+export const sendImageBatchMessageApi = (data: FormData) => {
+  return axiosClient.post<ApiResponse<MessageResponse>>(
+    "/core-service/messages/files/images",
+    data,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+};
+
 export const recallMessageApi = (messageId: string) => {
   return axiosClient.delete<ApiResponse<{ id: string }>>(
     `/core-service/messages/${messageId}/recall`
+  );
+};
+
+export const deleteMessageForMeApi = (messageId: string) => {
+  return axiosClient.delete<ApiResponse<void>>(
+    `/core-service/messages/${messageId}/delete-for-me`
+  );
+};
+
+export const editMessageApi = (messageId: string, data: EditMessageRequest) => {
+  return axiosClient.patch<ApiResponse<MessageResponse>>(
+    `/core-service/messages/${messageId}`,
+    data
+  );
+};
+
+export const forwardMessageApi = (data: ForwardMessageRequest) => {
+  return axiosClient.post<ApiResponse<MessageResponse>>(
+    "/core-service/messages/forward",
+    data
+  );
+};
+
+export const bulkForwardMessageApi = (data: BulkForwardMessageRequest) => {
+  return axiosClient.post<ApiResponse<MessageResponse[]>>(
+    "/core-service/messages/forward/bulk",
+    data
   );
 };
 
