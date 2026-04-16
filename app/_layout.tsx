@@ -1,5 +1,5 @@
 import { Slot, useRouter, useSegments } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Provider } from "react-redux";
 import { View, ActivityIndicator } from "react-native";
 import { PersistGate } from "redux-persist/integration/react";
@@ -18,7 +18,10 @@ import {
 import { updateUserSession } from "@/features/auth/authSlice";
 import { getTokens, isRefreshTokenExpired } from "@/utils/storage";
 import { AlertProvider } from "@/components/ui/AlertProvider";
+import { SocketManager } from "@/features/chat";
 import { useSocket } from "@/features/chat/useSocket";
+import type { SignalingPayload } from "@/types/call/call";
+import { applySignalingPayload } from "@/features/call";
 import "../global.css";
 
 // ===============================
@@ -28,7 +31,8 @@ function RootLayoutNav() {
   const router = useRouter();
   const segments = useSegments();
   const dispatch = useAppDispatch();
-  const { isLogin } = useAppSelector((state) => state.auth);
+  const { isLogin, userSession } = useAppSelector((state) => state.auth);
+  const latestSegmentsRef = useRef<string[]>([]);
 
   // Connect WebSocket when logged in
   useSocket();
@@ -63,6 +67,40 @@ function RootLayoutNav() {
   // =======================
   // Auth Guard
   // =======================
+  useEffect(() => {
+    latestSegmentsRef.current = segments as string[];
+  }, [segments]);
+
+  useEffect(() => {
+    if (!isLogin || !userSession?.id) return;
+
+    const unsub = SocketManager.on("CALL_SIGNALING", (event: SignalingPayload) => {
+      dispatch(applySignalingPayload({ event, currentUserId: userSession.id }));
+
+      const inCallScreen =
+        latestSegmentsRef.current.includes("messages") &&
+        latestSegmentsRef.current.includes("call");
+
+      if (inCallScreen) return;
+      if (event.type !== "INVITE") return;
+      if (event.senderId === userSession.id) return;
+
+      router.push({
+        pathname: "/(app)/messages/call/[roomId]",
+        params: {
+          roomId: String(event.roomId),
+          mode: "incoming",
+          callType: event.payload?.callType ?? "AUDIO",
+          callerId: String(event.senderId),
+        },
+      });
+    });
+
+    return () => {
+      unsub?.();
+    };
+  }, [dispatch, isLogin, userSession?.id, router]);
+
   useEffect(() => {
     const firstSegment = segments[0] as string | undefined;
     const inPublicGroup = firstSegment === "(public)";

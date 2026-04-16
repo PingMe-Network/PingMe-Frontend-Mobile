@@ -50,8 +50,44 @@ import { addUniqueMessage } from "@/utils/addUniqueMessage";
 
 type CryptoLike = {
   randomUUID?: () => string;
-  getRandomValues: (array: Uint8Array) => Uint8Array;
+  getRandomValues?: (array: Uint8Array) => Uint8Array;
 };
+
+let clientMsgIdFallbackCounter = 0;
+
+function toUuidFromBytes(bytes: Uint8Array): string {
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0"));
+  return `${hex[0]}${hex[1]}${hex[2]}${hex[3]}-${hex[4]}${hex[5]}-${hex[6]}${hex[7]}-${hex[8]}${hex[9]}-${hex[10]}${hex[11]}${hex[12]}${hex[13]}${hex[14]}${hex[15]}`;
+}
+
+function generateUuidFallback(): string {
+  clientMsgIdFallbackCounter = (clientMsgIdFallbackCounter + 1) >>> 0;
+
+  const now = Date.now();
+  const nowLow = now >>> 0;
+  const nowHigh = Math.floor(now / 0x100000000) >>> 0;
+  const perfNow =
+    typeof performance !== "undefined" && typeof performance.now === "function"
+      ? Math.floor(performance.now() * 1000) >>> 0
+      : 0;
+
+  const words = [nowLow, nowHigh, perfNow, clientMsgIdFallbackCounter];
+  const bytes = new Uint8Array(16);
+
+  for (let i = 0; i < words.length; i += 1) {
+    const word = words[i];
+    bytes[i * 4] = word & 0xff;
+    bytes[i * 4 + 1] = (word >>> 8) & 0xff;
+    bytes[i * 4 + 2] = (word >>> 16) & 0xff;
+    bytes[i * 4 + 3] = (word >>> 24) & 0xff;
+  }
+
+  // Keep UUID v4 shape for server validators when crypto APIs are missing.
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+  return toUuidFromBytes(bytes);
+}
 
 function generateUUID(): string {
   const cryptoApi = (globalThis as { crypto?: CryptoLike }).crypto;
@@ -61,7 +97,7 @@ function generateUUID(): string {
   }
 
   if (!cryptoApi?.getRandomValues) {
-    throw new Error("Secure random generator is unavailable.");
+    return generateUuidFallback();
   }
 
   const bytes = cryptoApi.getRandomValues(new Uint8Array(16));
@@ -70,8 +106,7 @@ function generateUUID(): string {
   bytes[6] = (bytes[6] & 0x0f) | 0x40;
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
 
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0"));
-  return `${hex[0]}${hex[1]}${hex[2]}${hex[3]}-${hex[4]}${hex[5]}-${hex[6]}${hex[7]}-${hex[8]}${hex[9]}-${hex[10]}${hex[11]}${hex[12]}${hex[13]}${hex[14]}${hex[15]}`;
+  return toUuidFromBytes(bytes);
 }
 
 export default function ChatRoomScreen() {
@@ -208,20 +243,43 @@ export default function ChatRoomScreen() {
   const handleSend = async () => {
     const text = messageText.trim();
     if (!text || isSending) return;
+    if (!Number.isFinite(roomId) || roomId <= 0) {
+      Alert.alert("Lỗi", "Room chat không hợp lệ.");
+      return;
+    }
+
+    const payload = {
+      content: text,
+      clientMsgId: generateUUID(),
+      type: "TEXT" as const,
+      roomId,
+    };
+
     setIsSending(true);
     setMessageText("");
     try {
-      const res = await sendMessageApi({
-        content: text,
-        clientMsgId: generateUUID(),
-        type: "TEXT",
-        roomId,
-      });
-      setHistoryMessages((prev) =>
-        addUniqueMessage(prev, res.data.data as MessageResponse)
-      );
-    } catch {
-      Alert.alert("Lỗi", "Không thể gửi tin nhắn.");
+      if (SocketManager.isConnected()) {
+        try {
+          await SocketManager.sendMessage(roomId, {
+            content: payload.content,
+            clientMsgId: payload.clientMsgId,
+            type: payload.type,
+          });
+          return;
+        } catch (socketErr) {
+          console.warn("[ChatRoom] Socket send failed, fallback REST:", socketErr);
+        }
+      }
+
+      const res = await sendMessageApi(payload);
+      setHistoryMessages((prev) => addUniqueMessage(prev, res.data.data as MessageResponse));
+    } catch (error: any) {
+      console.error("[ChatRoom] Send message failed:", error);
+      const apiMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.errorMessage ||
+        error?.message;
+      Alert.alert("Lỗi", apiMessage ? `Không thể gửi tin nhắn: ${apiMessage}` : "Không thể gửi tin nhắn.");
       setMessageText(text);
     } finally {
       setIsSending(false);
@@ -254,6 +312,26 @@ export default function ChatRoomScreen() {
   const otherUsersTyping = typingUsers.filter(
     (u) => u.userId !== userSession?.id && u.isTyping
   );
+  const directPeer = room?.participants.find((p) => p.userId !== userSession?.id);
+
+  const openCall = (callType: "AUDIO" | "VIDEO") => {
+    if (!directPeer) {
+      Alert.alert("Thong bao", "Chi ho tro goi 1-1 trong phong direct.");
+      return;
+    }
+
+    router.push({
+      pathname: "/(app)/messages/call/[roomId]",
+      params: {
+        roomId: String(roomId),
+        mode: "outgoing",
+        callType,
+        targetUserId: String(directPeer.userId),
+        targetName: directPeer.name,
+      },
+    });
+  };
+
   const roomName = room ? getRoomDisplayName(room, userSession) : "...";
   const roomAvatar = room ? getRoomAvatar(room, userSession) : undefined;
   const isOnline = room ? isOtherParticipantOnline(room, userSession) : false;
@@ -395,10 +473,10 @@ export default function ChatRoomScreen() {
             {headerStatusNode}
           </View>
 
-          <TouchableOpacity className="p-2">
+          <TouchableOpacity className="p-2" onPress={() => openCall("AUDIO")}>
             <Phone size={22} color={grayColor} />
           </TouchableOpacity>
-          <TouchableOpacity className="p-2">
+          <TouchableOpacity className="p-2" onPress={() => openCall("VIDEO")}>
             <Video size={22} color={grayColor} />
           </TouchableOpacity>
           <TouchableOpacity className="p-2 pl-1">

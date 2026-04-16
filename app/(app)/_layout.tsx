@@ -111,6 +111,7 @@ export default function AppLayout() {
   const isMusicTab = pathname?.includes('/music');
   const isReelsTab = pathname?.includes('/reels');
   const isChatRoom = pathname?.match(/\/messages\/\d+/);
+  const isCallScreen = pathname?.includes('/messages/call/');
 
   useEffect(() => {
     if (isReelsTab && isPlaying) {
@@ -169,7 +170,7 @@ export default function AppLayout() {
         tabBarInactiveTintColor: colors.tabBarInactive,
         tabBarLabelPosition: "below-icon",
         tabBarStyle: {
-          display: isChatRoom ? "none" : "flex",
+          display: isChatRoom || isCallScreen ? "none" : "flex",
           backgroundColor: colors.tabBarBackground,
           borderTopWidth: 1,
           borderTopColor: "#FFE8EF",

@@ -24,6 +24,7 @@ import playlistReducer from "./music/playlistSlice";
 import playlistCoversReducer from "./music/playlistCoversSlice";
 import reelsReducer from "./reels/reelsSlice";
 import chatReducer from "./chat/chatSlice";
+import callReducer from "./call/callSlice";
 
 const createNoopStorage = () => {
   return {
@@ -76,6 +77,7 @@ const rootReducer = combineReducers({
   theme: themeReducer,
   reels: reelsReducer,
   chat: chatReducer,
+  call: callReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
@@ -95,7 +97,7 @@ export const store = configureStore({
           "player/loadAndPlaySong/fulfilled", // Ignore sound object in payload
         ],
         ignoredActionPaths: ["payload.sound"], // Ignore sound in action payloads
-        ignoredPaths: ["player.sound"], // Ignore expo-av Sound object in state
+        ignoredPaths: ["player.sound", "call.startTime", "call.endTime"], // Ignore non-serializable state paths
       },
     }),
 });
