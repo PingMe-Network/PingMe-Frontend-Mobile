@@ -6,6 +6,9 @@ module.exports = defineConfig([
   expoConfig,
   {
     ignores: ['dist/*'],
+    rules: {
+      'import/no-unresolved': 'off',
+    },
     settings: {
       'import/resolver': {
         typescript: {
