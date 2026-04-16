@@ -21,6 +21,7 @@ import { AlertProvider } from "@/components/ui/AlertProvider";
 import { SocketManager } from "@/features/chat";
 import { useSocket } from "@/features/chat/useSocket";
 import type { SignalingPayload } from "@/types/call/call";
+import { applySignalingPayload } from "@/features/call";
 import "../global.css";
 
 // ===============================
@@ -74,6 +75,8 @@ function RootLayoutNav() {
     if (!isLogin || !userSession?.id) return;
 
     const unsub = SocketManager.on("CALL_SIGNALING", (event: SignalingPayload) => {
+      dispatch(applySignalingPayload({ event, currentUserId: userSession.id }));
+
       const inCallScreen =
         latestSegmentsRef.current.includes("messages") &&
         latestSegmentsRef.current.includes("call");
@@ -96,7 +99,7 @@ function RootLayoutNav() {
     return () => {
       unsub?.();
     };
-  }, [isLogin, userSession?.id, router]);
+  }, [dispatch, isLogin, userSession?.id, router]);
 
   useEffect(() => {
     const firstSegment = segments[0] as string | undefined;

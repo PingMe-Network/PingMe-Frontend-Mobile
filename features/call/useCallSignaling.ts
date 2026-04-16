@@ -1,10 +1,7 @@
-import { useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "@/features/store";
-import { SocketManager } from "@/features/chat";
 import { sendSignalingApi } from "@/services/call";
-import type { CallType, SignalingPayload, SignalingRequest } from "@/types/call/call";
+import type { CallType, SignalingRequest } from "@/types/call/call";
 import {
-  applySignalingPayload,
   markCallConnected,
   markCallEnded,
   markCallError,
@@ -25,18 +22,6 @@ export function useCallSignaling() {
   const callState = useAppSelector((state) => state.call);
 
   const currentUserId = userSession?.id;
-
-  useEffect(() => {
-    if (!currentUserId) return;
-
-    const unsub = SocketManager.on("CALL_SIGNALING", (event: SignalingPayload) => {
-      dispatch(applySignalingPayload({ event, currentUserId }));
-    });
-
-    return () => {
-      unsub?.();
-    };
-  }, [dispatch, currentUserId]);
 
   const sendSignaling = async (payload: SignalingRequest) => {
     try {

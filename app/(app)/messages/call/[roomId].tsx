@@ -11,8 +11,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Phone, PhoneOff, Video } from "lucide-react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useAppSelector } from "@/features/store";
-import { useCallSignaling } from "@/features/call";
+import axios from "axios";
+import { useAppDispatch, useAppSelector } from "@/features/store";
+import { receiveIncomingCall, useCallSignaling } from "@/features/call";
 import { getZegoCredentials, getZegoRoomTokenApi, ZegoCallEngine } from "@/services/call";
 import type { CallType } from "@/types/call/call";
 import { ZegoTextureView } from "zego-express-engine-reactnative";
@@ -51,6 +52,7 @@ export default function CallRoomScreen() {
 
   const roomId = Number(params.roomId);
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const { userSession } = useAppSelector((state) => state.auth);
   const { callState, startCall, acceptCall, rejectCall, hangupCall, resetCallState } =
     useCallSignaling();
@@ -73,6 +75,22 @@ export default function CallRoomScreen() {
   const remoteViewRef = useRef<any>(null);
 
   const zego = useMemo(() => getZegoCredentials(), []);
+
+  useEffect(() => {
+    if (mode !== "incoming") return;
+    if (callState.status !== "idle") return;
+    if (!Number.isFinite(roomId) || roomId <= 0) return;
+
+    const callerId = Number(params.callerId);
+
+    dispatch(
+      receiveIncomingCall({
+        roomId,
+        callerId: Number.isFinite(callerId) ? callerId : 0,
+        callType,
+      }),
+    );
+  }, [callState.status, callType, dispatch, mode, params.callerId, roomId]);
 
   useEffect(() => {
     if (!Number.isFinite(roomId) || roomId <= 0) {
@@ -153,24 +171,29 @@ export default function CallRoomScreen() {
     let isCancelled = false;
     hasJoinedMediaRef.current = true;
 
-    requestCallPermissions(callType)
-      .then((granted) => {
+    const startMedia = async () => {
+      try {
+        const granted = await requestCallPermissions(callType);
         if (!granted) {
           throw new Error("Permission denied");
         }
 
-        return getZegoRoomTokenApi({
-          roomId,
-          userId: userSession.id,
-          callType,
-        });
-      })
-      .then((roomToken) => {
-        if (!roomToken) {
-          throw new Error("Missing ZEGO room token");
+        let roomToken: string | undefined;
+        try {
+          roomToken = await getZegoRoomTokenApi({
+            roomId,
+            userId: userSession.id,
+            callType,
+          });
+        } catch (error) {
+          if (axios.isAxiosError(error) && error.response?.status === 404) {
+            roomToken = undefined;
+          } else {
+            throw error;
+          }
         }
 
-        return ZegoCallEngine.joinAndStart({
+        await ZegoCallEngine.joinAndStart({
           appId: zego.appId,
           appSign: zego.appSign,
           roomId,
@@ -180,12 +203,10 @@ export default function CallRoomScreen() {
           roomToken,
           localViewTag: callType === "VIDEO" ? localViewTag : undefined,
         });
-      })
-      .then(() => {
+
         if (isCancelled) return;
         setZegoReady(true);
-      })
-      .catch((error) => {
+      } catch (error) {
         hasJoinedMediaRef.current = false;
 
         if (isCancelled) return;
@@ -199,7 +220,10 @@ export default function CallRoomScreen() {
             ? `Khong the ket noi media call ZEGO: ${detail}`
             : "Khong the ket noi media call ZEGO. Hay cap quyen camera/micro va thu lai."
         );
-      });
+      }
+    };
+
+    startMedia();
 
     return () => {
       isCancelled = true;

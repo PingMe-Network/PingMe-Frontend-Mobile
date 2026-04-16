@@ -45,8 +45,10 @@ class ZegoCallEngineService extends EventEmitter {
     }) as any;
   }
 
-  private toRoomKey(roomId: number) {
-    return `call_${roomId}`;
+  private toRoomKeys(roomId: number) {
+    const normalized = String(roomId);
+    const legacy = `call_${roomId}`;
+    return normalized === legacy ? [normalized] : [normalized, legacy];
   }
 
   private toStreamId(roomId: number, userId: number) {
@@ -197,19 +199,35 @@ class ZegoCallEngineService extends EventEmitter {
     return this.runWithLifecycleLock(async () => {
       const { appId, appSign, roomId, userId, userName, callType, roomToken, localViewTag } = params;
       const operationId = ++this.operationId;
+      const roomCandidates = this.toRoomKeys(roomId);
 
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
           const engine = await this.ensureEngine(appId, appSign, callType);
           this.assertOperationActive(operationId);
 
-          this.currentRoomKey = this.toRoomKey(roomId);
           this.localStreamId = this.toStreamId(roomId, userId);
 
           const roomConfig = new ZegoRoomConfig(0, true, roomToken ?? "");
           const user = new ZegoUser(String(userId), userName || `user_${userId}`);
 
-          await engine.loginRoom(this.currentRoomKey, user, roomConfig);
+          let loginError: unknown;
+          this.currentRoomKey = null;
+
+          for (const roomKey of roomCandidates) {
+            try {
+              await engine.loginRoom(roomKey, user, roomConfig);
+              this.currentRoomKey = roomKey;
+              break;
+            } catch (error) {
+              loginError = error;
+            }
+          }
+
+          if (!this.currentRoomKey) {
+            throw loginError ?? new Error("Failed to login ZEGO room");
+          }
+
           this.assertOperationActive(operationId);
 
           await engine.setAudioRouteToSpeaker(callType === "VIDEO");
@@ -218,9 +236,11 @@ class ZegoCallEngineService extends EventEmitter {
           await engine.enableCamera(callType === "VIDEO", ZegoPublishChannel.Main);
           this.assertOperationActive(operationId);
 
-          const localView = this.createVideoView(localViewTag);
-          await engine.startPreview(localView, ZegoPublishChannel.Main);
-          this.assertOperationActive(operationId);
+          if (callType === "VIDEO") {
+            const localView = this.createVideoView(localViewTag);
+            await engine.startPreview(localView, ZegoPublishChannel.Main);
+            this.assertOperationActive(operationId);
+          }
 
           await engine.startPublishingStream(this.localStreamId, ZegoPublishChannel.Main, undefined);
           this.assertOperationActive(operationId);
@@ -246,6 +266,7 @@ class ZegoCallEngineService extends EventEmitter {
     this.remoteViewTag = remoteViewTag;
 
     if (!this.remoteViewTag || !this.remoteStreamId) return;
+    await this.engine?.stopPlayingStream(this.remoteStreamId).catch(() => {});
     await this.startPlayingRemoteStream(this.remoteStreamId);
   }
 
