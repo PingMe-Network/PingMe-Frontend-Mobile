@@ -34,6 +34,14 @@ export default function LoginScreen() {
       await dispatch(loginThunk({ email, password })).unwrap();
       router.replace("/(app)/messages" as never);
     } catch (error) {
+      if (typeof error === "string" && error === "REQUIRE_ACTIVATION") {
+        setErrorMessage("Tài khoản chưa được kích hoạt. Vui lòng nhập OTP.");
+        router.push({
+          pathname: "/(public)/verify-otp",
+          params: { email, type: "ACCOUNT_ACTIVATION" },
+        });
+        return;
+      }
       setErrorMessage(
         typeof error === "string"
           ? error

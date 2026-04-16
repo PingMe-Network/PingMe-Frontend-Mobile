@@ -26,6 +26,9 @@ export const loginThunk = createAsyncThunk<
 
     return data;
   } catch (error: any) {
+    if (error?.response?.data?.errorMessage === "REQUIRE_ACTIVATION") {
+      return rejectWithValue("REQUIRE_ACTIVATION");
+    }
     return rejectWithValue(getErrorMessage(error));
   }
 });

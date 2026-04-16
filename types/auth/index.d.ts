@@ -85,3 +85,26 @@ export interface ChangeProfileRequest {
   address?: string;
   dob?: string;
 }
+
+// =========================================================
+// OTP
+// =========================================================
+export interface SendOtpRequest {
+  mailRecipient: string;
+  authOtpType: "ACCOUNT_ACTIVATION" | "USER_FORGET_PASSWORD";
+}
+
+export interface SendOtpResponse {
+  isSuccess: boolean;
+}
+
+export interface VerifyOtpRequest {
+  otp: string;
+  mailRecipient: string;
+  authOtpType: "ACCOUNT_ACTIVATION" | "USER_FORGET_PASSWORD";
+}
+
+export interface VerifyOtpResponse {
+  isValid: boolean;
+  resetPasswordToken?: string;
+}
