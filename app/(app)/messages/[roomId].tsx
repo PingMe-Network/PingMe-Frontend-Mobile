@@ -158,6 +158,37 @@ export default function ChatRoomScreen() {
     return merged;
   }, [historyMessages, reduxMessages, recalledMessageIds]);
 
+  const groupedMessages = useMemo(() => {
+    const result: MessageResponse[][] = [];
+    let currentGroup: MessageResponse[] = [];
+
+    for (const msg of messages) {
+      if (currentGroup.length === 0) {
+        currentGroup.push(msg);
+        continue;
+      }
+
+      const prevMsg = currentGroup[currentGroup.length - 1];
+      const isSameSender = msg.senderId === prevMsg.senderId;
+      const bothAreImages = msg.type === "IMAGE" && prevMsg.type === "IMAGE";
+      const bothAreActive = msg.isActive && prevMsg.isActive;
+      
+      const timeDiff =
+        new Date(msg.createdAt).getTime() - new Date(prevMsg.createdAt).getTime();
+      const isCloseInTime = timeDiff < 2 * 60 * 1000; // 2 minutes
+
+      if (isSameSender && bothAreImages && bothAreActive && isCloseInTime) {
+        currentGroup.push(msg);
+      } else {
+        result.push(currentGroup);
+        currentGroup = [msg];
+      }
+    }
+
+    if (currentGroup.length > 0) result.push(currentGroup);
+    return result;
+  }, [messages]);
+
   useEffect(() => {
     if (messages.length > 0) {
       const lastMsg = messages[messages.length - 1];
@@ -226,22 +257,23 @@ export default function ChatRoomScreen() {
   
   const iconColor = isDark ? "#c084fc" : "#9333ea";
 
-  const renderMessage = ({ item }: { item: MessageResponse }) => {
-    const isMine = isCurrentUser(item.senderId);
-    const sender = getSenderInfo(item.senderId);
-    const time = formatMessageTime(item.createdAt);
+  const renderMessageGroup = ({ item: group }: { item: MessageResponse[] }) => {
+    const firstMsg = group[0];
+    const isMine = isCurrentUser(firstMsg.senderId);
+    const sender = getSenderInfo(firstMsg.senderId);
+    const time = formatMessageTime(group[group.length - 1].createdAt);
 
-    if (item.type === "SYSTEM") {
+    if (firstMsg.type === "SYSTEM") {
       return (
         <View className="items-center my-2 px-4">
           <View className="px-3.5 py-1.5 rounded-full bg-muted/60">
-            <Text className="text-[11px] text-muted-foreground">{item.content}</Text>
+            <Text className="text-[11px] text-muted-foreground">{firstMsg.content}</Text>
           </View>
         </View>
       );
     }
 
-    if (!item.isActive) {
+    if (!firstMsg.isActive) {
       return (
         <View className={`my-1 px-4 ${isMine ? "items-end" : "items-start"}`}>
           <View className="px-4 py-2.5 rounded-2xl bg-muted/30 border border-muted-foreground/30 border-dashed">
@@ -275,38 +307,66 @@ export default function ChatRoomScreen() {
             </View>
           )}
 
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onLongPress={() => setForwardMessageId(item.id)}
-            className={`px-4 py-2.5 rounded-2xl ${
+          <View
+            className={`rounded-2xl ${
               isMine
                 ? "bg-primary rounded-br-[6px]"
                 : "bg-card border border-border rounded-bl-[6px]"
-            }`}
+            } ${group.length > 1 ? "py-2 px-2" : "px-4 py-2.5"}`}
           >
-            {item.type === "IMAGE" ? (
-              <Image
-                source={{ uri: item.content }}
-                className="w-48 h-48 rounded-[14px]"
-                resizeMode="cover"
-              />
+            {group.length > 1 ? (
+              <View style={{ width: 220 }} className="flex-row flex-wrap -m-0.5">
+                {group.map((msg, index) => {
+                  let itemWidthClass = "w-1/2";
+                  if (group.length === 3 && index === 0) itemWidthClass = "w-full";
+
+                  return (
+                    <TouchableOpacity
+                      key={msg.id}
+                      activeOpacity={0.8}
+                      onLongPress={() => setForwardMessageId(msg.id)}
+                      className={`${itemWidthClass} p-0.5`}
+                    >
+                      <Image
+                        source={{ uri: msg.content }}
+                        className="w-full aspect-square rounded-[10px]"
+                        resizeMode="cover"
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             ) : (
-              <Text
-                className={`text-[15px] leading-[21px] ${
-                  isMine ? "text-primary-foreground" : "text-foreground"
-                }`}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onLongPress={() => setForwardMessageId(firstMsg.id)}
               >
-                {item.content}
-              </Text>
+                {firstMsg.type === "IMAGE" ? (
+                  <Image
+                    source={{ uri: firstMsg.content }}
+                    className="w-48 h-48 rounded-[14px]"
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Text
+                    className={`text-[15px] leading-[21px] ${
+                      isMine ? "text-primary-foreground" : "text-foreground"
+                    }`}
+                  >
+                    {firstMsg.content}
+                  </Text>
+                )}
+              </TouchableOpacity>
             )}
+            
             <Text
               className={`text-[10px] mt-1 text-right ${
-                isMine ? "text-primary-foreground/70" : "text-muted-foreground"
-              }`}
+                group.length > 1 ? "px-1" : ""
+              } ${isMine ? "text-primary-foreground/70" : "text-muted-foreground"}`}
             >
               {time}
             </Text>
-          </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -366,14 +426,14 @@ export default function ChatRoomScreen() {
         ) : (
           <FlatList
             ref={flatListRef}
-            data={messages}
-            keyExtractor={(item, index) => item.id || `msg-${index}`}
-            renderItem={renderMessage}
+            data={groupedMessages}
+            keyExtractor={(item, index) => item[0]?.id || `msg-${index}`}
+            renderItem={renderMessageGroup}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{
               paddingVertical: 12,
               flexGrow: 1,
-              justifyContent: messages.length === 0 ? "center" : "flex-end",
+              justifyContent: groupedMessages.length === 0 ? "center" : "flex-end",
             }}
             onContentSizeChange={() => {
               if (!isLoadingMore) flatListRef.current?.scrollToEnd({ animated: false });
