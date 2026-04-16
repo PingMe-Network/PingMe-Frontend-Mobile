@@ -8,18 +8,18 @@ import {
   ScrollView,
   Image,
 } from "react-native";
-import { Link } from "expo-router";
+import { Link, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppDispatch, useAppSelector } from "@/features/store";
 import { registerThunk } from "@/features/auth/authThunk";
-import { checkEmailExistsApi } from "@/services/auth";
+import { checkEmailExistsApi, registerLocalApi } from "@/services/auth";
 import { InputField } from "@/components/ui/InputField";
 import { Button } from "@/components/ui/Button";
 import { TurnstileWidget } from "@/components/ui/TurnstileWidget";
 
 export default function RegisterScreen() {
   const dispatch = useAppDispatch();
-  const { isLoading } = useAppSelector((state) => state.auth);
+  const [isRegistering, setIsRegistering] = useState(false);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -70,19 +70,24 @@ export default function RegisterScreen() {
     }
 
     try {
-      await dispatch(
-        registerThunk({
-          email: email.trim(),
-          name: fullName,
-          password,
-          gender,
-          turnstileToken: turnstileToken!,
-        })
-      ).unwrap();
-    } catch (error) {
+      setIsRegistering(true);
+      await registerLocalApi({
+        email: email.trim(),
+        name: fullName,
+        password,
+        gender,
+        turnstileToken: turnstileToken!,
+      });
+      router.push({
+        pathname: "/(public)/verify-otp",
+        params: { email: email.trim(), type: "ACCOUNT_ACTIVATION" },
+      });
+    } catch (error: any) {
       setErrorMessage(
-        typeof error === "string" ? error : "Đăng ký thất bại. Vui lòng thử lại."
+        error?.response?.data?.errorMessage || "Đăng ký thất bại. Vui lòng thử lại."
       );
+    } finally {
+      setIsRegistering(false);
     }
   };
 
@@ -234,7 +239,7 @@ export default function RegisterScreen() {
           <Button
             title="Đăng ký"
             onPress={handleRegister}
-            isLoading={isLoading}
+            isLoading={isRegistering}
           />
 
           {/* Login Link */}
