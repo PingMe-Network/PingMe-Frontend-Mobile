@@ -55,6 +55,40 @@ type CryptoLike = {
 
 let clientMsgIdFallbackCounter = 0;
 
+function toUuidFromBytes(bytes: Uint8Array): string {
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0"));
+  return `${hex[0]}${hex[1]}${hex[2]}${hex[3]}-${hex[4]}${hex[5]}-${hex[6]}${hex[7]}-${hex[8]}${hex[9]}-${hex[10]}${hex[11]}${hex[12]}${hex[13]}${hex[14]}${hex[15]}`;
+}
+
+function generateUuidFallback(): string {
+  clientMsgIdFallbackCounter = (clientMsgIdFallbackCounter + 1) >>> 0;
+
+  const now = Date.now();
+  const nowLow = now >>> 0;
+  const nowHigh = Math.floor(now / 0x100000000) >>> 0;
+  const perfNow =
+    typeof performance !== "undefined" && typeof performance.now === "function"
+      ? Math.floor(performance.now() * 1000) >>> 0
+      : 0;
+
+  const words = [nowLow, nowHigh, perfNow, clientMsgIdFallbackCounter];
+  const bytes = new Uint8Array(16);
+
+  for (let i = 0; i < words.length; i += 1) {
+    const word = words[i];
+    bytes[i * 4] = word & 0xff;
+    bytes[i * 4 + 1] = (word >>> 8) & 0xff;
+    bytes[i * 4 + 2] = (word >>> 16) & 0xff;
+    bytes[i * 4 + 3] = (word >>> 24) & 0xff;
+  }
+
+  // Keep UUID v4 shape for server validators when crypto APIs are missing.
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+  return toUuidFromBytes(bytes);
+}
+
 function generateUUID(): string {
   const cryptoApi = (globalThis as { crypto?: CryptoLike }).crypto;
 
@@ -63,8 +97,7 @@ function generateUUID(): string {
   }
 
   if (!cryptoApi?.getRandomValues) {
-    clientMsgIdFallbackCounter += 1;
-    return `client-${Date.now().toString(36)}-${clientMsgIdFallbackCounter.toString(36)}`;
+    return generateUuidFallback();
   }
 
   const bytes = cryptoApi.getRandomValues(new Uint8Array(16));
@@ -73,8 +106,7 @@ function generateUUID(): string {
   bytes[6] = (bytes[6] & 0x0f) | 0x40;
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
 
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0"));
-  return `${hex[0]}${hex[1]}${hex[2]}${hex[3]}-${hex[4]}${hex[5]}-${hex[6]}${hex[7]}-${hex[8]}${hex[9]}-${hex[10]}${hex[11]}${hex[12]}${hex[13]}${hex[14]}${hex[15]}`;
+  return toUuidFromBytes(bytes);
 }
 
 export default function ChatRoomScreen() {
