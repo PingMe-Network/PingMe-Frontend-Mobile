@@ -93,8 +93,10 @@ class ZegoCallEngineService extends EventEmitter {
     return normalized === legacy ? [normalized] : [normalized, legacy];
   }
 
-  private toStreamId(roomId: number, userId: number) {
-    return `stream_${roomId}_${userId}`;
+  private generateStreamId(roomId: string, userId: string) {
+    // Crucial for Web UIKit Prebuilt: 
+    // It strictly expects the stream ID to end with '_main' to attach video DOMs.
+    return `${roomId}_${userId}_main`;
   }
 
   private createVideoView(viewTag?: number) {
@@ -282,7 +284,8 @@ class ZegoCallEngineService extends EventEmitter {
           const engine = await this.ensureEngine(appId, appSign, callType);
           this.assertOperationActive(operationId);
 
-          this.localStreamId = this.toStreamId(roomId, userId);
+          this.currentRoomKey = roomCandidates[0];
+          this.localStreamId = this.generateStreamId(String(roomId), String(userId));
 
           const roomConfig = makeRoomConfig(0, true, roomToken ?? "");
           const user = makeUser(String(userId), userName || `user_${userId}`);
@@ -306,6 +309,18 @@ class ZegoCallEngineService extends EventEmitter {
             await engine.enableHardwareEncoder(false);
             await engine.enableHardwareDecoder(false);
             await engine.useFrontCamera(true, ZegoPublishChannel.Main);
+            // Crucial: un-mute the video stream publisher so Web can see it!
+            await engine.mutePublishStreamVideo(false, ZegoPublishChannel.Main);
+            
+            // Critical for Web UIKit Prebuilt: 
+            // Web UIKit relies on streamExtraInfo to unhide the video component on screen!
+            await engine.setStreamExtraInfo(JSON.stringify({
+              isCameraOn: true,
+              isMicrophoneOn: true,
+              hasVideo: true,
+              hasAudio: true
+            }), ZegoPublishChannel.Main);
+
             await engine.setVideoConfig({
               captureWidth: 720,
               captureHeight: 1280,
@@ -324,6 +339,12 @@ class ZegoCallEngineService extends EventEmitter {
           }
 
           await engine.startPublishingStream(this.localStreamId, ZegoPublishChannel.Main, undefined);
+          await engine.setStreamExtraInfo(JSON.stringify({
+            isCameraOn: callType === "VIDEO",
+            isMicrophoneOn: true,
+            hasVideo: callType === "VIDEO",
+            hasAudio: true
+          }), ZegoPublishChannel.Main);
           this.assertOperationActive(operationId);
 
           this.emit("joined", {
@@ -348,7 +369,9 @@ class ZegoCallEngineService extends EventEmitter {
 
     if (!this.remoteViewTag || !this.remoteStreamId) return;
     
-    // Zego SDK manages overwriting the view under the hood
+    // Stop playing the stream momentarily to allow the new view binding to latch on natively
+    await this.engine?.stopPlayingStream(this.remoteStreamId).catch(() => {});
+    await new Promise(resolve => setTimeout(resolve, 50));
     await this.startPlayingRemoteStream(this.remoteStreamId);
   }
 
