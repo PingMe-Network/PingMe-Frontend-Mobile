@@ -7,10 +7,8 @@
     "icon": "./assets/app/icon.png",
     "scheme": "pingme",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "updates": {
-      "enabled": false,
-      "checkOnLaunch": "NEVER"
+      "enabled": false
     },
     "ios": {
       "supportsTablet": true,
@@ -24,7 +22,6 @@
         "foregroundImage": "./assets/app/icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.huynhducphu.PingMe",
       "permissions": [
