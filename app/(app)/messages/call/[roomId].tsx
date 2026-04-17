@@ -14,7 +14,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import axios from "axios";
 import { useAppDispatch, useAppSelector } from "@/features/store";
 import { receiveIncomingCall, useCallSignaling } from "@/features/call";
-import { getZegoCredentials, getZegoRoomTokenApi, ZegoCallEngine } from "@/services/call";
+import { getZegoCredentials, ZegoCallEngine } from "@/services/call";
 import type { CallType } from "@/types/call/call";
 
 // Lazy-load ZegoTextureView to avoid native module crash at app startup.
@@ -47,25 +47,7 @@ const requestCallPermissions = async (callType: CallType) => {
   return required.every((permission) => result[permission] === PermissionsAndroid.RESULTS.GRANTED);
 };
 
-const resolveZegoRoomToken = async ({
-  roomId,
-  userId,
-  callType,
-}: {
-  roomId: number;
-  userId: number;
-  callType: CallType;
-}) => {
-  try {
-    return await getZegoRoomTokenApi({ roomId, userId, callType });
-  } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.status === 404) {
-      return undefined;
-    }
 
-    throw error;
-  }
-};
 
 const isAbortedMediaStartError = (error: unknown) =>
   error instanceof Error && error.message === "ZEGO operation aborted";
@@ -207,8 +189,6 @@ export default function CallRoomScreen() {
           throw new Error("Permission denied");
         }
 
-        const roomToken = await resolveZegoRoomToken({ roomId, userId: userSession.id, callType });
-
         await ZegoCallEngine.joinAndStart({
           appId: zego.appId,
           appSign: zego.appSign,
@@ -216,7 +196,6 @@ export default function CallRoomScreen() {
           userId: userSession.id,
           userName: userSession.name,
           callType,
-          roomToken,
           localViewTag: callType === "VIDEO" ? localViewTag : undefined,
         });
 

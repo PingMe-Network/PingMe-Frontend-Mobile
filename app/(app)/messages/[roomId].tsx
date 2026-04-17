@@ -12,7 +12,7 @@ import {
   Alert,
   Linking,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   ArrowLeft,
   Send,
@@ -188,6 +188,7 @@ const MessageVideoPlayer = ({ url, onLongPress }: { url: string; onLongPress?: (
 
 // ─── Component ───────────────────────────────────────────────────────
 export default function ChatRoomScreen() {
+  const insets = useSafeAreaInsets();
   const { roomId: roomIdParam } = useLocalSearchParams<{ roomId: string }>();
   const roomId = Number(roomIdParam);
   const router = useRouter();
@@ -945,7 +946,10 @@ export default function ChatRoomScreen() {
         )}
 
         {/* ── Input ── */}
-        <View className="flex-row items-end px-4 py-3 bg-background">
+        <View 
+          className="flex-row items-end px-4 pt-3 bg-background"
+          style={{ paddingBottom: Math.max(insets.bottom, 12) }}
+        >
           <View className="flex-1 flex-row items-center bg-card rounded-full px-2 py-1.5 shadow-sm border border-border">
             <TouchableOpacity 
               onPress={() => setIsAttachmentSheetVisible(true)}
