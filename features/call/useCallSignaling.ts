@@ -56,6 +56,7 @@ export function useCallSignaling() {
     await sendSignaling({
       roomId,
       type: "ACCEPT",
+      payload: {},
     });
   };
 
@@ -73,6 +74,7 @@ export function useCallSignaling() {
     await sendSignaling({
       roomId,
       type: "HANGUP",
+      payload: {},
     });
   };
 

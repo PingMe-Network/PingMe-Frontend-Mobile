@@ -17,13 +17,19 @@ import { receiveIncomingCall, useCallSignaling } from "@/features/call";
 import { getZegoCredentials, ZegoCallEngine } from "@/services/call";
 import type { CallType } from "@/types/call/call";
 
-// Lazy-load ZegoTextureView to avoid native module crash at app startup.
-// Top-level imports of zego-express-engine-reactnative crash immediately
-// because the native bridge is null during Expo Router route scanning.
-function ZegoTextureViewLazy(props: any) {
-  const { ZegoTextureView } = require("zego-express-engine-reactnative");
-  return <ZegoTextureView {...props} />;
-}
+import { forwardRef } from "react";
+let cachedZegoTextureView: any = null;
+const getZegoTextureView = () => {
+  if (!cachedZegoTextureView) {
+    cachedZegoTextureView = require("zego-express-engine-reactnative").ZegoTextureView;
+  }
+  return cachedZegoTextureView;
+};
+
+const ZegoTextureViewLazy = forwardRef((props: any, ref: any) => {
+  const ViewComponent = getZegoTextureView();
+  return <ViewComponent ref={ref} {...props} />;
+});
 
 type CallMode = "incoming" | "outgoing";
 
@@ -365,10 +371,14 @@ export default function CallRoomScreen() {
             <View className="w-full h-[420px] rounded-[28px] overflow-hidden bg-[#1B1E2A] mb-6 relative">
               <ZegoTextureViewLazy
                 ref={remoteViewRef}
-                className="w-full h-full"
+                style={{ flex: 1, width: '100%', height: '100%' }}
                 onLayout={() => {
-                  const tag = findNodeHandle(remoteViewRef.current);
-                  if (typeof tag === "number") setRemoteViewTag(tag);
+                  setTimeout(() => {
+                    requestAnimationFrame(() => {
+                      const tag = findNodeHandle(remoteViewRef.current);
+                      if (typeof tag === "number") setRemoteViewTag(tag);
+                    });
+                  }, 100);
                 }}
               />
 
@@ -381,10 +391,14 @@ export default function CallRoomScreen() {
               <View className="absolute right-3 top-3 w-28 h-40 rounded-2xl overflow-hidden border border-white/20 bg-[#0F1118]">
                 <ZegoTextureViewLazy
                   ref={localViewRef}
-                  className="w-full h-full"
+                  style={{ flex: 1, width: '100%', height: '100%' }}
                   onLayout={() => {
-                    const tag = findNodeHandle(localViewRef.current);
-                    if (typeof tag === "number") setLocalViewTag(tag);
+                    setTimeout(() => {
+                      requestAnimationFrame(() => {
+                        const tag = findNodeHandle(localViewRef.current);
+                        if (typeof tag === "number") setLocalViewTag(tag);
+                      });
+                    }, 100);
                   }}
                 />
               </View>
