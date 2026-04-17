@@ -19,7 +19,7 @@ export async function sendSignalingApi(payload: SignalingRequest) {
 
 export function getZegoCredentials() {
   const appIdRaw = process.env.EXPO_PUBLIC_ZEGO_APP_ID;
-  const appSign = process.env.EXPO_PUBLIC_ZEGO_SERVER_SECRET;
+  const appSign = process.env.EXPO_PUBLIC_ZEGO_APP_SIGN;
 
   const appId = Number(appIdRaw);
 

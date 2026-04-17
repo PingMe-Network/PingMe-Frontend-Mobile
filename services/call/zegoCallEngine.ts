@@ -97,10 +97,12 @@ class ZegoCallEngineService extends EventEmitter {
     return `stream_${roomId}_${userId}`;
   }
 
-  private createVideoView(reactTag?: number) {
-    if (!reactTag) return undefined;
-    const { ZegoViewMode } = getZegoEnums();
-    return makeView(reactTag, ZegoViewMode.AspectFill, 0x000000);
+  private createVideoView(viewTag?: number) {
+    if (!viewTag) return undefined;
+    const { ZegoView, ZegoViewMode } = getZegoModule();
+    // Use AspectFill mode, backgroundColor black
+    const canvas = new ZegoView(viewTag, ZegoViewMode.AspectFill, 0);
+    return canvas;
   }
 
   private ensureSupportedPlatform() {
@@ -214,7 +216,14 @@ class ZegoCallEngineService extends EventEmitter {
   }
 
   private runWithLifecycleLock<T>(task: () => Promise<T>): Promise<T> {
-    const run = this.lifecycleLock.then(task, task);
+    const taskWithTimeout = async () => {
+      return Promise.race([
+        task(),
+        new Promise<T>((_, reject) => setTimeout(() => reject(new Error("ZEGO operation timeout")), 15000))
+      ]);
+    };
+
+    const run = this.lifecycleLock.then(taskWithTimeout, taskWithTimeout);
     this.lifecycleLock = run.then(
       () => undefined,
       () => undefined,
@@ -287,8 +296,26 @@ class ZegoCallEngineService extends EventEmitter {
           await engine.setAudioRouteToSpeaker(callType === "VIDEO");
           this.assertOperationActive(operationId);
 
+          await engine.muteMicrophone(false);
+          this.assertOperationActive(operationId);
+
           await engine.enableCamera(callType === "VIDEO", ZegoPublishChannel.Main);
           this.assertOperationActive(operationId);
+          
+          if (callType === "VIDEO") {
+            await engine.enableHardwareEncoder(false);
+            await engine.enableHardwareDecoder(false);
+            await engine.useFrontCamera(true, ZegoPublishChannel.Main);
+            await engine.setVideoConfig({
+              captureWidth: 720,
+              captureHeight: 1280,
+              encodeWidth: 720,
+              encodeHeight: 1280,
+              fps: 15,
+              bitrate: 1500,
+              codecID: 0
+            }, ZegoPublishChannel.Main);
+          }
 
           if (callType === "VIDEO") {
             const localView = this.createVideoView(localViewTag);
@@ -320,7 +347,8 @@ class ZegoCallEngineService extends EventEmitter {
     this.remoteViewTag = remoteViewTag;
 
     if (!this.remoteViewTag || !this.remoteStreamId) return;
-    await this.engine?.stopPlayingStream(this.remoteStreamId).catch(() => {});
+    
+    // Zego SDK manages overwriting the view under the hood
     await this.startPlayingRemoteStream(this.remoteStreamId);
   }
 
