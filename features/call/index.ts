@@ -6,6 +6,7 @@ export {
   markCallRejected,
   markCallEnded,
   markCallError,
+  updateParticipantCount,
   resetCallState,
   applySignalingPayload,
 } from "./callSlice";

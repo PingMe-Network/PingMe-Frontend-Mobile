@@ -32,6 +32,7 @@ function RootLayoutNav() {
   const segments = useSegments();
   const dispatch = useAppDispatch();
   const { isLogin, userSession } = useAppSelector((state) => state.auth);
+  const callState = useAppSelector((state) => state.call);
   const latestSegmentsRef = useRef<string[]>([]);
 
   // Connect WebSocket when logged in
@@ -75,15 +76,30 @@ function RootLayoutNav() {
     if (!isLogin || !userSession?.id) return;
 
     const unsub = SocketManager.on("CALL_SIGNALING", (event: SignalingPayload) => {
+      // SESSION_ENDED là reply về chính user → không filter bởi senderId
+      const isSelf = event.senderId === userSession.id;
+      if (isSelf && event.type !== "SESSION_ENDED") {
+        dispatch(applySignalingPayload({ event, currentUserId: userSession.id }));
+        return;
+      }
+
       dispatch(applySignalingPayload({ event, currentUserId: userSession.id }));
 
       const inCallScreen =
         latestSegmentsRef.current.includes("messages") &&
         latestSegmentsRef.current.includes("call");
 
-      if (inCallScreen) return;
       if (event.type !== "INVITE") return;
-      if (event.senderId === userSession.id) return;
+      if (isSelf) return;
+
+      // Đang trong 1 cuộc gọi active thì bỏ qua INVITE mới
+      const isActiveCall =
+        callState.status === "calling" ||
+        callState.status === "ringing" ||
+        callState.status === "connected";
+      if (isActiveCall && inCallScreen) return;
+
+      const isGroup = event.activeParticipantCount > 2;
 
       router.push({
         pathname: "/(app)/messages/call/[roomId]",
@@ -92,6 +108,10 @@ function RootLayoutNav() {
           mode: "incoming",
           callType: event.payload?.callType ?? "AUDIO",
           callerId: String(event.senderId),
+          callerName: event.senderName ?? "",
+          callSessionId: event.callSessionId,
+          isGroup: isGroup ? "true" : "false",
+          inviteNonce: `${event.callSessionId}-${Date.now()}`,
         },
       });
     });
@@ -99,7 +119,7 @@ function RootLayoutNav() {
     return () => {
       unsub?.();
     };
-  }, [dispatch, isLogin, userSession?.id, router]);
+  }, [dispatch, isLogin, userSession?.id, router, callState.status]);
 
   useEffect(() => {
     const firstSegment = segments[0] as string | undefined;

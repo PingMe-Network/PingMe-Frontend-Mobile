@@ -3,6 +3,7 @@ declare namespace NodeJS {
     readonly EXPO_PUBLIC_BACKEND_BASE_URL: string;
     readonly EXPO_PUBLIC_ZEGO_APP_ID: string;
     readonly EXPO_PUBLIC_ZEGO_SERVER_SECRET: string;
+    readonly EXPO_PUBLIC_ZEGO_APP_SIGN: string;
   }
 }
 
