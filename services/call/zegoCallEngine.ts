@@ -14,8 +14,6 @@ import type { default as ZegoExpressEngineType } from "zego-express-engine-react
 import type { CallType } from "@/types/call/call";
 
 // Lazy-load Zego native module only when actually needed.
-// Top-level import causes an immediate native bridge call that crashes
-// on devices/emulators where the native module isn't registered yet.
 function getZegoModule(): typeof import("zego-express-engine-reactnative") {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   return require("zego-express-engine-reactnative");
@@ -40,11 +38,6 @@ function makeUser(userId: string, userName: string): ZegoUser {
   return new ZegoUser(userId, userName);
 }
 
-function makeView(reactTag: number, viewMode: ZegoViewMode, bgColor: number): ZegoView {
-  const { ZegoView } = getZegoModule();
-  return new ZegoView(reactTag, viewMode, bgColor);
-}
-
 function getZegoEnums() {
   const mod = getZegoModule();
   return {
@@ -66,26 +59,32 @@ type JoinCallParams = {
   localViewTag?: number;
 };
 
-type AttachRemoteViewParams = {
-  remoteViewTag?: number;
-};
+// ── Multi-stream events ───────────────────────────────────────────────────────
+// "remote-stream-added"   → { streamId: string }  (UI cần render ZegoTextureView mới)
+// "remote-stream-removed" → { streamId: string }  (UI cần xóa ZegoTextureView)
+// "room-state"            → { roomID, reason, errorCode }
+// "publisher-state"       → { state, errorCode }
+// "player-state"          → { streamID, state, errorCode }
+// "joined"                → { roomKey, localStreamId }
+// "error"                 → Error
 
 class ZegoCallEngineService extends EventEmitter {
   private engine: ZegoExpressEngineType | null = null;
   private currentRoomKey: string | null = null;
   private localStreamId: string | null = null;
-  private remoteStreamId: string | null = null;
-  private remoteViewTag?: number;
   private initializedAppId?: number;
   private operationId = 0;
   private lifecycleLock: Promise<void> = Promise.resolve();
 
+  // streamId → viewTag (undefined = stream đã đến nhưng chưa có view)
+  private remoteStreams: Map<string, number | undefined> = new Map();
+
   override on(event: string | symbol, fn: (...args: any[]) => void, context?: any): any {
     super.on(event, fn, context);
-    return (() => {
-      this.off(event, fn, context);
-    }) as any;
+    return (() => { this.off(event, fn, context); }) as any;
   }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
 
   private toRoomKeys(roomId: number) {
     const normalized = String(roomId);
@@ -94,17 +93,13 @@ class ZegoCallEngineService extends EventEmitter {
   }
 
   private generateStreamId(roomId: string, userId: string) {
-    // Crucial for Web UIKit Prebuilt: 
-    // It strictly expects the stream ID to end with '_main' to attach video DOMs.
     return `${roomId}_${userId}_main`;
   }
 
   private createVideoView(viewTag?: number) {
     if (!viewTag) return undefined;
     const { ZegoView, ZegoViewMode } = getZegoModule();
-    // Use AspectFill mode, backgroundColor black
-    const canvas = new ZegoView(viewTag, ZegoViewMode.AspectFill, 0);
-    return canvas;
+    return new ZegoView(viewTag, ZegoViewMode.AspectFill, 0);
   }
 
   private ensureSupportedPlatform() {
@@ -112,6 +107,8 @@ class ZegoCallEngineService extends EventEmitter {
       throw new Error("ZEGO media engine is not supported on web");
     }
   }
+
+  // ── Engine Events ──────────────────────────────────────────────────────────
 
   private registerEngineEvents() {
     if (!this.engine) return;
@@ -122,31 +119,40 @@ class ZegoCallEngineService extends EventEmitter {
 
     this.engine.on("roomStreamUpdate", async (_roomID: any, updateType: any, streamList: any[]) => {
       const { ZegoUpdateType } = getZegoEnums();
+
       if (updateType === ZegoUpdateType.Add) {
-        const remote = streamList.find((stream: any) => stream.streamID !== this.localStreamId);
-        if (!remote) return;
+        // Lọc bỏ stream của chính mình
+        const remoteStreams = streamList.filter(
+          (s: any) => s.streamID !== this.localStreamId
+        );
 
-        this.remoteStreamId = remote.streamID;
-        this.emit("remote-stream-added", remote.streamID);
+        for (const stream of remoteStreams) {
+          const streamId: string = stream.streamID;
+          if (this.remoteStreams.has(streamId)) continue; // đã có, bỏ qua
 
-        try {
-          await this.startPlayingRemoteStream(remote.streamID);
-        } catch (error) {
-          this.emit("error", error);
+          this.remoteStreams.set(streamId, undefined);
+          this.emit("remote-stream-added", { streamId });
+
+          // Bắt đầu play ngay (audio hoạt động kể cả không có view)
+          // Video sẽ được gắn vào view sau khi UI render xong
+          try {
+            await this.engine?.startPlayingStream(streamId, undefined, undefined);
+          } catch (error) {
+            this.emit("error", error);
+          }
         }
         return;
       }
 
       if (updateType === ZegoUpdateType.Delete) {
-        const deleted = streamList.find((stream: any) => stream.streamID === this.remoteStreamId);
-        if (!deleted) return;
+        for (const stream of streamList) {
+          const streamId: string = stream.streamID;
+          if (!this.remoteStreams.has(streamId)) continue;
 
-        if (this.remoteStreamId) {
-          await this.engine?.stopPlayingStream(this.remoteStreamId).catch(() => {});
+          await this.engine?.stopPlayingStream(streamId).catch(() => {});
+          this.remoteStreams.delete(streamId);
+          this.emit("remote-stream-removed", { streamId });
         }
-
-        this.remoteStreamId = null;
-        this.emit("remote-stream-removed");
       }
     });
 
@@ -158,6 +164,8 @@ class ZegoCallEngineService extends EventEmitter {
       this.emit("player-state", { streamID, state, errorCode });
     });
   }
+
+  // ── Engine Lifecycle ───────────────────────────────────────────────────────
 
   private async ensureEngine(appId: number, appSign: string, callType: CallType) {
     this.ensureSupportedPlatform();
@@ -180,15 +188,7 @@ class ZegoCallEngineService extends EventEmitter {
 
     this.initializedAppId = appId;
     this.registerEngineEvents();
-
     return this.engine;
-  }
-
-  private async startPlayingRemoteStream(streamID: string) {
-    if (!this.engine) return;
-
-    const remoteView = this.createVideoView(this.remoteViewTag);
-    await this.engine.startPlayingStream(streamID, remoteView, undefined);
   }
 
   private async loginToAnyRoom(
@@ -198,7 +198,6 @@ class ZegoCallEngineService extends EventEmitter {
     roomConfig: ZegoRoomConfig,
   ) {
     let loginError: unknown;
-
     for (const roomKey of roomCandidates) {
       try {
         await engine.loginRoom(roomKey, user, roomConfig);
@@ -207,7 +206,6 @@ class ZegoCallEngineService extends EventEmitter {
         loginError = error;
       }
     }
-
     throw loginError ?? new Error("Failed to login ZEGO room");
   }
 
@@ -221,32 +219,33 @@ class ZegoCallEngineService extends EventEmitter {
     const taskWithTimeout = async () => {
       return Promise.race([
         task(),
-        new Promise<T>((_, reject) => setTimeout(() => reject(new Error("ZEGO operation timeout")), 15000))
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error("ZEGO operation timeout")), 15000)
+        ),
       ]);
     };
 
     const run = this.lifecycleLock.then(taskWithTimeout, taskWithTimeout);
-    this.lifecycleLock = run.then(
-      () => undefined,
-      () => undefined,
-    );
+    this.lifecycleLock = run.then(() => undefined, () => undefined);
     return run;
   }
 
   private isNativeNullEngineError(error: unknown) {
     if (!(error instanceof Error)) return false;
-    const message = error.message.toLowerCase();
-    return (
-      message.includes("setcustomaudioprocesshandler") &&
-      message.includes("null object reference")
-    );
+    const msg = error.message.toLowerCase();
+    return msg.includes("setcustomaudioprocesshandler") && msg.includes("null object reference");
+  }
+
+  private async stopAllRemoteStreams() {
+    for (const streamId of this.remoteStreams.keys()) {
+      await this.engine?.stopPlayingStream(streamId).catch(() => {});
+    }
+    this.remoteStreams.clear();
   }
 
   private async hardResetEngine() {
     try {
-      if (this.remoteStreamId) {
-        await this.engine?.stopPlayingStream(this.remoteStreamId).catch(() => {});
-      }
+      await this.stopAllRemoteStreams();
 
       if (this.localStreamId) {
         const { ZegoPublishChannel } = getZegoEnums();
@@ -260,18 +259,18 @@ class ZegoCallEngineService extends EventEmitter {
         await this.engine?.logoutRoom(this.currentRoomKey).catch(() => {});
       }
     } catch {
-      // no-op: best effort cleanup before destroy
+      // best-effort
     }
 
-    this.remoteStreamId = null;
     this.localStreamId = null;
     this.currentRoomKey = null;
-    this.remoteViewTag = undefined;
 
     await getZego().destroyEngine().catch(() => {});
     this.engine = null;
     this.initializedAppId = undefined;
   }
+
+  // ── Public API ─────────────────────────────────────────────────────────────
 
   async joinAndStart(params: JoinCallParams) {
     return this.runWithLifecycleLock(async () => {
@@ -284,7 +283,6 @@ class ZegoCallEngineService extends EventEmitter {
           const engine = await this.ensureEngine(appId, appSign, callType);
           this.assertOperationActive(operationId);
 
-          this.currentRoomKey = roomCandidates[0];
           this.localStreamId = this.generateStreamId(String(roomId), String(userId));
 
           const roomConfig = makeRoomConfig(0, true, roomToken ?? "");
@@ -292,7 +290,6 @@ class ZegoCallEngineService extends EventEmitter {
           this.currentRoomKey = null;
 
           this.currentRoomKey = await this.loginToAnyRoom(engine, roomCandidates, user, roomConfig);
-
           this.assertOperationActive(operationId);
 
           const { ZegoPublishChannel } = getZegoEnums();
@@ -304,32 +301,20 @@ class ZegoCallEngineService extends EventEmitter {
 
           await engine.enableCamera(callType === "VIDEO", ZegoPublishChannel.Main);
           this.assertOperationActive(operationId);
-          
+
           if (callType === "VIDEO") {
             await engine.enableHardwareEncoder(false);
             await engine.enableHardwareDecoder(false);
             await engine.useFrontCamera(true, ZegoPublishChannel.Main);
-            // Crucial: un-mute the video stream publisher so Web can see it!
             await engine.mutePublishStreamVideo(false, ZegoPublishChannel.Main);
-            
-            // Critical for Web UIKit Prebuilt: 
-            // Web UIKit relies on streamExtraInfo to unhide the video component on screen!
-            await engine.setStreamExtraInfo(JSON.stringify({
-              isCameraOn: true,
-              isMicrophoneOn: true,
-              hasVideo: true,
-              hasAudio: true
-            }), ZegoPublishChannel.Main);
-
-            await engine.setVideoConfig({
-              captureWidth: 720,
-              captureHeight: 1280,
-              encodeWidth: 720,
-              encodeHeight: 1280,
-              fps: 15,
-              bitrate: 1500,
-              codecID: 0
-            }, ZegoPublishChannel.Main);
+            await engine.setStreamExtraInfo(
+              JSON.stringify({ isCameraOn: true, isMicrophoneOn: true, hasVideo: true, hasAudio: true }),
+              ZegoPublishChannel.Main
+            );
+            await engine.setVideoConfig(
+              { captureWidth: 720, captureHeight: 1280, encodeWidth: 720, encodeHeight: 1280, fps: 15, bitrate: 1500, codecID: 0 },
+              ZegoPublishChannel.Main
+            );
           }
 
           if (callType === "VIDEO") {
@@ -339,22 +324,22 @@ class ZegoCallEngineService extends EventEmitter {
           }
 
           await engine.startPublishingStream(this.localStreamId, ZegoPublishChannel.Main, undefined);
-          await engine.setStreamExtraInfo(JSON.stringify({
-            isCameraOn: callType === "VIDEO",
-            isMicrophoneOn: true,
-            hasVideo: callType === "VIDEO",
-            hasAudio: true
-          }), ZegoPublishChannel.Main);
+          await engine.setStreamExtraInfo(
+            JSON.stringify({
+              isCameraOn: callType === "VIDEO",
+              isMicrophoneOn: true,
+              hasVideo: callType === "VIDEO",
+              hasAudio: true,
+            }),
+            ZegoPublishChannel.Main
+          );
           this.assertOperationActive(operationId);
 
-          this.emit("joined", {
-            roomKey: this.currentRoomKey,
-            localStreamId: this.localStreamId,
-          });
+          this.emit("joined", { roomKey: this.currentRoomKey, localStreamId: this.localStreamId });
           return;
         } catch (error) {
           if (attempt === 0 && this.isNativeNullEngineError(error)) {
-            console.warn("[Call][ZEGO] Native null engine detected, hard reset and retry once.");
+            console.warn("[Call][ZEGO] Native null engine, hard reset and retry.");
             await this.hardResetEngine();
             continue;
           }
@@ -364,15 +349,28 @@ class ZegoCallEngineService extends EventEmitter {
     });
   }
 
-  async attachRemoteView({ remoteViewTag }: AttachRemoteViewParams) {
-    this.remoteViewTag = remoteViewTag;
+  /**
+   * Gắn (hoặc re-gắn) một ZegoTextureView vào một remote stream.
+   * UI gọi hàm này khi ZegoTextureView đã mount và có viewTag.
+   */
+  async attachStreamView(streamId: string, viewTag: number) {
+    if (!this.engine) return;
 
-    if (!this.remoteViewTag || !this.remoteStreamId) return;
-    
-    // Stop playing the stream momentarily to allow the new view binding to latch on natively
-    await this.engine?.stopPlayingStream(this.remoteStreamId).catch(() => {});
-    await new Promise(resolve => setTimeout(resolve, 50));
-    await this.startPlayingRemoteStream(this.remoteStreamId);
+    this.remoteStreams.set(streamId, viewTag);
+
+    // Dừng rồi khởi động lại với view mới để native bridge latch đúng
+    await this.engine.stopPlayingStream(streamId).catch(() => {});
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const view = this.createVideoView(viewTag);
+    await this.engine.startPlayingStream(streamId, view, undefined).catch((err) => {
+      console.warn(`[Call][ZEGO] attachStreamView error for ${streamId}:`, err);
+    });
+  }
+
+  /** Lấy danh sách streamId hiện tại (để UI sync khi reconnect) */
+  getRemoteStreamIds(): string[] {
+    return Array.from(this.remoteStreams.keys());
   }
 
   async setMicrophoneMuted(muted: boolean) {
@@ -400,9 +398,7 @@ class ZegoCallEngineService extends EventEmitter {
     return this.runWithLifecycleLock(async () => {
       if (!this.engine) return;
 
-      if (this.remoteStreamId) {
-        await this.engine.stopPlayingStream(this.remoteStreamId).catch(() => {});
-      }
+      await this.stopAllRemoteStreams();
 
       if (this.localStreamId) {
         const { ZegoPublishChannel } = getZegoEnums();
@@ -416,10 +412,8 @@ class ZegoCallEngineService extends EventEmitter {
         await this.engine.logoutRoom(this.currentRoomKey).catch(() => {});
       }
 
-      this.remoteStreamId = null;
       this.localStreamId = null;
       this.currentRoomKey = null;
-      this.remoteViewTag = undefined;
 
       await getZego().destroyEngine().catch(() => {});
       this.engine = null;

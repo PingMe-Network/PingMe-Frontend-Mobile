@@ -22,6 +22,7 @@
         "foregroundImage": "./assets/app/icon.png",
         "backgroundColor": "#ffffff"
       },
+      "versionCode": 3,
       "predictiveBackGestureEnabled": false,
       "package": "com.huynhducphu.PingMe",
       "permissions": [

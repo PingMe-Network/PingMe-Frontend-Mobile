@@ -31,11 +31,6 @@ export const CreateReelModal = ({ visible, onClose, isDark }: Readonly<CreateRee
   const [hashtags, setHashtags] = useState("");
   const [uploading, setUploading] = useState(false);
 
-  // Video player for preview
-  const player = useVideoPlayer(videoUri || "", (p) => {
-    p.loop = true;
-  });
-
   const pickVideo = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['videos'],
@@ -125,11 +120,7 @@ export const CreateReelModal = ({ visible, onClose, isDark }: Readonly<CreateRee
                 }`}
               >
                 {videoUri ? (
-                   <VideoView 
-                     player={player} 
-                     style={{ width: '100%', height: '100%' }} 
-                     contentFit="cover"
-                   />
+                  <CreateReelVideoPreview videoUri={videoUri} />
                 ) : (
                   <View className="items-center">
                     <View className="bg-primary/20 p-4 rounded-full mb-3">
@@ -192,3 +183,17 @@ export const CreateReelModal = ({ visible, onClose, isDark }: Readonly<CreateRee
     </Modal>
   );
 };
+
+function CreateReelVideoPreview({ videoUri }: Readonly<{ videoUri: string }>) {
+  const player = useVideoPlayer(videoUri, (p) => {
+    p.loop = true;
+  });
+
+  return (
+    <VideoView
+      player={player}
+      style={{ width: "100%", height: "100%" }}
+      contentFit="cover"
+    />
+  );
+}

@@ -652,10 +652,26 @@ export default function ChatRoomScreen() {
   const isOnline = room ? isOtherParticipantOnline(room, userSession) : false;
 
   const openCall = (callType: "AUDIO" | "VIDEO") => {
-    if (!directPeer) {
-      Alert.alert("Thông báo", "Chỉ hỗ trợ gọi 1-1 trong phòng direct.");
+    // GROUP room: gọi cả phòng, không gửi targetUserId
+    if (room?.roomType === "GROUP") {
+      router.push({
+        pathname: "/(app)/messages/call/[roomId]",
+        params: {
+          roomId: String(roomId),
+          mode: "outgoing",
+          callType,
+          isGroup: "true",
+        },
+      });
       return;
     }
+
+    // DIRECT room: gọi 1-1
+    if (!directPeer) {
+      Alert.alert("Thông báo", "Không tìm thấy người nhận cuộc gọi.");
+      return;
+    }
+
     router.push({
       pathname: "/(app)/messages/call/[roomId]",
       params: {

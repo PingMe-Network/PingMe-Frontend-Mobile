@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import {
   findNodeHandle,
   Platform,
@@ -7,17 +7,20 @@ import {
   Text,
   TouchableOpacity,
   Alert,
+  ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Phone, PhoneOff, Video } from "lucide-react-native";
+import { Phone, PhoneOff, Video, Users, Mic, MicOff, Camera, CameraOff, Volume2, VolumeX } from "lucide-react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import axios from "axios";
 import { useAppDispatch, useAppSelector } from "@/features/store";
 import { receiveIncomingCall, useCallSignaling } from "@/features/call";
 import { getZegoCredentials, ZegoCallEngine } from "@/services/call";
 import type { CallType } from "@/types/call/call";
+import { getCurrentUserRoomsApi } from "@/services/chat";
+import type { RoomResponse } from "@/types/chat/room";
 
 import { forwardRef } from "react";
+
 let cachedZegoTextureView: any = null;
 const getZegoTextureView = () => {
   if (!cachedZegoTextureView) {
@@ -31,33 +34,146 @@ const ZegoTextureViewLazy = forwardRef((props: any, ref: any) => {
   return <ViewComponent ref={ref} {...props} />;
 });
 
+// ── RemoteStreamView ──────────────────────────────────────────────────────────
+// Renders one remote participant's video tile and self-attaches to Zego engine.
+const RemoteStreamView = memo(({
+  streamId,
+  style,
+  displayName,
+}: {
+  streamId: string;
+  style: object;
+  displayName: string;
+}) => {
+  const viewRef = useRef<any>(null);
+
+  const handleLayout = useCallback(() => {
+    // Slight delay so the native view has time to actually render before we
+    // ask for its node handle — without this, findNodeHandle returns null on
+    // some Android versions.
+    setTimeout(() => {
+      requestAnimationFrame(() => {
+        const tag = findNodeHandle(viewRef.current);
+        if (typeof tag === "number") {
+          ZegoCallEngine.attachStreamView(streamId, tag).catch(console.warn);
+        }
+      });
+    }, 100);
+  }, [streamId]);
+
+  return (
+    <View style={[{ backgroundColor: "#0D0F17" }, style]}>
+      <ZegoTextureViewLazy
+        ref={viewRef}
+        style={{ width: "100%", height: "100%" }}
+        onLayout={handleLayout}
+      />
+      <View
+        style={{
+          position: "absolute",
+          left: 8,
+          bottom: 8,
+          paddingHorizontal: 8,
+          paddingVertical: 4,
+          borderRadius: 999,
+          backgroundColor: "rgba(0,0,0,0.45)",
+          maxWidth: "75%",
+        }}
+      >
+        <Text numberOfLines={1} style={{ color: "#F8FAFC", fontSize: 11, fontWeight: "600" }}>
+          {displayName}
+        </Text>
+      </View>
+    </View>
+  );
+});
+
+// ── VideoGrid ─────────────────────────────────────────────────────────────────
+// Renders N remote streams in a responsive grid inside a fixed-height container.
+// Layout rules (mirrors web grid behaviour):
+//   1 stream  → full container
+//   2 streams → 2 rows (stacked)
+//   3-4       → 2×2 grid  (last row left-aligned)
+//   5-6       → 2 cols × 3 rows
+//   7+        → same, scrollable
+const CONTAINER_HEIGHT = 420;
+
+function VideoGrid({
+  streamIds,
+  isWaiting,
+  isGroup,
+}: {
+  streamIds: string[];
+  isWaiting: boolean;
+  isGroup: boolean;
+}) {
+  const count = streamIds.length;
+  const numCols = count >= 3 ? 2 : 1;
+  const numRows = Math.ceil(count / numCols);
+  const tileHeight = numRows > 0 ? Math.floor(CONTAINER_HEIGHT / numRows) : CONTAINER_HEIGHT;
+
+  return (
+    <View
+      style={{
+        width: "100%",
+        height: CONTAINER_HEIGHT,
+        borderRadius: 28,
+        overflow: "hidden",
+        backgroundColor: "#1B1E2A",
+        marginBottom: 24,
+      }}
+    >
+      {count === 0 ? (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <Text style={{ color: "#C5CCDA", fontSize: 14 }}>
+            {isWaiting
+              ? isGroup
+                ? "Đang chờ người tham gia..."
+                : "Đang chờ video đối phương..."
+              : "Đang kết nối..."}
+          </Text>
+        </View>
+      ) : (
+        <ScrollView
+          scrollEnabled={count > 4}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flexDirection: "row", flexWrap: "wrap" }}
+        >
+          {streamIds.map((id) => (
+            <RemoteStreamView
+              key={id}
+              streamId={id}
+              displayName={`Participant ${id.slice(0, 6)}`}
+              style={{ width: `${100 / numCols}%`, height: tileHeight }}
+            />
+          ))}
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 type CallMode = "incoming" | "outgoing";
 
 const formatDuration = (seconds: number) => {
-  const mm = Math.floor(seconds / 60)
-    .toString()
-    .padStart(2, "0");
+  const mm = Math.floor(seconds / 60).toString().padStart(2, "0");
   const ss = (seconds % 60).toString().padStart(2, "0");
   return `${mm}:${ss}`;
 };
 
 const requestCallPermissions = async (callType: CallType) => {
   if (Platform.OS !== "android") return true;
-
   const required = [PermissionsAndroid.PERMISSIONS.RECORD_AUDIO];
-  if (callType === "VIDEO") {
-    required.push(PermissionsAndroid.PERMISSIONS.CAMERA);
-  }
-
+  if (callType === "VIDEO") required.push(PermissionsAndroid.PERMISSIONS.CAMERA);
   const result = await PermissionsAndroid.requestMultiple(required);
-  return required.every((permission) => result[permission] === PermissionsAndroid.RESULTS.GRANTED);
+  return required.every((p) => result[p] === PermissionsAndroid.RESULTS.GRANTED);
 };
-
-
 
 const isAbortedMediaStartError = (error: unknown) =>
   error instanceof Error && error.message === "ZEGO operation aborted";
 
+// ── Main Screen ───────────────────────────────────────────────────────────────
 export default function CallRoomScreen() {
   const params = useLocalSearchParams<{
     roomId: string;
@@ -66,120 +182,169 @@ export default function CallRoomScreen() {
     targetUserId?: string;
     targetName?: string;
     callerId?: string;
+    callerName?: string;
+    callSessionId?: string;
+    isGroup?: string;
   }>();
 
   const roomId = Number(params.roomId);
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { userSession } = useAppSelector((state) => state.auth);
-  const { callState, startCall, acceptCall, rejectCall, hangupCall, resetCallState } =
+  const { callState, startCall, acceptCall, rejectCall, leaveCall, hangupCall, resetCallState } =
     useCallSignaling();
 
   const callType = (params.callType ?? "AUDIO") as CallType;
   const mode = (params.mode ?? "outgoing") as CallMode;
-  const targetUserId = Number(params.targetUserId);
+  const targetUserId = params.targetUserId ? Number(params.targetUserId) : undefined;
+  const callSessionIdFromParams = params.callSessionId;
+  const isGroupFromParams = params.isGroup === "true";
 
+  // ── State ─────────────────────────────────────────────────────────────────
   const [connectedSeconds, setConnectedSeconds] = useState(0);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(callType === "VIDEO");
   const [isCameraOn, setIsCameraOn] = useState(callType === "VIDEO");
   const [localViewTag, setLocalViewTag] = useState<number>();
-  const [remoteViewTag, setRemoteViewTag] = useState<number>();
-  const [remoteStreamReady, setRemoteStreamReady] = useState(false);
+  // Multi-stream: list of active remote stream IDs
+  const [remoteStreamIds, setRemoteStreamIds] = useState<string[]>([]);
   const [zegoReady, setZegoReady] = useState(false);
+  const [participantNameMap, setParticipantNameMap] = useState<Record<number, string>>({});
+  const [pipCorner, setPipCorner] = useState<"topRight" | "bottomRight">("topRight");
+
   const hasStartedOutgoingCallRef = useRef(false);
   const hasJoinedMediaRef = useRef(false);
   const localViewRef = useRef<any>(null);
-  const remoteViewRef = useRef<any>(null);
 
   const zego = useMemo(() => getZegoCredentials(), []);
 
+  const isGroup = callState.isGroup || isGroupFromParams;
+  const callSessionId = callState.callSessionId ?? callSessionIdFromParams;
+  const callerName = callState.callerName ?? params.callerName ?? "Người dùng";
+
+  const parseUserIdFromStreamId = useCallback((streamId: string): number | null => {
+    const match = streamId.match(/^(\d+)_(\d+)_main$/);
+    if (!match) return null;
+    const userId = Number(match[2]);
+    return Number.isFinite(userId) ? userId : null;
+  }, []);
+
+  const getRemoteName = useCallback(
+    (streamId: string) => {
+      const userId = parseUserIdFromStreamId(streamId);
+      if (userId && participantNameMap[userId]) return participantNameMap[userId];
+      if (userId) return `User ${userId}`;
+      return `Participant ${streamId.slice(0, 6)}`;
+    },
+    [participantNameMap, parseUserIdFromStreamId]
+  );
+
+  // ── Incoming call dispatch ────────────────────────────────────────────────
   useEffect(() => {
     if (mode !== "incoming") return;
     if (callState.status !== "idle") return;
     if (!Number.isFinite(roomId) || roomId <= 0) return;
 
     const callerId = Number(params.callerId);
-
     dispatch(
       receiveIncomingCall({
         roomId,
+        callSessionId: callSessionIdFromParams ?? "",
         callerId: Number.isFinite(callerId) ? callerId : 0,
+        callerName: params.callerName ?? "Người dùng",
         callType,
-      }),
+        isGroup: isGroupFromParams,
+        activeParticipantCount: isGroupFromParams ? 3 : 2,
+      })
     );
-  }, [callState.status, callType, dispatch, mode, params.callerId, roomId]);
+  }, [callState.status, callType, dispatch, mode, params.callerId, params.callerName,
+      callSessionIdFromParams, isGroupFromParams, roomId]);
 
+  // UI only: load room participants so each video tile can show a name.
+  useEffect(() => {
+    if (!Number.isFinite(roomId) || roomId <= 0) return;
+    let mounted = true;
+
+    (async () => {
+      try {
+        const res = await getCurrentUserRoomsApi({ page: 1, size: 100 });
+        const rooms = res.data.data.content as RoomResponse[];
+        const room = rooms.find((r) => Number(r.roomId) === Number(roomId));
+        if (!room || !mounted) return;
+
+        const nextMap: Record<number, string> = {};
+        for (const participant of room.participants) {
+          nextMap[participant.userId] = participant.name;
+        }
+        setParticipantNameMap(nextMap);
+      } catch {
+        // Fallback labels are used if this request fails.
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [roomId]);
+
+  // ── Outgoing call init ────────────────────────────────────────────────────
   useEffect(() => {
     if (!Number.isFinite(roomId) || roomId <= 0) {
-      Alert.alert("Loi", "Room call khong hop le", [{ text: "Dong", onPress: () => router.back() }]);
+      Alert.alert("Lỗi", "Room call không hợp lệ", [{ text: "Đóng", onPress: () => router.back() }]);
       return;
     }
+    if (mode !== "outgoing") return;
+    if (hasStartedOutgoingCallRef.current) return;
+    hasStartedOutgoingCallRef.current = true;
 
-    if (mode === "outgoing") {
-      if (hasStartedOutgoingCallRef.current) return;
-
-      if (!Number.isFinite(targetUserId)) {
-        Alert.alert("Loi", "Khong tim thay nguoi nhan cuoc goi", [
-          { text: "Dong", onPress: () => router.back() },
-        ]);
-        return;
-      }
-
-      hasStartedOutgoingCallRef.current = true;
-
-      startCall({ roomId, targetUserId, callType }).catch(() => {
-        Alert.alert("Loi", "Khong the bat dau cuoc goi.");
-      });
-    }
+    startCall({ roomId, callType, targetUserId }).catch(() => {
+      Alert.alert("Lỗi", "Không thể bắt đầu cuộc gọi.");
+    });
   }, [mode, roomId, targetUserId, callType, router, startCall]);
 
+  // ── Connected timer ───────────────────────────────────────────────────────
   useEffect(() => {
     if (callState.status !== "connected") return;
-
-    const timer = setInterval(() => {
-      setConnectedSeconds((prev) => prev + 1);
-    }, 1000);
-
+    const timer = setInterval(() => setConnectedSeconds((s) => s + 1), 1000);
     return () => clearInterval(timer);
   }, [callState.status]);
 
+  // ── Zego stream events (multi-stream) ─────────────────────────────────────
   useEffect(() => {
-    const unsubRemoteAdded = ZegoCallEngine.on("remote-stream-added", () => {
-      setRemoteStreamReady(true);
-    });
+    const unsubAdded = ZegoCallEngine.on(
+      "remote-stream-added",
+      ({ streamId }: { streamId: string }) => {
+        setRemoteStreamIds((prev) =>
+          prev.includes(streamId) ? prev : [...prev, streamId]
+        );
+      }
+    );
 
-    const unsubRemoteRemoved = ZegoCallEngine.on("remote-stream-removed", () => {
-      setRemoteStreamReady(false);
-    });
+    const unsubRemoved = ZegoCallEngine.on(
+      "remote-stream-removed",
+      ({ streamId }: { streamId: string }) => {
+        setRemoteStreamIds((prev) => prev.filter((id) => id !== streamId));
+      }
+    );
 
-    const unsubRoomState = ZegoCallEngine.on("room-state", (state) => {
-      if (state?.errorCode && Number(state.errorCode) !== 0) {
-        console.error("[Call][ZEGO] Room state error:", state);
+    const unsubRoom = ZegoCallEngine.on("room-state", (s: any) => {
+      if (s?.errorCode && Number(s.errorCode) !== 0) {
+        console.error("[Call][ZEGO] Room error:", s);
       }
     });
 
-    const unsubPublisherState = ZegoCallEngine.on("publisher-state", (state) => {
-      if (state?.errorCode && Number(state.errorCode) !== 0) {
-        console.error("[Call][ZEGO] Publisher state error:", state);
-      }
-    });
-
-    const unsubPlayerState = ZegoCallEngine.on("player-state", (state) => {
-      if (state?.errorCode && Number(state.errorCode) !== 0) {
-        console.error("[Call][ZEGO] Player state error:", state);
-      }
-    });
+    // Sync any streams that arrived before this effect ran (reconnect case)
+    const existing = ZegoCallEngine.getRemoteStreamIds();
+    if (existing.length > 0) setRemoteStreamIds(existing);
 
     return () => {
-      unsubRemoteAdded?.();
-      unsubRemoteRemoved?.();
-      unsubRoomState?.();
-      unsubPublisherState?.();
-      unsubPlayerState?.();
+      unsubAdded?.();
+      unsubRemoved?.();
+      unsubRoom?.();
     };
   }, []);
 
+  // ── Start Zego media when connected ──────────────────────────────────────
   useEffect(() => {
     if (callState.status !== "connected") return;
     if (!zego.isReady || !userSession?.id) return;
@@ -191,9 +356,7 @@ export default function CallRoomScreen() {
 
     const startMedia = async () => {
       try {
-        if (!(await requestCallPermissions(callType))) {
-          throw new Error("Permission denied");
-        }
+        if (!(await requestCallPermissions(callType))) throw new Error("Permission denied");
 
         await ZegoCallEngine.joinAndStart({
           appId: zego.appId,
@@ -205,51 +368,32 @@ export default function CallRoomScreen() {
           localViewTag: callType === "VIDEO" ? localViewTag : undefined,
         });
 
-        if (isCancelled) return;
-        setZegoReady(true);
+        if (!isCancelled) setZegoReady(true);
       } catch (error) {
         hasJoinedMediaRef.current = false;
-
-        if (isCancelled) return;
-        if (isAbortedMediaStartError(error)) return;
-
+        if (isCancelled || isAbortedMediaStartError(error)) return;
         console.error("[Call] Failed to start ZEGO media:", error);
-        const detail = error instanceof Error ? error.message : undefined;
-        Alert.alert(
-          "Loi",
-          detail
-            ? `Khong the ket noi media call ZEGO: ${detail}`
-            : "Khong the ket noi media call ZEGO. Hay cap quyen camera/micro va thu lai."
-        );
+        Alert.alert("Lỗi", "Không thể kết nối media. Hãy cấp quyền camera/micro và thử lại.");
       }
     };
 
     startMedia();
+    return () => { isCancelled = true; };
+  }, [callState.status, zego.isReady, zego.appId, zego.appSign,
+      userSession?.id, userSession?.name, roomId, callType, localViewTag]);
 
-    return () => {
-      isCancelled = true;
-    };
-  }, [callState.status, zego.isReady, zego.appId, zego.appSign, userSession?.id, userSession?.name, roomId, callType, localViewTag]);
-
-  useEffect(() => {
-    if (!zegoReady || callType !== "VIDEO") return;
-
-    ZegoCallEngine.attachRemoteView({ remoteViewTag }).catch((error) => {
-      console.error("[Call] Failed to attach remote ZEGO view:", error);
-    });
-  }, [zegoReady, callType, remoteViewTag]);
-
+  // ── Auto-navigate back when call ends ────────────────────────────────────
   useEffect(() => {
     if (callState.status === "rejected" || callState.status === "ended") {
       const timeout = setTimeout(() => {
         resetCallState();
         router.back();
       }, 1200);
-
       return () => clearTimeout(timeout);
     }
   }, [callState.status, resetCallState, router]);
 
+  // ── Cleanup on unmount ────────────────────────────────────────────────────
   useEffect(() => {
     return () => {
       ZegoCallEngine.leave().catch(() => {});
@@ -257,224 +401,366 @@ export default function CallRoomScreen() {
     };
   }, [resetCallState]);
 
-  useEffect(() => {
-    if (callType !== "VIDEO") return;
-
-    if (!localViewTag && localViewRef.current) {
-      const tag = findNodeHandle(localViewRef.current);
-      if (tag) setLocalViewTag(tag);
-    }
-
-    if (!remoteViewTag && remoteViewRef.current) {
-      const tag = findNodeHandle(remoteViewRef.current);
-      if (tag) setRemoteViewTag(tag);
-    }
-  }, [callType, localViewTag, remoteViewTag]);
-
-  let title = "Dang goi thoai";
-  if (callType === "VIDEO") {
-    title = "Dang goi video";
-  }
-  if (mode === "incoming") {
-    title = "Cuoc goi den";
-  }
-
-  const subtitle = (() => {
-    if (callState.status === "connected") {
-      return `Da ket noi ${formatDuration(connectedSeconds)}`;
-    }
-
-    if (callState.status === "calling") {
-      return "Dang do chuong...";
-    }
-
-    if (callState.status === "ringing") {
-      return "Dang cho ban tra loi";
-    }
-
-    if (callState.status === "rejected") {
-      return "Nguoi nhan da tu choi";
-    }
-
-    if (callState.status === "ended") {
-      return "Cuoc goi da ket thuc";
-    }
-
-    if (callState.status === "error") {
-      return callState.error ?? "Co loi xay ra";
-    }
-
-    return "Khoi tao cuoc goi...";
-  })();
-
+  // ── Handlers ──────────────────────────────────────────────────────────────
   const onEndCall = async () => {
     try {
       await ZegoCallEngine.leave().catch(() => {});
-      await hangupCall(roomId);
+
+      // Hard rule: cuộc gọi đi mà không có targetUserId => group call.
+      // Không phụ thuộc callState để tránh rơi nhầm sang HANGUP.
+      const isOutgoingGroup = mode === "outgoing" && !targetUserId;
+      const shouldLeaveGroup = isOutgoingGroup || isGroup || isGroupFromParams;
+
+      if (shouldLeaveGroup) {
+        await leaveCall(roomId, callSessionId);
+      } else {
+        await hangupCall(roomId, callSessionId);
+      }
     } catch {
-      Alert.alert("Loi", "Khong the ket thuc cuoc goi.");
+      Alert.alert("Lỗi", "Không thể kết thúc cuộc gọi.");
     }
   };
 
   const onAccept = async () => {
     try {
-      await acceptCall(roomId);
+      await acceptCall(roomId, callSessionId);
     } catch {
-      Alert.alert("Loi", "Khong the chap nhan cuoc goi.");
+      Alert.alert("Lỗi", "Không thể chấp nhận cuộc gọi.");
     }
   };
 
   const onReject = async () => {
     try {
       await ZegoCallEngine.leave().catch(() => {});
-      await rejectCall(roomId);
+      await rejectCall(roomId, callSessionId);
     } catch {
-      Alert.alert("Loi", "Khong the tu choi cuoc goi.");
+      Alert.alert("Lỗi", "Không thể từ chối cuộc gọi.");
     }
   };
 
   const toggleMic = async () => {
     const next = !isMicMuted;
     setIsMicMuted(next);
-    try {
-      await ZegoCallEngine.setMicrophoneMuted(next);
-    } catch {
-      setIsMicMuted(!next);
-    }
+    try { await ZegoCallEngine.setMicrophoneMuted(next); }
+    catch { setIsMicMuted(!next); }
   };
 
   const toggleSpeaker = async () => {
     const next = !isSpeakerOn;
     setIsSpeakerOn(next);
-    try {
-      await ZegoCallEngine.setSpeakerEnabled(next);
-    } catch {
-      setIsSpeakerOn(!next);
-    }
+    try { await ZegoCallEngine.setSpeakerEnabled(next); }
+    catch { setIsSpeakerOn(!next); }
   };
 
   const toggleCamera = async () => {
     const next = !isCameraOn;
     setIsCameraOn(next);
-    try {
-      await ZegoCallEngine.setCameraEnabled(next);
-    } catch {
-      setIsCameraOn(!next);
-    }
+    try { await ZegoCallEngine.setCameraEnabled(next); }
+    catch { setIsCameraOn(!next); }
   };
 
+  // ── Labels ────────────────────────────────────────────────────────────────
+  const title = isGroup
+    ? `Cuộc gọi nhóm${callType === "VIDEO" ? " video" : " thoại"}`
+    : callType === "VIDEO" ? "Đang gọi video" : "Đang gọi thoại";
+
+  const subtitle = (() => {
+    if (callState.status === "connected") {
+      const countLabel =
+        isGroup && callState.activeParticipantCount > 1
+          ? ` · ${callState.activeParticipantCount} người`
+          : "";
+      return `Đã kết nối ${formatDuration(connectedSeconds)}${countLabel}`;
+    }
+    if (callState.status === "calling")  return "Đang đổ chuông...";
+    if (callState.status === "ringing")  return mode === "incoming" ? `${callerName} đang gọi` : "Đang chờ trả lời";
+    if (callState.status === "rejected") return isGroup ? "Đã từ chối" : "Người nhận đã từ chối";
+    if (callState.status === "ended")    return "Cuộc gọi đã kết thúc";
+    if (callState.status === "error")    return callState.error ?? "Có lỗi xảy ra";
+    return "Khởi tạo cuộc gọi...";
+  })();
+
+  const isConnected = callState.status === "connected";
+  const showVideoUI = callType === "VIDEO" && isConnected;
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView className="flex-1 bg-[#12131A]" edges={["top", "bottom", "left", "right"]}>
-      <View className="flex-1 px-6 pt-10 pb-12 justify-between">
-        <View className="items-center mt-14">
-          {callType === "VIDEO" && callState.status === "connected" ? (
-            <View className="w-full h-[420px] rounded-[28px] overflow-hidden bg-[#1B1E2A] mb-6 relative">
-              <ZegoTextureViewLazy
-                ref={remoteViewRef}
-                style={{ flex: 1, width: '100%', height: '100%' }}
-                onLayout={() => {
-                  setTimeout(() => {
-                    requestAnimationFrame(() => {
-                      const tag = findNodeHandle(remoteViewRef.current);
-                      if (typeof tag === "number") setRemoteViewTag(tag);
-                    });
-                  }, 100);
-                }}
-              />
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#12131A" }} edges={["top", "bottom", "left", "right"]}>
+      <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 40, paddingBottom: 48, justifyContent: "space-between" }}>
 
-              {!remoteStreamReady && (
-                <View className="absolute inset-0 items-center justify-center">
-                  <Text className="text-[#C5CCDA] text-[14px]">Dang cho video doi phuong...</Text>
-                </View>
-              )}
+        {/* ── Video / Avatar area ── */}
+        <View style={{ flex: 1, alignItems: "center" }}>
 
-              <View className="absolute right-3 top-3 w-28 h-40 rounded-2xl overflow-hidden border border-white/20 bg-[#0F1118]">
-                <ZegoTextureViewLazy
-                  ref={localViewRef}
-                  style={{ flex: 1, width: '100%', height: '100%' }}
-                  onLayout={() => {
-                    setTimeout(() => {
-                      requestAnimationFrame(() => {
-                        const tag = findNodeHandle(localViewRef.current);
-                        if (typeof tag === "number") setLocalViewTag(tag);
-                      });
-                    }, 100);
+          {showVideoUI ? (
+            // Multi-stream video grid
+            <View style={{ width: "100%", flex: 1, marginBottom: 16 }}>
+              {/* Remote streams grid */}
+              <View style={{ flex: 1, borderRadius: 28, overflow: "hidden", backgroundColor: "#1B1E2A", position: "relative" }}>
+                {remoteStreamIds.length === 0 ? (
+                  <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                    <Text style={{ color: "#C5CCDA", fontSize: 14 }}>
+                      {isGroup ? "Đang chờ người tham gia..." : "Đang chờ video đối phương..."}
+                    </Text>
+                  </View>
+                ) : remoteStreamIds.length === 1 ? (
+                  // Single remote: fill the entire space
+                  <RemoteStreamView
+                    streamId={remoteStreamIds[0]}
+                    displayName={getRemoteName(remoteStreamIds[0])}
+                    style={{ flex: 1 }}
+                  />
+                ) : (
+                  // Multiple remotes: responsive grid
+                  <RemoteVideoGrid streamIds={remoteStreamIds} getRemoteName={getRemoteName} />
+                )}
+
+                {/* Local video PiP — tap to switch corner, reducing overlap with remote tiles */}
+                <TouchableOpacity
+                  activeOpacity={0.95}
+                  onPress={() =>
+                    setPipCorner((prev) => (prev === "topRight" ? "bottomRight" : "topRight"))
+                  }
+                  style={{
+                    position: "absolute",
+                    right: 10,
+                    top: pipCorner === "topRight" ? 10 : undefined,
+                    bottom: pipCorner === "bottomRight" ? 10 : undefined,
+                    width: 92,
+                    height: 132,
+                    borderRadius: 14,
+                    overflow: "hidden",
+                    borderWidth: 1,
+                    borderColor: "rgba(255,255,255,0.25)",
+                    backgroundColor: "#0F1118",
                   }}
-                />
+                >
+                  <ZegoTextureViewLazy
+                    ref={localViewRef}
+                    style={{ flex: 1, width: "100%", height: "100%" }}
+                    onLayout={() => {
+                      setTimeout(() => {
+                        requestAnimationFrame(() => {
+                          const tag = findNodeHandle(localViewRef.current);
+                          if (typeof tag === "number") setLocalViewTag(tag);
+                        });
+                      }, 100);
+                    }}
+                  />
+                  {!isCameraOn && (
+                    <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.6)" }}>
+                      <CameraOff size={20} color="#9CA3AF" />
+                    </View>
+                  )}
+                  <View
+                    style={{
+                      position: "absolute",
+                      left: 6,
+                      bottom: 6,
+                      paddingHorizontal: 7,
+                      paddingVertical: 3,
+                      borderRadius: 999,
+                      backgroundColor: "rgba(0,0,0,0.45)",
+                    }}
+                  >
+                    <Text style={{ color: "#F8FAFC", fontSize: 10, fontWeight: "600" }}>Bạn</Text>
+                  </View>
+                </TouchableOpacity>
               </View>
             </View>
           ) : (
-            <View className="w-28 h-28 rounded-full bg-[#2A2D3A] items-center justify-center mb-6">
-              {callType === "VIDEO" ? <Video size={38} color="#FFFFFF" /> : <Phone size={38} color="#FFFFFF" />}
+            // Avatar placeholder (audio call or pre-connected)
+            <>
+              <View style={{
+                width: 112,
+                height: 112,
+                borderRadius: 56,
+                backgroundColor: "#2A2D3A",
+                alignItems: "center",
+                justifyContent: "center",
+                marginTop: 56,
+                marginBottom: 24,
+              }}>
+                {isGroup
+                  ? <Users size={38} color="#FFFFFF" />
+                  : callType === "VIDEO"
+                    ? <Video size={38} color="#FFFFFF" />
+                    : <Phone size={38} color="#FFFFFF" />
+                }
+              </View>
+            </>
+          )}
+
+          <Text style={{ color: "#FFFFFF", fontSize: 26, fontWeight: "700", marginTop: showVideoUI ? 8 : 0 }}>
+            {title}
+          </Text>
+          <Text style={{ color: "#A8AFBF", fontSize: 15, marginTop: 8 }}>{subtitle}</Text>
+
+          {/* Participant count badge */}
+          {isGroup && isConnected && callState.activeParticipantCount > 1 && (
+            <View style={{
+              marginTop: 12,
+              paddingHorizontal: 16,
+              paddingVertical: 6,
+              backgroundColor: "#2A2D3A",
+              borderRadius: 999,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+            }}>
+              <Users size={14} color="#9CA3AF" />
+              <Text style={{ color: "#9CA3AF", fontSize: 13 }}>
+                {callState.activeParticipantCount} người tham gia
+              </Text>
             </View>
           )}
-          <Text className="text-white text-[28px] font-bold">{title}</Text>
-          <Text className="text-[#A8AFBF] text-[15px] mt-2">{subtitle}</Text>
+
           {!zego.isReady && (
-            <Text className="text-[#FCA5A5] text-center text-[13px] mt-6 px-2">
-              Chua co ZEGO credentials. Kiem tra bien moi truong EXPO_PUBLIC_ZEGO_APP_ID / EXPO_PUBLIC_ZEGO_SERVER_SECRET.
+            <Text style={{ color: "#FCA5A5", textAlign: "center", fontSize: 13, marginTop: 24, paddingHorizontal: 8 }}>
+              Chưa có ZEGO credentials. Kiểm tra biến môi trường.
             </Text>
           )}
         </View>
 
+        {/* ── Controls ── */}
         <View>
           {callState.status === "ringing" && mode === "incoming" ? (
-            <View className="flex-row items-center justify-center gap-6 mb-6">
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 24, marginBottom: 24 }}>
               <TouchableOpacity
                 onPress={onReject}
-                className="w-16 h-16 rounded-full bg-[#EF4444] items-center justify-center"
+                style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: "#EF4444", alignItems: "center", justifyContent: "center" }}
               >
                 <PhoneOff size={28} color="#FFF" />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={onAccept}
-                className="w-16 h-16 rounded-full bg-[#22C55E] items-center justify-center"
+                style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: "#22C55E", alignItems: "center", justifyContent: "center" }}
               >
                 <Phone size={28} color="#FFF" />
               </TouchableOpacity>
             </View>
           ) : (
-            <View className="flex-row items-center justify-center gap-6">
-              <TouchableOpacity
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 16, flexWrap: "wrap" }}>
+              {/* Mic */}
+              <ControlButton
                 onPress={toggleMic}
-                className={`w-14 h-14 rounded-full items-center justify-center ${
-                  isMicMuted ? "bg-[#F59E0B]" : "bg-[#2A2D3A]"
-                }`}
-              >
-                <Text className="text-white text-xs font-semibold">MIC</Text>
-              </TouchableOpacity>
+                active={!isMicMuted}
+                icon={isMicMuted ? <MicOff size={22} color="#FFF" /> : <Mic size={22} color="#FFF" />}
+                label={isMicMuted ? "Muted" : "Micro"}
+                activeColor="#F59E0B"
+              />
+
+              {/* Camera (video calls only) */}
               {callType === "VIDEO" && (
-                <TouchableOpacity
+                <ControlButton
                   onPress={toggleCamera}
-                  className={`w-14 h-14 rounded-full items-center justify-center ${
-                    isCameraOn ? "bg-[#2A2D3A]" : "bg-[#64748B]"
-                  }`}
-                >
-                  <Text className="text-white text-xs font-semibold">CAM</Text>
-                </TouchableOpacity>
+                  active={isCameraOn}
+                  icon={isCameraOn ? <Camera size={22} color="#FFF" /> : <CameraOff size={22} color="#FFF" />}
+                  label="Camera"
+                  inactiveColor="#64748B"
+                />
               )}
+
+              {/* End call */}
               <TouchableOpacity
                 onPress={onEndCall}
-                className="w-16 h-16 rounded-full bg-[#EF4444] items-center justify-center"
+                style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: "#EF4444", alignItems: "center", justifyContent: "center" }}
               >
                 <PhoneOff size={28} color="#FFF" />
               </TouchableOpacity>
-              <TouchableOpacity
+
+              {/* Speaker */}
+              <ControlButton
                 onPress={toggleSpeaker}
-                className={`w-14 h-14 rounded-full items-center justify-center ${
-                  isSpeakerOn ? "bg-[#2A2D3A]" : "bg-[#64748B]"
-                }`}
-              >
-                <Text className="text-white text-xs font-semibold">SPK</Text>
-              </TouchableOpacity>
+                active={isSpeakerOn}
+                icon={isSpeakerOn ? <Volume2 size={22} color="#FFF" /> : <VolumeX size={22} color="#FFF" />}
+                label="Loa"
+                inactiveColor="#64748B"
+              />
             </View>
           )}
 
-          <Text className="text-center text-[#7A8192] text-[12px] mt-8">
-            User: {userSession?.name ?? "Unknown"} | Room: {roomId}
+          <Text style={{ textAlign: "center", color: "#7A8192", fontSize: 12, marginTop: 24 }}>
+            {userSession?.name ?? "Unknown"} · Room {roomId}
+            {isGroup ? " · Nhóm" : ""}
           </Text>
         </View>
+
       </View>
     </SafeAreaView>
+  );
+}
+
+// ── RemoteVideoGrid ───────────────────────────────────────────────────────────
+// Distributes N remote streams into a 2-column responsive grid.
+function RemoteVideoGrid({
+  streamIds,
+  getRemoteName,
+}: {
+  streamIds: string[];
+  getRemoteName: (streamId: string) => string;
+}) {
+  const count = streamIds.length;
+  // Always 2 columns when there are multiple streams
+  const numCols = 2;
+  const numRows = Math.ceil(count / numCols);
+
+  return (
+    <ScrollView
+      scrollEnabled={numRows > 3}
+      style={{ flex: 1 }}
+      contentContainerStyle={{ flexDirection: "row", flexWrap: "wrap", flexGrow: 1 }}
+    >
+      {streamIds.map((id, idx) => {
+        // Last item in an odd-count list: span full width
+        const isLastOdd = count % 2 !== 0 && idx === count - 1;
+        return (
+          <RemoteStreamView
+            key={id}
+            streamId={id}
+            displayName={getRemoteName(id)}
+            style={{
+              width: isLastOdd ? "100%" : "50%",
+              aspectRatio: isLastOdd ? 16 / 9 : 9 / 16,
+            }}
+          />
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+// ── ControlButton ─────────────────────────────────────────────────────────────
+function ControlButton({
+  onPress,
+  active,
+  icon,
+  label,
+  activeColor = "#2A2D3A",
+  inactiveColor = "#F59E0B",
+}: {
+  onPress: () => void;
+  active: boolean;
+  icon: React.ReactNode;
+  label: string;
+  activeColor?: string;
+  inactiveColor?: string;
+}) {
+  return (
+    <View style={{ alignItems: "center", gap: 4 }}>
+      <TouchableOpacity
+        onPress={onPress}
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: active ? activeColor : inactiveColor,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {icon}
+      </TouchableOpacity>
+      <Text style={{ color: "#9CA3AF", fontSize: 10 }}>{label}</Text>
+    </View>
   );
 }
