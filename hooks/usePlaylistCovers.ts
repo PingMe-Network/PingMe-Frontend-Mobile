@@ -6,15 +6,14 @@ import {
   clearExpiredCache,
 } from "@/features/music/playlistCoversSlice";
 import { playlistApi } from "@/services/music/playlistApi";
-import { songApi } from "@/services/music";
+import { fetchSongCached } from "@/utils/musicHydration";
 
-// Helper function separated to reduce nesting depth
 const fetchPlaylistCovers = async (
   playlistId: number
 ): Promise<[number, string[]]> => {
   try {
     const detail = await playlistApi.getPlaylistDetail(playlistId);
-    
+
     // Get up to 4 distinct song IDs
     const songIds = detail.items.slice(0, 4).map((item) => item.songId);
 
@@ -22,15 +21,12 @@ const fetchPlaylistCovers = async (
       return [playlistId, []];
     }
 
-    // Fetch songs in parallel
-    const songs = await Promise.all(
-      songIds.map((id) => songApi.getSongById(id).catch(() => null))
-    );
-
-    // Extract valid cover URLs
-    const covers = songs
-      .filter((s) => s?.coverImageUrl)
-      .map((s) => s!.coverImageUrl!);
+    // Fetch songs sequentially through the shared song cache + rate limiter
+    const covers: string[] = [];
+    for (const id of songIds) {
+      const song = await fetchSongCached(id);
+      if (song?.coverImageUrl) covers.push(song.coverImageUrl);
+    }
 
     return [playlistId, covers];
   } catch {
@@ -76,9 +72,10 @@ export const usePlaylistCovers = (playlistIds: number[]) => {
     const loadCovers = async () => {
       dispatch(setLoadingIds(playlistsToLoad));
 
-      const results = await Promise.all(
-        playlistsToLoad.map(fetchPlaylistCovers)
-      );
+      const results = [];
+      for (const playlistId of playlistsToLoad) {
+        results.push(await fetchPlaylistCovers(playlistId));
+      }
 
       const newCoverMap = Object.fromEntries(results);
 

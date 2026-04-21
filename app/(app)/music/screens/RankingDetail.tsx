@@ -31,6 +31,9 @@ export default function RankingDetail() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
+    // How many songs to hydrate per chunk to avoid rate-limiting
+    const HYDRATE_CHUNK_SIZE = 10;
+
     const fetchRanking = useCallback(async (isSilentUpdate = false) => {
         if (!isSilentUpdate) {
             setLoading(true);
@@ -45,18 +48,29 @@ export default function RankingDetail() {
                 data = await songApi.getTopSongsThisMonth(30);
             }
 
-            // If it's the first load, show immediate data to be snappy
+            // Step 1: Show immediate un-hydrated data for fast paint
             if (!isSilentUpdate) {
                 const initialSongs = data.map(normalizeTopSong);
                 setSongs(initialSongs);
                 setLoading(false);
             }
 
-            // Hydrate in background
-            const fullyHydratedSongs = await hydrateSongs(data);
-
-            // Update with full details
-            setSongs(fullyHydratedSongs);
+            // Step 2: Hydrate in chunks to avoid burst 429 errors.
+            // Each chunk uses the rate limiter, so requests are spaced out.
+            let hydratedAll: SongResponseWithAllAlbum[] = [];
+            for (let i = 0; i < data.length; i += HYDRATE_CHUNK_SIZE) {
+                const chunk = data.slice(i, i + HYDRATE_CHUNK_SIZE);
+                const hydratedChunk = await hydrateSongs(chunk);
+                hydratedAll = [...hydratedAll, ...hydratedChunk];
+                // Progressive update — show results as each chunk arrives
+                setSongs(prev => {
+                    const updated = [...prev];
+                    hydratedChunk.forEach((song, idx) => {
+                        updated[i + idx] = song;
+                    });
+                    return updated;
+                });
+            }
 
         } catch (error) {
             console.error("Failed to fetch ranking details:", error);

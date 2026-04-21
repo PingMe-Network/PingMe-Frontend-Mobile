@@ -10,6 +10,7 @@ import { Colors } from "@/constants/Colors";
 import { useShufflePlay } from "@/hooks/useShufflePlay";
 import { usePlaylists } from "@/hooks/usePlaylists";
 import { songApi } from "@/services/music";
+import { fetchSongCached } from "@/utils/musicHydration";
 import { deletePlaylist } from "@/features/music/playlistSlice";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -83,11 +84,11 @@ export default function PlaylistDetailScreen() {
                 return;
             }
 
-            const songPromises = songIds.map((songId) =>
-                songApi.getSongById(songId).catch(() => null)
-            );
-
-            const fetchedSongs = await Promise.all(songPromises);
+            const fetchedSongs: any[] = [];
+            for (const songId of songIds) {
+                const song = await fetchSongCached(songId);
+                fetchedSongs.push(song);
+            }
             const validSongs = fetchedSongs.filter(
                 (song: any): song is SongResponseWithAllAlbum => song !== null
             );

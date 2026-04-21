@@ -4,6 +4,7 @@ import { Colors } from "@/constants/Colors";
 import { useState, useEffect, useMemo } from "react";
 import { songApi } from "@/services/music";
 import type { SongResponseWithAllAlbum } from "@/types/music";
+import { useDebounce } from "@/hooks/useDebounce";
 
 const ItemSeparator = () => <View className="h-1" />;
 
@@ -25,6 +26,7 @@ export function AddSongToPlaylistModal({
     onAddSong,
 }: Readonly<AddSongToPlaylistModalProps>) {
     const [searchQuery, setSearchQuery] = useState("");
+    const debouncedSearchQuery = useDebounce(searchQuery, 500); // Wait 500ms before triggering search
     const [allSongs, setAllSongs] = useState<SongResponseWithAllAlbum[]>([]);
     const [loading, setLoading] = useState(false);
     const [addingSongId, setAddingSongId] = useState<number | null>(null);
@@ -38,14 +40,14 @@ export function AddSongToPlaylistModal({
         }
     }, [visible]);
 
-    // Search songs when query changes
+    // Search songs when debounced query changes
     useEffect(() => {
-        if (searchQuery.trim()) {
-            loadSongs(searchQuery);
+        if (debouncedSearchQuery.trim()) {
+            loadSongs(debouncedSearchQuery);
         } else {
             setAllSongs([]);
         }
-    }, [searchQuery]);
+    }, [debouncedSearchQuery]);
 
     const loadSongs = async (query: string) => {
         try {

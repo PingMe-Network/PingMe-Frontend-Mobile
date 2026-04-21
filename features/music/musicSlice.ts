@@ -66,12 +66,15 @@ const initialState: MusicState = {
 export const fetchMusicData = createAsyncThunk(
   "music/fetchAll",
   async (limit: number = 5) => {
-    const [songs, albums, artists, genres] = await Promise.all([
-      songApi.getTopSongs(limit),
-      albumApi.getPopularAlbums(limit),
-      artistApi.getPopularArtists(limit),
-      genreApi.getAllGenres(),
-    ]);
+    // Sequential fetches to avoid bursting the server with concurrent requests
+    // which can trigger 429 Too Many Requests, especially alongside hydration calls.
+    const songs = await songApi.getTopSongs(limit);
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const albums = await albumApi.getPopularAlbums(limit);
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const artists = await artistApi.getPopularArtists(limit);
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const genres = await genreApi.getAllGenres();
 
     return { songs, albums, artists, genres };
   },
