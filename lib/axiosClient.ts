@@ -179,7 +179,7 @@ axiosClient.interceptors.response.use(
     const isTokenExpired = error.response?.status === 401 && code === 1102;
 
     if (!isTokenExpired || originalRequest._retry) {
-      return Promise.reject(error);
+      throw error;
     }
 
     // Chặn Loop vô tận cho Auth

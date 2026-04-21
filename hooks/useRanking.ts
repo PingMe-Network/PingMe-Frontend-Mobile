@@ -6,10 +6,38 @@ import { useAppSelector } from "@/features/store";
 
 const PREVIEW_HYDRATE_LIMIT = 3;
 
+type RankingItem = TopSongPlayCounter | SongResponseWithAllAlbum;
+
+/**
+ * Helper to hydrate a ranking list sequentially to avoid 429 errors.
+ */
+const handleRankingHydration = async (
+    result: PromiseSettledResult<RankingItem[]>,
+    setter: React.Dispatch<React.SetStateAction<RankingItem[]>>,
+    label: string
+) => {
+    if (result.status === 'fulfilled') {
+        try {
+            const hydrated = await hydrateSongs(result.value.slice(0, PREVIEW_HYDRATE_LIMIT));
+            setter(prev => {
+                const merged = [...prev];
+                hydrated.forEach((song, idx) => {
+                    if (merged[idx]) merged[idx] = song;
+                });
+                return merged;
+            });
+        } catch (e) {
+            console.error(`Failed to hydrate ${label} ranking:`, e);
+        }
+    } else {
+        console.error(`Failed to fetch ${label} ranking:`, result.reason);
+    }
+};
+
 export const useRanking = () => {
-    const [topSongToday, setTopSongToday] = useState<(TopSongPlayCounter | SongResponseWithAllAlbum)[]>([]);
-    const [topSongWeekly, setTopSongWeekly] = useState<(TopSongPlayCounter | SongResponseWithAllAlbum)[]>([]);
-    const [topSongMonthly, setTopSongMonthly] = useState<(TopSongPlayCounter | SongResponseWithAllAlbum)[]>([]);
+    const [topSongToday, setTopSongToday] = useState<RankingItem[]>([]);
+    const [topSongWeekly, setTopSongWeekly] = useState<RankingItem[]>([]);
+    const [topSongMonthly, setTopSongMonthly] = useState<RankingItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<unknown>(null);
 
@@ -39,59 +67,9 @@ export const useRanking = () => {
             // causing up to 15 concurrent getSongById requests → 429.
             // Now they run one after the other through the shared rate limiter.
 
-            if (todayResult.status === 'fulfilled') {
-                const rawToday = todayResult.value;
-                try {
-                    const hydratedToday = await hydrateSongs(rawToday.slice(0, PREVIEW_HYDRATE_LIMIT));
-                    setTopSongToday(prev => {
-                        const merged = [...prev];
-                        hydratedToday.forEach((song, idx) => {
-                            if (merged[idx]) merged[idx] = song;
-                        });
-                        return merged;
-                    });
-                } catch (e) {
-                    console.error("Failed to hydrate today's ranking:", e);
-                }
-            } else {
-                console.error("Failed to fetch today's ranking:", todayResult.reason);
-            }
-
-            if (weeklyResult.status === 'fulfilled') {
-                const rawWeekly = weeklyResult.value;
-                try {
-                    const hydratedWeekly = await hydrateSongs(rawWeekly.slice(0, PREVIEW_HYDRATE_LIMIT));
-                    setTopSongWeekly(prev => {
-                        const merged = [...prev];
-                        hydratedWeekly.forEach((song, idx) => {
-                            if (merged[idx]) merged[idx] = song;
-                        });
-                        return merged;
-                    });
-                } catch (e) {
-                    console.error("Failed to hydrate weekly ranking:", e);
-                }
-            } else {
-                console.error("Failed to fetch weekly ranking:", weeklyResult.reason);
-            }
-
-            if (monthlyResult.status === 'fulfilled') {
-                const rawMonthly = monthlyResult.value;
-                try {
-                    const hydratedMonthly = await hydrateSongs(rawMonthly.slice(0, PREVIEW_HYDRATE_LIMIT));
-                    setTopSongMonthly(prev => {
-                        const merged = [...prev];
-                        hydratedMonthly.forEach((song, idx) => {
-                            if (merged[idx]) merged[idx] = song;
-                        });
-                        return merged;
-                    });
-                } catch (e) {
-                    console.error("Failed to hydrate monthly ranking:", e);
-                }
-            } else {
-                console.error("Failed to fetch monthly ranking:", monthlyResult.reason);
-            }
+            await handleRankingHydration(todayResult, setTopSongToday, "today's");
+            await handleRankingHydration(weeklyResult, setTopSongWeekly, "weekly");
+            await handleRankingHydration(monthlyResult, setTopSongMonthly, "monthly");
         } catch (err) {
             console.error("Failed to fetch rankings:", err);
             setError(err);

@@ -1,7 +1,7 @@
 import { Slot, useRouter, useSegments } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Provider } from "react-redux";
-import { View, ActivityIndicator, LogBox } from "react-native";
+import { View, ActivityIndicator } from "react-native";
 import { PersistGate } from "redux-persist/integration/react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import {
