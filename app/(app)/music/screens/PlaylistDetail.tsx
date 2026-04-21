@@ -9,7 +9,7 @@ import { loadAndPlaySong, setQueue } from "@/features/music/playerSlice";
 import { Colors } from "@/constants/Colors";
 import { useShufflePlay } from "@/hooks/useShufflePlay";
 import { usePlaylists } from "@/hooks/usePlaylists";
-import { songApi } from "@/services/music";
+import { fetchSongCached } from "@/utils/musicHydration";
 import { deletePlaylist } from "@/features/music/playlistSlice";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -83,11 +83,11 @@ export default function PlaylistDetailScreen() {
                 return;
             }
 
-            const songPromises = songIds.map((songId) =>
-                songApi.getSongById(songId).catch(() => null)
-            );
-
-            const fetchedSongs = await Promise.all(songPromises);
+            const fetchedSongs: any[] = [];
+            for (const songId of songIds) {
+                const song = await fetchSongCached(songId);
+                fetchedSongs.push(song);
+            }
             const validSongs = fetchedSongs.filter(
                 (song: any): song is SongResponseWithAllAlbum => song !== null
             );
@@ -298,14 +298,14 @@ export default function PlaylistDetailScreen() {
                 <Animated.View
                     className="flex-row items-center px-4 py-3"
                     style={{
-                            backgroundColor: headerBackgroundOpacity.interpolate({
-                                inputRange: [0, 1],
-                                outputRange: isDark
-                                    ? ['rgba(10, 10, 10, 0)', 'rgba(10, 10, 10, 1)']
-                                    : ['rgba(30, 30, 30, 0)', 'rgba(30, 30, 30, 1)'],
-                            }),
-                            borderBottomWidth: 0,
-                        }}
+                        backgroundColor: headerBackgroundOpacity.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: isDark
+                                ? ['rgba(10, 10, 10, 0)', 'rgba(10, 10, 10, 1)']
+                                : ['rgba(30, 30, 30, 0)', 'rgba(30, 30, 30, 1)'],
+                        }),
+                        borderBottomWidth: 0,
+                    }}
                 >
                     <View className="flex-row items-center flex-1">
                         {/* Back Button */}

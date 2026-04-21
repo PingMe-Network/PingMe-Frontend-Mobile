@@ -82,11 +82,31 @@ const performRefreshToken = async (): Promise<string> => {
 const REFRESH_BUFFER_MS = 60_000;
 
 // ============================================================
+// GLOBAL RATE LIMITER FOR MUSIC SERVICE
+// ============================================================
+const MUSIC_RATE_LIMIT_DELAY = 600; // 600ms between requests
+const MAX_RETRIES = 3;
+
+let musicQueue: Promise<void> = Promise.resolve();
+
+// ============================================================
 // REQUEST INTERCEPTOR
 // ============================================================
 axiosClient.interceptors.request.use(
   async (config) => {
-    // Bỏ qua auth-related requests
+    // 1. Handle Rate Limiting for music-service
+    // Queue all requests to /music-service to avoid 429 errors from bursting
+    if (config.url?.includes("/music-service/")) {
+      await new Promise<void>((resolve) => {
+        musicQueue = musicQueue.then(async () => {
+          resolve(); // Let the request proceed
+          // Delay the next item in the queue
+          await new Promise((r) => setTimeout(r, MUSIC_RATE_LIMIT_DELAY));
+        });
+      });
+    }
+
+    // 2. Handle Auth
     const isAuthRequest =
       config.url?.includes("/auth-service/auth/mobile/login") ||
       config.url?.includes("/auth-service/auth/mobile/refresh") ||
@@ -97,13 +117,11 @@ axiosClient.interceptors.request.use(
     const { accessToken } = await getTokens();
 
     if (accessToken) {
-      // Proactive Refresh: nếu token sắp hết hạn trong 60s → refresh trước
       const expiringSoon = await isAccessTokenExpiringSoon(REFRESH_BUFFER_MS);
 
       if (expiringSoon) {
         console.log("[Axios] Access token sắp hết hạn, proactive refresh...");
         try {
-          // Dùng shared promise để tránh refresh trùng lặp
           if (!refreshPromise) {
             refreshPromise = performRefreshToken().finally(() => {
               refreshPromise = null;
@@ -114,13 +132,10 @@ axiosClient.interceptors.request.use(
           config.headers.Authorization = `Bearer ${newToken}`;
           return config;
         } catch {
-          // Nếu refresh thất bại → vẫn gửi request với token cũ
-          // Response interceptor sẽ xử lý 401
           console.warn("[Axios] Proactive refresh thất bại, dùng token cũ");
         }
       }
 
-      // Token còn hạn → gắn bình thường
       config.headers = config.headers ?? {};
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
@@ -138,20 +153,36 @@ axiosClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
+      _retryCount?: number;
     };
 
-    // Phân tích lỗi
-    const payload = error.response?.data as ApiResponse<unknown> | undefined;
-    const code = payload?.errorCode;
-
-    // Điều kiện: 401 VÀ ErrorCode 1102 (Token Expired)
-    const isTokenExpired = error.response?.status === 401 && code === 1102;
-
-    if (!isTokenExpired || !originalRequest || originalRequest._retry) {
+    if (!originalRequest) {
       return Promise.reject(error);
     }
 
-    // Chặn Loop vô tận
+    // 1. Handle 429 Too Many Requests (Exponential Backoff)
+    if (error.response?.status === 429 && originalRequest.url?.includes("/music-service/")) {
+      originalRequest._retryCount = originalRequest._retryCount || 0;
+      if (originalRequest._retryCount < MAX_RETRIES) {
+        originalRequest._retryCount++;
+        const delay = Math.pow(2, originalRequest._retryCount) * 1000;
+        console.warn(`[Axios] 429 received for ${originalRequest.url}, retrying in ${delay}ms (attempt ${originalRequest._retryCount}/${MAX_RETRIES})`);
+        await new Promise((r) => setTimeout(r, delay));
+        // Reprocess request (it will go through the request interceptor and queue again)
+        return axiosClient(originalRequest);
+      }
+    }
+
+    // 2. Handle 401 Token Expired
+    const payload = error.response?.data as ApiResponse<unknown> | undefined;
+    const code = payload?.errorCode;
+    const isTokenExpired = error.response?.status === 401 && code === 1102;
+
+    if (!isTokenExpired || originalRequest._retry) {
+      throw error;
+    }
+
+    // Chặn Loop vô tận cho Auth
     if (
       originalRequest.url?.includes("/auth-service/auth/mobile/login") ||
       originalRequest.url?.includes("/auth-service/auth/mobile/refresh")
@@ -161,7 +192,6 @@ axiosClient.interceptors.response.use(
 
     originalRequest._retry = true;
 
-    // Logic Shared Promise
     if (!refreshPromise) {
       refreshPromise = performRefreshToken().finally(() => {
         refreshPromise = null;
@@ -170,13 +200,9 @@ axiosClient.interceptors.response.use(
 
     try {
       const newToken = await refreshPromise;
-
-      // Gắn token mới và gọi lại request cũ
       originalRequest.headers = originalRequest.headers ?? {};
       originalRequest.headers.Authorization = `Bearer ${newToken}`;
-
       axiosClient.defaults.headers.common.Authorization = `Bearer ${newToken}`;
-
       return axiosClient(originalRequest);
     } catch (e) {
       return Promise.reject(e);

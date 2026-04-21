@@ -3,11 +3,13 @@ import {
   createAsyncThunk,
   type PayloadAction,
 } from "@reduxjs/toolkit";
-import { Audio, AVPlaybackStatus } from "expo-av";
+import { createAudioPlayer, setAudioModeAsync, type AudioStatus } from "expo-audio";
 import type { SongResponseWithAllAlbum } from "@/types/music";
 import { logoutThunk } from "@/features/auth/authThunk";
 import { getRandomInt } from "@/utils/random";
 import { songCrudService } from "@/services/music/songCrudService";
+
+let globalAudioPlayer: any = null;
 
 export type RepeatMode = "off" | "one" | "all";
 export type PlaybackState =
@@ -21,7 +23,6 @@ export type PlaybackState =
 interface PlayerState {
   // Current playback
   currentSong: SongResponseWithAllAlbum | null;
-  sound: Audio.Sound | null;
 
   // Playback status
   playbackState: PlaybackState;
@@ -59,7 +60,6 @@ interface PlayerState {
 
 const initialState: PlayerState = {
   currentSong: null,
-  sound: null,
   playbackState: "stopped",
   isPlaying: false,
   position: 0,
@@ -85,53 +85,63 @@ export const loadAndPlaySong = createAsyncThunk(
   async (song: SongResponseWithAllAlbum, { dispatch, getState }) => {
     try {
       // Get current state to check for existing sound
-      const state = getState() as { player: PlayerState };
-
-      // Unload previous sound if exists
-      if (
-        state.player.sound &&
-        typeof state.player.sound.unloadAsync === "function"
-      ) {
-        await state.player.sound.unloadAsync();
+      if (globalAudioPlayer) {
+        if (typeof globalAudioPlayer.pause === "function") {
+          globalAudioPlayer.pause();
+        }
+        if (typeof globalAudioPlayer.remove === "function") {
+          globalAudioPlayer.remove();
+        }
       }
+      globalAudioPlayer = null;
 
       // Configure audio mode
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        shouldDuckAndroid: true,
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,
+        interruptionMode: 'duckOthers',
       });
 
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: song.songUrl },
-        { shouldPlay: true },
-        (status) => {
-          dispatch(updatePlaybackStatus(status));
+      if (!song.songUrl) {
+        throw new Error("Cannot play song: Missing audio URL (possibly due to failed hydration)");
+      }
 
-          // Check for play count increment (50% progress)
-          if (status.isLoaded && status.durationMillis) {
-            const progress = status.positionMillis / status.durationMillis;
-            if (progress >= 0.5) {
-              // Wrap in setTimeout to avoid calling getState while reducer is executing
-              setTimeout(() => {
-                const currentState = getState() as { player: PlayerState };
-                // Ensure we only count once per song session
-                if (
-                  !currentState.player.hasCountedPlay &&
-                  currentState.player.currentSong?.id === song.id
-                ) {
-                  dispatch(markPlayCounted());
-                  songCrudService.increasePlayCount(song.id).catch((err) => {
-                    console.error("Failed to increase play count:", err);
-                  });
-                }
-              }, 0);
-            }
+      globalAudioPlayer = createAudioPlayer(song.songUrl);
+      globalAudioPlayer.play();
+
+      let lastUpdate = 0;
+      // @ts-ignore: addListener exists at runtime but may be missing in type definitions
+      globalAudioPlayer.addListener('playbackStatusUpdate', (status: AudioStatus) => {
+        const now = Date.now();
+        const isSignificantChange = status.isLoaded && (status.didJustFinish || status.isBuffering);
+        if (now - lastUpdate > 500 || isSignificantChange) {
+            dispatch(updatePlaybackStatus(status));
+            lastUpdate = now;
+        }
+
+        // Check for play count increment (50% progress)
+        if (status.isLoaded && status.duration) {
+          const progress = status.currentTime / status.duration;
+          if (progress >= 0.5) {
+            // Wrap in setTimeout to avoid calling getState while reducer is executing
+            setTimeout(() => {
+              const currentState = getState() as { player: PlayerState };
+              // Ensure we only count once per song session
+              if (
+                !currentState.player.hasCountedPlay &&
+                currentState.player.currentSong?.id === song.id
+              ) {
+                dispatch(markPlayCounted());
+                songCrudService.increasePlayCount(song.id).catch((err) => {
+                  console.error("Failed to increase play count:", err);
+                });
+              }
+            }, 0);
           }
-        },
-      );
+        }
+      });
 
-      return { sound, song };
+      return { song };
     } catch (error) {
       throw new Error(`Failed to load song: ${error}`);
     }
@@ -141,30 +151,21 @@ export const loadAndPlaySong = createAsyncThunk(
 export const playSong = createAsyncThunk(
   "player/playSong",
   async (_, { getState }) => {
-    const state = getState() as { player: PlayerState };
-    if (state.player.sound) {
-      await state.player.sound.playAsync();
-    }
+    if (globalAudioPlayer) { globalAudioPlayer.play(); }
   },
 );
 
 export const pauseSong = createAsyncThunk(
   "player/pauseSong",
   async (_, { getState }) => {
-    const state = getState() as { player: PlayerState };
-    if (state.player.sound) {
-      await state.player.sound.pauseAsync();
-    }
+    if (globalAudioPlayer) { globalAudioPlayer.pause(); }
   },
 );
 
 export const seekTo = createAsyncThunk(
   "player/seekTo",
   async (positionMillis: number, { getState }) => {
-    const state = getState() as { player: PlayerState };
-    if (state.player.sound) {
-      await state.player.sound.setPositionAsync(positionMillis);
-    }
+    if (globalAudioPlayer) { await globalAudioPlayer.seekTo(positionMillis / 1000); }
     return positionMillis;
   },
 );
@@ -172,10 +173,7 @@ export const seekTo = createAsyncThunk(
 export const setVolume = createAsyncThunk(
   "player/setVolume",
   async (volume: number, { getState }) => {
-    const state = getState() as { player: PlayerState };
-    if (state.player.sound) {
-      await state.player.sound.setVolumeAsync(volume);
-    }
+    if (globalAudioPlayer) { globalAudioPlayer.volume = volume; }
     return volume;
   },
 );
@@ -378,23 +376,23 @@ const playerSlice = createSlice({
       state.shouldPlayNext = false;
     },
 
-    // Playback status update from expo-av
-    updatePlaybackStatus(state, action: PayloadAction<AVPlaybackStatus>) {
+    // Playback status update from expo-audio
+    updatePlaybackStatus(state, action: PayloadAction<AudioStatus>) {
       const status = action.payload;
 
       if (status.isLoaded) {
-        state.isPlaying = status.isPlaying;
-        state.position = status.positionMillis;
-        state.duration = status.durationMillis || 0;
+        state.isPlaying = status.playing;
+        state.position = status.currentTime * 1000;
+        state.duration = status.duration * 1000 || 0;
         state.buffering = status.isBuffering;
 
         // Handle song end
-        if (status.didJustFinish && !status.isLooping) {
+        if (status.didJustFinish && !status.loop) {
           state.playbackState = "stopped";
           state.shouldPlayNext = true;
         } else if (status.isBuffering) {
           state.playbackState = "buffering";
-        } else if (status.isPlaying) {
+        } else if (status.playing) {
           state.playbackState = "playing";
         } else {
           state.playbackState = "paused";
@@ -434,9 +432,11 @@ const playerSlice = createSlice({
 
     // Cleanup
     resetPlayer(state) {
-      if (state.sound && typeof state.sound.unloadAsync === "function") {
-        state.sound.unloadAsync();
-      }
+        if (globalAudioPlayer) {
+          if (typeof globalAudioPlayer.pause === "function") { globalAudioPlayer.pause(); }
+          if (typeof globalAudioPlayer.remove === "function") { globalAudioPlayer.remove(); }
+          globalAudioPlayer = null; 
+        }
       return initialState;
     },
   },
@@ -448,8 +448,6 @@ const playerSlice = createSlice({
         state.error = null;
       })
       .addCase(loadAndPlaySong.fulfilled, (state, action) => {
-        // Cast to any needed because Audio.Sound is not a plain object and cannot be handled by Immer
-        state.sound = action.payload.sound as any; // NOSONAR - Audio.Sound is not serializable, Immer requires cast
         state.currentSong = action.payload.song;
         state.playbackState = "playing";
         state.isPlaying = true;
@@ -509,8 +507,10 @@ const playerSlice = createSlice({
       // Reset player on logout
       .addCase(logoutThunk.fulfilled, (state) => {
         // Unload sound if exists
-        if (state.sound && typeof state.sound.unloadAsync === "function") {
-          state.sound.unloadAsync();
+          if (globalAudioPlayer) {
+          if (typeof globalAudioPlayer.pause === "function") { globalAudioPlayer.pause(); }
+          if (typeof globalAudioPlayer.remove === "function") { globalAudioPlayer.remove(); }
+          globalAudioPlayer = null; 
         }
         // Reset to initial state
         return initialState;
