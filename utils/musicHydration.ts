@@ -70,33 +70,26 @@ export const hydrateSongs = async (
     items: (TopSongPlayCounter | SongResponseWithAllAlbum)[]
 ): Promise<SongResponseWithAllAlbum[]> => {
     try {
-        const results: SongResponseWithAllAlbum[] = [];
-
-        for (const item of items) {
-            // Check if it's a TopSongPlayCounter (has 'songId') or needs hydration
-            if ('songId' in item) {
-                const fullSong = await fetchSongCached(item.songId);
-                if (fullSong) {
-                    results.push({
-                        ...fullSong,
-                        albums: fullSong.album ? [fullSong.album] : [],
-                        // Preserve play count from ranking data if it's higher
-                        playCount: Math.max(fullSong.playCount || 0, item.playCount),
-                    } as unknown as SongResponseWithAllAlbum);
-                } else {
-                    // Fallback to normalized version if hydration fails
-                    results.push(normalizeTopSong(item));
+        // Use Promise.all to fire requests. 
+        // The global axios queue will automatically space them out by 600ms.
+        return await Promise.all(
+            items.map(async (item) => {
+                if ('songId' in item) {
+                    const fullSong = await fetchSongCached(item.songId);
+                    if (fullSong) {
+                        return {
+                            ...fullSong,
+                            albums: fullSong.album ? [fullSong.album] : [],
+                            playCount: Math.max(fullSong.playCount || 0, item.playCount),
+                        } as unknown as SongResponseWithAllAlbum;
+                    }
+                    return normalizeTopSong(item);
                 }
-            } else {
-                // Already a full song object
-                results.push(item as unknown as SongResponseWithAllAlbum);
-            }
-        }
-
-        return results;
+                return item;
+            })
+        );
     } catch (error) {
-        console.error("Hydration failed for batch", error);
-        // Fallback: return everything normalized without hydration
+        console.error("Hydration failed", error);
         return items.map(normalizeTopSong);
     }
 };

@@ -6,7 +6,6 @@ import {
   clearExpiredCache,
 } from "@/features/music/playlistCoversSlice";
 import { playlistApi } from "@/services/music/playlistApi";
-import { fetchSongCached } from "@/utils/musicHydration";
 
 const fetchPlaylistCovers = async (
   playlistId: number
@@ -14,19 +13,11 @@ const fetchPlaylistCovers = async (
   try {
     const detail = await playlistApi.getPlaylistDetail(playlistId);
 
-    // Get up to 4 distinct song IDs
-    const songIds = detail.items.slice(0, 4).map((item) => item.songId);
-
-    if (songIds.length === 0) {
-      return [playlistId, []];
-    }
-
-    // Fetch songs sequentially through the shared song cache + rate limiter
-    const covers: string[] = [];
-    for (const id of songIds) {
-      const song = await fetchSongCached(id);
-      if (song?.coverImageUrl) covers.push(song.coverImageUrl);
-    }
+    // Get up to 4 distinct cover images directly from the expanded PlaylistSongDto
+    const covers = detail.items
+      .slice(0, 4)
+      .map((item) => item.coverImageUrl)
+      .filter((url): url is string => !!url);
 
     return [playlistId, covers];
   } catch {

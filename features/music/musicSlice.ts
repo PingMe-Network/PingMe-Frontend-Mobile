@@ -3,15 +3,15 @@ import {
   createAsyncThunk,
   type PayloadAction,
 } from "@reduxjs/toolkit";
-import { songApi } from "@/services/music/songApi";
 import { albumApi } from "@/services/music/albumApi";
 import { artistApi } from "@/services/music/artistApi";
-import { genreApi } from "@/services/music/genreApi";
 import { searchService } from "@/services/music/searchService";
+import { dashboardApi } from "@/services/music/dashboardApi";
 import type {
   SongResponseWithAllAlbum,
   ArtistResponse,
   AlbumResponse,
+  RankingData,
 } from "@/types/music";
 import type { Genre } from "@/types/music/genre";
 import {
@@ -29,6 +29,9 @@ interface MusicState {
   popularAlbums: AlbumResponse[];
   popularArtists: ArtistResponse[];
   allGenres: Genre[];
+
+  // Dashboard ranking data (fetched once with dashboard)
+  rankings: RankingData | null;
 
   // Pages cache with CacheData type
   allArtists: CacheData<ArtistResponse[]>;
@@ -51,6 +54,7 @@ const initialState: MusicState = {
   popularAlbums: [],
   popularArtists: [],
   allGenres: [],
+  rankings: null,
   allArtists: { data: [], lastFetched: null },
   allAlbums: { data: [], lastFetched: null },
   songsByGenre: {},
@@ -63,20 +67,19 @@ const initialState: MusicState = {
 };
 
 // Async thunks
+// Uses the aggregated dashboard endpoint: 1 request instead of 7
 export const fetchMusicData = createAsyncThunk(
   "music/fetchAll",
-  async (limit: number = 5) => {
-    // Sequential fetches to avoid bursting the server with concurrent requests
-    // which can trigger 429 Too Many Requests, especially alongside hydration calls.
-    const songs = await songApi.getTopSongs(limit);
-    await new Promise(resolve => setTimeout(resolve, 100));
-    const albums = await albumApi.getPopularAlbums(limit);
-    await new Promise(resolve => setTimeout(resolve, 100));
-    const artists = await artistApi.getPopularArtists(limit);
-    await new Promise(resolve => setTimeout(resolve, 100));
-    const genres = await genreApi.getAllGenres();
+  async (limit: number = 10) => {
+    const dashboard = await dashboardApi.getHomeDashboard({
+      topSongsLimit: limit,
+      albumLimit: 5,
+      artistLimit: 10,
+      genreLimit: 10,
+      rankingLimit: 10,
+    });
 
-    return { songs, albums, artists, genres };
+    return dashboard;
   },
 );
 
@@ -205,10 +208,11 @@ const musicSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchMusicData.fulfilled, (state, action) => {
-        state.topSongs = action.payload.songs;
-        state.popularAlbums = action.payload.albums;
-        state.popularArtists = action.payload.artists;
+        state.topSongs = action.payload.topSongs;
+        state.popularAlbums = action.payload.popularAlbums;
+        state.popularArtists = action.payload.popularArtists;
         state.allGenres = action.payload.genres;
+        state.rankings = action.payload.rankings;
         state.lastFetched = Date.now();
         state.loading = false;
       })

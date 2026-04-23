@@ -8,7 +8,6 @@ import type {
 } from "@/types/music";
 import type { PlaylistDto } from "@/types/music/playlist";
 import { SongCard, AlbumCard, ArtistCard, PlaylistCard, RankingCard } from "@/components/music";
-import { useRanking } from "@/hooks/useRanking";
 import { useAppDispatch } from "@/features/store";
 import { loadAndPlaySong, setQueue } from "@/features/music/playerSlice";
 import { normalizeTopSong } from "@/utils/musicNormalization";
@@ -24,6 +23,11 @@ interface HomeMusicProps {
     playlistsLoading: boolean;
     popularAlbums: AlbumResponse[];
     popularArtists: ArtistResponse[];
+    rankings: {
+        today: TopSongPlayCounter[];
+        week: TopSongPlayCounter[];
+        month: TopSongPlayCounter[];
+    } | null;
     onSongPress: (song: SongResponseWithAllAlbum, index: number) => void;
 }
 
@@ -36,6 +40,7 @@ export function HomeMusic({
     playlistsLoading,
     popularAlbums,
     popularArtists,
+    rankings,
     onSongPress,
 }: Readonly<HomeMusicProps>) {
     const router = useRouter();
@@ -67,8 +72,6 @@ export function HomeMusic({
     const handleViewAllPlaylists = () => {
         router.push("/(app)/music/screens/Playlists");
     };
-
-    const { topSongToday, topSongWeekly, topSongMonthly } = useRanking();
 
     const handleRankingPress = (type: "today" | "week" | "month", title: string) => {
         router.push({
@@ -121,24 +124,24 @@ export function HomeMusic({
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 16, paddingRight: 16 }}>
                         <RankingCard
                             title="BXH Hôm Nay"
-                            data={topSongToday}
+                            data={rankings?.today || []}
                             onPress={() => handleRankingPress("today", "BXH Hôm Nay")}
                             onPlayPress={() => { }}
-                            onSongPress={(item) => handleRankingSongPress(item, topSongToday)}
+                            onSongPress={(item) => handleRankingSongPress(item, rankings?.today || [])}
                         />
                         <RankingCard
                             title="BXH Tuần Này"
-                            data={topSongWeekly}
+                            data={rankings?.week || []}
                             onPress={() => handleRankingPress("week", "BXH Tuần Này")}
                             onPlayPress={() => { }}
-                            onSongPress={(item) => handleRankingSongPress(item, topSongWeekly)}
+                            onSongPress={(item) => handleRankingSongPress(item, rankings?.week || [])}
                         />
                         <RankingCard
                             title="BXH Tháng Này"
-                            data={topSongMonthly}
+                            data={rankings?.month || []}
                             onPress={() => handleRankingPress("month", "BXH Tháng Này")}
                             onPlayPress={() => { }}
-                            onSongPress={(item) => handleRankingSongPress(item, topSongMonthly)}
+                            onSongPress={(item) => handleRankingSongPress(item, rankings?.month || [])}
                         />
                     </ScrollView>
                 </View>

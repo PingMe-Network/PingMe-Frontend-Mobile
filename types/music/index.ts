@@ -91,10 +91,10 @@ export interface TopSongPlayCounter {
   title: string;
   imgUrl: string;
   playCount: number;
-  // Additional fields for UI
-  artist?: string;
+  // Optional fields that might come from ranking endpoints
   duration?: number;
   songUrl?: string;
+  artist?: string;
 }
 
 // ============================================================================
@@ -131,6 +131,24 @@ export interface ArtistRequest {
 
 export interface GenreRequest {
   name: string;
+}
+
+// ============================================================================
+// DASHBOARD RESPONSE (aggregated endpoint)
+// ============================================================================
+
+export interface RankingData {
+  today: TopSongPlayCounter[];
+  week: TopSongPlayCounter[];
+  month: TopSongPlayCounter[];
+}
+
+export interface MusicDashboardResponse {
+  topSongs: SongResponseWithAllAlbum[];
+  popularAlbums: AlbumResponse[];
+  popularArtists: ArtistResponse[];
+  genres: GenreResponse[];
+  rankings: RankingData;
 }
 
 // ============================================================================

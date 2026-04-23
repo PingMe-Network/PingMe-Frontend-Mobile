@@ -2,17 +2,18 @@ import type { SongResponseWithAllAlbum, TopSongPlayCounter } from "@/types/music
 
 export function normalizeTopSong(item: TopSongPlayCounter | SongResponseWithAllAlbum): SongResponseWithAllAlbum {
     if ('songId' in item) {
-        // It's a TopSongPlayCounter
+        const topSong = item;
+        // It's a TopSongPlayCounter - Map to SongResponseWithAllAlbum structure
         return {
-            id: item.songId,
-            title: item.title,
-            duration: item.duration || 0,
-            playCount: item.playCount,
-            songUrl: item.songUrl || '',
-            coverImageUrl: item.imgUrl || '',
+            id: topSong.songId,
+            title: topSong.title,
+            duration: topSong.duration || 0,
+            playCount: topSong.playCount,
+            songUrl: topSong.songUrl || '',
+            coverImageUrl: topSong.imgUrl || '',
             mainArtist: {
                 id: 0,
-                name: item.artist || 'Unknown Artist',
+                name: topSong.artist || 'Unknown Artist',
                 role: 'MAIN_ARTIST',
                 imgUrl: ''
             },
@@ -21,6 +22,6 @@ export function normalizeTopSong(item: TopSongPlayCounter | SongResponseWithAllA
             albums: [],
         } as unknown as SongResponseWithAllAlbum;
     }
-    // It's already fully fledged song
+    // It's already a full song object
     return item;
 }

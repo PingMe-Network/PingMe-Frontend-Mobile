@@ -9,7 +9,6 @@ import { loadAndPlaySong, setQueue } from "@/features/music/playerSlice";
 import { Colors } from "@/constants/Colors";
 import { useShufflePlay } from "@/hooks/useShufflePlay";
 import { usePlaylists } from "@/hooks/usePlaylists";
-import { fetchSongCached } from "@/utils/musicHydration";
 import { deletePlaylist } from "@/features/music/playlistSlice";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -72,25 +71,27 @@ export default function PlaylistDetailScreen() {
     }, [id, playlistId, getPlaylistDetail]);
 
     // Load songs when playlist detail is available
-    const loadSongs = useCallback(async () => {
+    const loadSongs = useCallback(() => {
         if (!playlistDetail?.items) return;
 
         try {
-            const songIds = playlistDetail.items.map((item) => item.songId);
-
-            if (songIds.length === 0) {
+            if (playlistDetail.items.length === 0) {
                 setSongs([]);
                 return;
             }
 
-            const fetchedSongs: any[] = [];
-            for (const songId of songIds) {
-                const song = await fetchSongCached(songId);
-                fetchedSongs.push(song);
-            }
-            const validSongs = fetchedSongs.filter(
-                (song: any): song is SongResponseWithAllAlbum => song !== null
-            );
+            const validSongs = playlistDetail.items.map(item => ({
+                id: item.songId,
+                title: item.title,
+                duration: item.duration || 0,
+                playCount: item.playCount || 0,
+                songUrl: item.songUrl || '',
+                coverImageUrl: item.coverImageUrl || '',
+                mainArtist: item.mainArtist,
+                otherArtists: item.otherArtists || [],
+                genres: item.genres || [],
+                albums: item.albums || []
+            })) as SongResponseWithAllAlbum[];
 
             setSongs(validSongs);
         } catch {
