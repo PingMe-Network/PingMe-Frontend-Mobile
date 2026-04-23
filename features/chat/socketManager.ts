@@ -245,6 +245,29 @@ class SocketManagerClass extends EventEmitter {
       try {
         const ev = JSON.parse(msg.body);
         if (ev.chatEventType) {
+          switch (ev.chatEventType) {
+            case "ROOM_CREATED":
+              this.emit("ROOM_CREATED", ev);
+              break;
+            case "ROOM_UPDATED":
+              this.emit("ROOM_UPDATED", ev);
+              break;
+            case "MEMBER_ADDED":
+              this.emit("ROOM_MEMBER_ADDED", ev);
+              break;
+            case "MEMBER_REMOVED":
+              this.emit("ROOM_MEMBER_REMOVED", ev);
+              break;
+            case "MEMBER_ROLE_CHANGED":
+              this.emit("ROOM_MEMBER_ROLE_CHANGED", ev);
+              break;
+            case "ROOM_DELETED":
+              this.emit("ROOM_DELETED", ev);
+              break;
+            default:
+              break;
+          }
+          // Keep raw event emission for backward compatibility with existing listeners.
           this.emit(ev.chatEventType, ev);
         }
         this.emit("ROOM_EVENT", ev);

@@ -8,7 +8,7 @@ type EmptyStateProps = {
 
 export function EmptyState({ message, iconColor }: Readonly<EmptyStateProps>) {
   return (
-    <View className="items-center justify-center mt-12 px-8">
+    <View className="items-center justify-center mt-14 px-8">
       <View className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 items-center justify-center mb-3">
         <Users size={26} className="text-primary" color={iconColor} />
       </View>

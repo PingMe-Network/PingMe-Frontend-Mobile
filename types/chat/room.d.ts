@@ -29,7 +29,7 @@ export interface LastMessage {
   messageId: string;
   senderId: number;
   preview: string;
-  messageType: "TEXT" | "IMAGE" | "VIDEO" | "FILE" | "WEATHER";
+  messageType: "TEXT" | "IMAGE" | "VIDEO" | "FILE" | "WEATHER" | "SYSTEM" | "POLL";
   createdAt: string;
 }
 
@@ -49,4 +49,18 @@ export interface CreateGroupRoomRequest {
 export interface AddGroupMembersRequest {
   roomId: number;
   memberIds: number[];
+}
+
+export interface LeaveGroupRequest {
+  newOwnerId?: number | null;
+}
+
+export interface LeaveGroupResponse {
+  roomId: number;
+  ownerChanged: boolean;
+  newOwnerId: number | null;
+}
+
+export interface DissolveGroupResponse {
+  roomId: number;
 }

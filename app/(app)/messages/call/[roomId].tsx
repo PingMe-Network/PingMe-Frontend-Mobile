@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, memo, forwardRef } from "react";
 import {
   findNodeHandle,
   Platform,
@@ -18,21 +18,12 @@ import { getZegoCredentials, ZegoCallEngine } from "@/services/call";
 import type { CallType } from "@/types/call/call";
 import { getCurrentUserRoomsApi } from "@/services/chat";
 import type { RoomResponse } from "@/types/chat/room";
-
-import { forwardRef } from "react";
-
-let cachedZegoTextureView: any = null;
-const getZegoTextureView = () => {
-  if (!cachedZegoTextureView) {
-    cachedZegoTextureView = require("zego-express-engine-reactnative").ZegoTextureView;
-  }
-  return cachedZegoTextureView;
-};
+import { ZegoTextureView } from "zego-express-engine-reactnative";
 
 const ZegoTextureViewLazy = forwardRef((props: any, ref: any) => {
-  const ViewComponent = getZegoTextureView();
-  return <ViewComponent ref={ref} {...props} />;
+  return <ZegoTextureView ref={ref} {...props} />;
 });
+ZegoTextureViewLazy.displayName = "ZegoTextureViewLazy";
 
 // ── RemoteStreamView ──────────────────────────────────────────────────────────
 // Renders one remote participant's video tile and self-attaches to Zego engine.
@@ -87,71 +78,7 @@ const RemoteStreamView = memo(({
     </View>
   );
 });
-
-// ── VideoGrid ─────────────────────────────────────────────────────────────────
-// Renders N remote streams in a responsive grid inside a fixed-height container.
-// Layout rules (mirrors web grid behaviour):
-//   1 stream  → full container
-//   2 streams → 2 rows (stacked)
-//   3-4       → 2×2 grid  (last row left-aligned)
-//   5-6       → 2 cols × 3 rows
-//   7+        → same, scrollable
-const CONTAINER_HEIGHT = 420;
-
-function VideoGrid({
-  streamIds,
-  isWaiting,
-  isGroup,
-}: {
-  streamIds: string[];
-  isWaiting: boolean;
-  isGroup: boolean;
-}) {
-  const count = streamIds.length;
-  const numCols = count >= 3 ? 2 : 1;
-  const numRows = Math.ceil(count / numCols);
-  const tileHeight = numRows > 0 ? Math.floor(CONTAINER_HEIGHT / numRows) : CONTAINER_HEIGHT;
-
-  return (
-    <View
-      style={{
-        width: "100%",
-        height: CONTAINER_HEIGHT,
-        borderRadius: 28,
-        overflow: "hidden",
-        backgroundColor: "#1B1E2A",
-        marginBottom: 24,
-      }}
-    >
-      {count === 0 ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <Text style={{ color: "#C5CCDA", fontSize: 14 }}>
-            {isWaiting
-              ? isGroup
-                ? "Đang chờ người tham gia..."
-                : "Đang chờ video đối phương..."
-              : "Đang kết nối..."}
-          </Text>
-        </View>
-      ) : (
-        <ScrollView
-          scrollEnabled={count > 4}
-          style={{ flex: 1 }}
-          contentContainerStyle={{ flexDirection: "row", flexWrap: "wrap" }}
-        >
-          {streamIds.map((id) => (
-            <RemoteStreamView
-              key={id}
-              streamId={id}
-              displayName={`Participant ${id.slice(0, 6)}`}
-              style={{ width: `${100 / numCols}%`, height: tileHeight }}
-            />
-          ))}
-        </ScrollView>
-      )}
-    </View>
-  );
-}
+RemoteStreamView.displayName = "RemoteStreamView";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 type CallMode = "incoming" | "outgoing";
@@ -208,7 +135,6 @@ export default function CallRoomScreen() {
   const [localViewTag, setLocalViewTag] = useState<number>();
   // Multi-stream: list of active remote stream IDs
   const [remoteStreamIds, setRemoteStreamIds] = useState<string[]>([]);
-  const [zegoReady, setZegoReady] = useState(false);
   const [participantNameMap, setParticipantNameMap] = useState<Record<number, string>>({});
   const [pipCorner, setPipCorner] = useState<"topRight" | "bottomRight">("topRight");
 
@@ -368,7 +294,7 @@ export default function CallRoomScreen() {
           localViewTag: callType === "VIDEO" ? localViewTag : undefined,
         });
 
-        if (!isCancelled) setZegoReady(true);
+        if (isCancelled) return;
       } catch (error) {
         hasJoinedMediaRef.current = false;
         if (isCancelled || isAbortedMediaStartError(error)) return;

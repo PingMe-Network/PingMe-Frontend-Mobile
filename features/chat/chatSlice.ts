@@ -80,6 +80,12 @@ export interface RoomMemberRoleChangedEventPayload {
   systemMessage?: MessageResponse;
 }
 
+export interface RoomDeletedEventPayload {
+  chatEventType: "ROOM_DELETED";
+  roomId: number;
+  actorUserId: number;
+}
+
 // =================================================================
 // State
 // =================================================================

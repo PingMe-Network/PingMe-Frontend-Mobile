@@ -9,12 +9,13 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Search, Users, MessageCircle } from "lucide-react-native";
+import { Search, Users, MessageCircle, Plus } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useAppSelector } from "@/features/store";
 import { useTabBarHeight } from "@/hooks/useTabBarHeight";
 import { getCurrentUserRoomsApi } from "@/services/chat";
 import { SocketManager } from "@/features/chat";
+import CreateGroupModal from "@/components/chat/CreateGroupModal";
 import type { RoomResponse, UserStatus } from "@/types/chat/room";
 import {
   getRoomDisplayName,
@@ -29,6 +30,8 @@ import type {
   RoomUpdatedEventPayload,
   RoomMemberAddedEventPayload,
   RoomMemberRemovedEventPayload,
+  RoomMemberRoleChangedEventPayload,
+  RoomDeletedEventPayload,
 } from "@/features/chat";
 
 type MessageEventRoomPayload = MessageCreatedEventPayload["messageResponse"];
@@ -90,6 +93,7 @@ export default function MessagesScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [rooms, setRooms] = useState<RoomResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [pagination, setPagination] = useState({
     currentPage: 0,
     hasMore: true,
@@ -161,6 +165,9 @@ export default function MessagesScreen() {
       SocketManager.on("ROOM_CREATED", (ev: RoomCreatedEventPayload) => upsertRoom(ev.roomResponse)),
       SocketManager.on("ROOM_UPDATED", (ev: RoomUpdatedEventPayload) => upsertRoom(ev.roomResponse)),
       SocketManager.on("ROOM_MEMBER_ADDED", (ev: RoomMemberAddedEventPayload) => upsertRoom(ev.roomResponse)),
+      SocketManager.on("ROOM_MEMBER_ROLE_CHANGED", (ev: RoomMemberRoleChangedEventPayload) =>
+        upsertRoom(ev.roomResponse)
+      ),
       SocketManager.on("ROOM_MEMBER_REMOVED", (ev: RoomMemberRemovedEventPayload) => {
           if (ev.targetUserId === userSession?.id) {
             setRooms((prev) => removeRoomById(prev, ev.roomResponse.roomId));
@@ -169,6 +176,9 @@ export default function MessagesScreen() {
           }
         }
       ),
+      SocketManager.on("ROOM_DELETED", (ev: RoomDeletedEventPayload) => {
+        setRooms((prev) => removeRoomById(prev, ev.roomId));
+      }),
       SocketManager.on("USER_STATUS", (statusPayload) => {
         setRooms((prevRooms) =>
           applyParticipantStatus(
@@ -226,7 +236,7 @@ export default function MessagesScreen() {
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={() => openChatRoom(item)}
-        className="flex-row items-center py-3.5 px-4 mb-2 bg-transparent"
+        className="flex-row items-center py-3.5 px-3.5 mb-2.5 mx-4 rounded-2xl bg-card border border-border"
       >
         <View className="relative">
           {avatar ? (
@@ -235,7 +245,7 @@ export default function MessagesScreen() {
               className="w-14 h-14 rounded-full"
             />
           ) : (
-            <View className="w-14 h-14 rounded-full bg-primary/10 items-center justify-center">
+            <View className="w-14 h-14 rounded-full bg-primary/10 items-center justify-center border border-primary/20">
               <Users size={22} color={primaryColor} />
             </View>
           )}
@@ -244,7 +254,7 @@ export default function MessagesScreen() {
           )}
         </View>
         
-        <View className="flex-1 ml-3.5 justify-center">
+        <View className="flex-1 ml-3 justify-center">
           <View className="flex-row justify-between items-center mb-0.5">
             <Text className="text-[16px] flex-1 mr-2 font-semibold text-foreground" numberOfLines={1}>
               {displayName}
@@ -254,13 +264,20 @@ export default function MessagesScreen() {
             </Text>
           </View>
           
-          <View className="flex-row justify-between items-center pr-1">
-            <Text className="text-[13px] flex-1 mr-4 text-muted-foreground" numberOfLines={1}>
-              {preview}
-            </Text>
+          <View className="flex-row justify-between items-center pr-1 mt-0.5">
+            <View className="flex-1 mr-4">
+              <Text className="text-[13px] text-muted-foreground" numberOfLines={1}>
+                {preview}
+              </Text>
+              {item.roomType === "GROUP" ? (
+                <Text className="text-[11px] text-primary/90 mt-0.5 font-semibold" numberOfLines={1}>
+                  Nhóm chat
+                </Text>
+              ) : null}
+            </View>
             {isUnread && (
-              <View className="bg-primary min-w-[20px] h-5 rounded-full items-center justify-center px-1">
-                <Text className="text-white text-[11px] font-bold">{displayUnreadCount}</Text>
+              <View className="bg-primary min-w-[22px] h-[22px] rounded-full items-center justify-center px-1.5">
+                <Text className="text-white text-[11px] font-extrabold">{displayUnreadCount}</Text>
               </View>
             )}
           </View>
@@ -275,26 +292,33 @@ export default function MessagesScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       {/* Header */}
-      <View className="px-6 pt-5 pb-3 flex-row items-center justify-between">
+      <View className="px-5 pt-4 pb-3 flex-row items-center justify-between">
         <View className="flex-row items-center">
-          <View className="w-10 h-10 rounded-full overflow-hidden">
+          <View className="w-11 h-11 rounded-full overflow-hidden border border-primary/20">
             <Image
               source={{ uri: userSession?.avatarUrl || "https://i.pravatar.cc/150?img=11" }}
               className="w-full h-full"
             />
           </View>
-          <Text className="ml-3 text-[22px] font-bold text-primary tracking-tight">
-            PingMe
-          </Text>
+          <View className="ml-3">
+            <Text className="text-[22px] font-bold text-foreground tracking-tight">Tin nhắn</Text>
+            <Text className="text-[12px] text-muted-foreground">
+              {rooms.length} cuộc trò chuyện
+            </Text>
+          </View>
         </View>
-        <TouchableOpacity className="p-2 -mr-2">
-          <Search size={22} color={grayColor} />
+        <TouchableOpacity
+          className="h-10 px-3 rounded-full bg-primary flex-row items-center"
+          onPress={() => setShowCreateGroupModal(true)}
+        >
+          <Plus size={16} color="#FFFFFF" />
+          <Text className="text-white text-[13px] font-bold ml-1.5">Tạo nhóm</Text>
         </TouchableOpacity>
       </View>
 
       {/* Search Bar */}
-      <View className="px-5 mt-2 mb-4">
-        <View className="flex-row items-center h-12 px-5 rounded-[16px] bg-card border border-border">
+      <View className="px-5 mt-1 mb-3">
+        <View className="flex-row items-center h-12 px-4 rounded-2xl bg-card border border-border">
           <Search size={18} color={grayColor} />
           <TextInput
             className="flex-1 ml-3 text-[15px] text-foreground"
@@ -307,8 +331,10 @@ export default function MessagesScreen() {
       </View>
 
       {/* List Header */}
-      <View className="px-6 flex-row justify-between items-center mb-2">
-        <Text className="text-[15px] font-medium text-foreground">Gần đây</Text>
+      <View className="px-5 flex-row justify-between items-center mb-2">
+        <Text className="text-[14px] font-semibold text-muted-foreground uppercase tracking-wide">
+          Gần đây
+        </Text>
         <TouchableOpacity>
           <Text className="text-[13px] font-medium text-primary">Đánh dấu đã đọc</Text>
         </TouchableOpacity>
@@ -328,7 +354,7 @@ export default function MessagesScreen() {
           keyExtractor={(item) => item.roomId.toString()}
           renderItem={renderItem}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: tabBarHeight + 20, paddingTop: 4 }}
+          contentContainerStyle={{ paddingBottom: tabBarHeight + 20, paddingTop: 6 }}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.3}
           ListFooterComponent={
@@ -339,7 +365,7 @@ export default function MessagesScreen() {
             ) : null
           }
           ListEmptyComponent={
-            <View className="items-center justify-center mt-14">
+            <View className="items-center justify-center mt-14 px-8">
               <View className="w-16 h-16 rounded-full bg-primary/10 items-center justify-center mb-4 border border-primary/20">
                 <MessageCircle size={32} color={primaryColor} />
               </View>
@@ -353,6 +379,19 @@ export default function MessagesScreen() {
           }
         />
       )}
+
+      <CreateGroupModal
+        visible={showCreateGroupModal}
+        onClose={() => setShowCreateGroupModal(false)}
+        onGroupCreated={(createdRoom) => {
+          setRooms((prev) => upsertRoomToTop(prev, createdRoom));
+          setShowCreateGroupModal(false);
+          router.push({
+            pathname: "/(app)/messages/[roomId]",
+            params: { roomId: createdRoom.roomId.toString() },
+          });
+        }}
+      />
     </SafeAreaView>
   );
 }

@@ -6,16 +6,22 @@ import type {
 } from "@/types/base/apiResponse";
 import type {
   BulkForwardMessageRequest,
+  CreatePollMessageRequest,
   EditMessageRequest,
   ForwardMessageRequest,
   HistoryMessageResponse,
   MarkReadRequest,
   MessageResponse,
   SendMessageRequest,
+  VotePollRequest,
 } from "@/types/chat/message";
 import type {
+  AddGroupMembersRequest,
   CreateOrGetDirectRoomRequest,
   CreateGroupRoomRequest,
+  DissolveGroupResponse,
+  LeaveGroupRequest,
+  LeaveGroupResponse,
   RoomResponse,
 } from "@/types/chat/room";
 
@@ -31,6 +37,68 @@ export const createOrGetDirectRoomApi = (
 
 export const createGroupRoomApi = (data: CreateGroupRoomRequest) => {
   return axiosClient.post<ApiResponse<RoomResponse>>("/core-service/rooms/group", data);
+};
+
+export const addGroupMembersApi = (data: AddGroupMembersRequest) => {
+  return axiosClient.post<ApiResponse<RoomResponse>>(
+    "/core-service/rooms/group/add-members",
+    data
+  );
+};
+
+export const removeGroupMemberApi = (roomId: number, targetUserId: number) => {
+  return axiosClient.delete<ApiResponse<RoomResponse>>(
+    `/core-service/rooms/group/${roomId}/members/${targetUserId}`
+  );
+};
+
+export const changeMemberRoleApi = (
+  roomId: number,
+  targetUserId: number,
+  role: "ADMIN" | "MEMBER" | "OWNER"
+) => {
+  return axiosClient.put<ApiResponse<RoomResponse>>(
+    `/core-service/rooms/group/${roomId}/members/${targetUserId}/role?newRole=${role}`
+  );
+};
+
+export const leaveGroupApi = (roomId: number, data: LeaveGroupRequest = {}) => {
+  return axiosClient.delete<ApiResponse<LeaveGroupResponse>>(
+    `/core-service/rooms/group/${roomId}/leave`,
+    { data }
+  );
+};
+
+export const dissolveGroupApi = (roomId: number) => {
+  return axiosClient.delete<ApiResponse<DissolveGroupResponse>>(
+    `/core-service/rooms/group/${roomId}`
+  );
+};
+
+export const renameGroupApi = (roomId: number, name: string) => {
+  return axiosClient.put<ApiResponse<RoomResponse>>(
+    `/core-service/rooms/group/${roomId}/name?name=${encodeURIComponent(name)}`
+  );
+};
+
+export const updateGroupImageApi = (
+  roomId: number,
+  roomImage: { uri: string; name: string; type: string } | null
+) => {
+  const formData = new FormData();
+  if (roomImage) {
+    formData.append("file", roomImage as any);
+  }
+
+  return axiosClient.put<ApiResponse<RoomResponse>>(
+    `/core-service/rooms/group/${roomId}/image`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
 };
 
 export const getCurrentUserRoomsApi = ({
@@ -130,5 +198,37 @@ export const getHistoryMessagesApi = (
 
   return axiosClient.get<ApiResponse<HistoryMessageResponse>>(
     `/core-service/messages/history?${params.toString()}`
+  );
+};
+
+export const pinMessageApi = (messageId: string) => {
+  return axiosClient.patch<ApiResponse<MessageResponse>>(
+    `/core-service/messages/${messageId}/pin`
+  );
+};
+
+export const unpinMessageApi = (messageId: string) => {
+  return axiosClient.patch<ApiResponse<MessageResponse>>(
+    `/core-service/messages/${messageId}/unpin`
+  );
+};
+
+export const getPinnedMessagesApi = (roomId: number) => {
+  return axiosClient.get<ApiResponse<MessageResponse[]>>(
+    `/core-service/messages/pinned?roomId=${roomId}`
+  );
+};
+
+export const createPollMessageApi = (data: CreatePollMessageRequest) => {
+  return axiosClient.post<ApiResponse<MessageResponse>>(
+    "/core-service/messages/polls",
+    data
+  );
+};
+
+export const votePollApi = (messageId: string, data: VotePollRequest) => {
+  return axiosClient.patch<ApiResponse<MessageResponse>>(
+    `/core-service/messages/${messageId}/poll/vote`,
+    data
   );
 };

@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  StyleSheet,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -24,6 +25,10 @@ import {
   Mic,
   X,
   Check,
+  Pin,
+  ChevronDown,
+  ChevronUp,
+  Settings,
 } from "lucide-react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAppSelector, useAppDispatch } from "@/features/store";
@@ -34,8 +39,14 @@ import {
   selectRecalledMessageIds,
   selectTypingUsers,
   messageDeletedForMe,
+  messageCreated,
   messageUpdated,
   expireStaleTyping,
+  type RoomUpdatedEventPayload,
+  type RoomMemberAddedEventPayload,
+  type RoomMemberRemovedEventPayload,
+  type RoomMemberRoleChangedEventPayload,
+  type RoomDeletedEventPayload,
   type TypingUser,
 } from "@/features/chat";
 import { useVideoPlayer, VideoView } from "expo-video";
@@ -49,6 +60,10 @@ import {
   editMessageApi,
   sendFileMessageApi,
   sendImageBatchMessageApi,
+  pinMessageApi,
+  unpinMessageApi,
+  getPinnedMessagesApi,
+  createPollMessageApi,
 } from "@/services/chat";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
@@ -66,6 +81,9 @@ import ForwardMessageModal from "@/components/chat/ForwardMessageModal";
 import ReplyPreview from "@/components/chat/ReplyPreview";
 import RepliedMessageBubble from "@/components/chat/RepliedMessageBubble";
 import MultiImageGrid from "@/components/chat/MultiImageGrid";
+import MessagePoll from "@/components/chat/MessagePoll";
+import CreatePollModal from "@/components/chat/CreatePollModal";
+import GroupManagementModal from "@/components/chat/GroupManagementModal";
 
 // ─── UUID ────────────────────────────────────────────────────────────
 type CryptoLike = {
@@ -220,23 +238,46 @@ export default function ChatRoomScreen() {
   const [forwardTarget, setForwardTarget] = useState<MessageResponse | null>(null);
   const [showForwardModal, setShowForwardModal] = useState(false);
   const [isAttachmentSheetVisible, setIsAttachmentSheetVisible] = useState(false);
+  const [pinnedMessages, setPinnedMessages] = useState<MessageResponse[]>([]);
+  const [showPinnedList, setShowPinnedList] = useState(false);
+  const [showCreatePollModal, setShowCreatePollModal] = useState(false);
+  const [isCreatingPoll, setIsCreatingPoll] = useState(false);
+  const [showGroupManagementModal, setShowGroupManagementModal] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
   const isInitialLoad = useRef(true);
+  const pinnedRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Fetch room info ───────────────────────────────────────
-  useEffect(() => {
-    const fetchRoom = async () => {
+  const fetchRoom = useCallback(async () => {
+    const wait = (ms: number) =>
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, ms);
+      });
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
         const res = await getCurrentUserRoomsApi({ page: 1, size: 100 });
         const found = res.data.data.content.find((r) => r.roomId === roomId);
-        if (found) setRoom(found);
-      } catch (err) {
+        if (found) {
+          setRoom(found);
+        }
+        return;
+      } catch (err: any) {
+        const status = err?.response?.status;
+        if (status === 429 && attempt < 2) {
+          await wait((attempt + 1) * 700);
+          continue;
+        }
         console.error("[ChatRoom] Failed to fetch room:", err);
+        return;
       }
-    };
-    fetchRoom();
+    }
   }, [roomId]);
+
+  useEffect(() => {
+    void fetchRoom();
+  }, [fetchRoom]);
 
   // ── WS enter/leave room ───────────────────────────────────
   useEffect(() => {
@@ -295,6 +336,140 @@ export default function ChatRoomScreen() {
     }
   }, [roomId, fetchMessages]);
 
+  const fetchPinnedMessages = useCallback(async () => {
+    if (room?.roomType !== "GROUP") {
+      setPinnedMessages([]);
+      return;
+    }
+
+    const wait = (ms: number) =>
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, ms);
+      });
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const res = await getPinnedMessagesApi(roomId);
+        if (pinnedRetryTimeoutRef.current) {
+          clearTimeout(pinnedRetryTimeoutRef.current);
+          pinnedRetryTimeoutRef.current = null;
+        }
+        setPinnedMessages(res.data.data || []);
+        return;
+      } catch (err: any) {
+        const status = err?.response?.status;
+        if (status === 429 && attempt < 2) {
+          await wait((attempt + 1) * 700);
+          continue;
+        }
+        if (status === 429) {
+          if (!pinnedRetryTimeoutRef.current) {
+            pinnedRetryTimeoutRef.current = setTimeout(() => {
+              pinnedRetryTimeoutRef.current = null;
+              void fetchPinnedMessages();
+            }, 2200);
+          }
+          return;
+        }
+        console.error("[ChatRoom] Failed to fetch pinned messages:", err);
+        return;
+      }
+    }
+  }, [room?.roomType, roomId]);
+
+  useEffect(() => {
+    fetchPinnedMessages();
+  }, [fetchPinnedMessages]);
+
+  useEffect(() => {
+    return () => {
+      if (pinnedRetryTimeoutRef.current) {
+        clearTimeout(pinnedRetryTimeoutRef.current);
+        pinnedRetryTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const upsertCurrentRoom = (nextRoom?: RoomResponse | null) => {
+      if (!nextRoom || typeof nextRoom.roomId !== "number") return;
+      if (nextRoom.roomId === roomId) {
+        setRoom(nextRoom);
+      }
+    };
+    const dispatchSystemMessage = (systemMessage: MessageResponse | undefined, targetRoomId: number) => {
+      if (!systemMessage || targetRoomId !== roomId) return;
+      dispatch(
+        messageCreated({
+          chatEventType: "MESSAGE_CREATED",
+          messageResponse: systemMessage,
+        })
+      );
+    };
+
+    const unsubs = [
+      SocketManager.on("ROOM_UPDATED", (ev: RoomUpdatedEventPayload) => {
+        upsertCurrentRoom(ev.roomResponse);
+        dispatchSystemMessage(ev.systemMessage, ev.roomResponse.roomId);
+      }),
+      SocketManager.on("ROOM_MEMBER_ADDED", (ev: RoomMemberAddedEventPayload) => {
+        upsertCurrentRoom(ev.roomResponse);
+        dispatchSystemMessage(ev.systemMessage, ev.roomResponse.roomId);
+      }),
+      SocketManager.on("ROOM_MEMBER_ROLE_CHANGED", (ev: RoomMemberRoleChangedEventPayload) => {
+        upsertCurrentRoom(ev.roomResponse);
+        dispatchSystemMessage(ev.systemMessage, ev.roomResponse.roomId);
+      }),
+      SocketManager.on("ROOM_MEMBER_REMOVED", (ev: RoomMemberRemovedEventPayload) => {
+        if (!ev?.roomResponse || ev.roomResponse.roomId !== roomId) return;
+        if (ev.targetUserId === userSession?.id) {
+          Alert.alert("Thông báo", "Bạn đã bị xóa khỏi nhóm.");
+          router.replace("/(app)/messages");
+          return;
+        }
+        setRoom(ev.roomResponse);
+        dispatchSystemMessage(ev.systemMessage, ev.roomResponse.roomId);
+      }),
+      SocketManager.on("ROOM_DELETED", (ev: RoomDeletedEventPayload) => {
+        if (Number(ev?.roomId) !== roomId) return;
+        Alert.alert("Thông báo", "Nhóm chat đã được giải tán.");
+        router.replace("/(app)/messages");
+      }),
+      SocketManager.on("MESSAGE_EVENT", (ev: any) => {
+        if (!ev || ev.chatEventType !== "MESSAGE_UPDATED") return;
+        const updated = ev.messageResponse as MessageResponse | undefined;
+        if (!updated || Number(updated.roomId) !== roomId) return;
+
+        setPinnedMessages((prev) => {
+          const idx = prev.findIndex((msg) => String(msg.id) === String(updated.id));
+
+          if (!updated.isActive || !updated.isPinned) {
+            if (idx === -1) return prev;
+            return prev.filter((msg) => String(msg.id) !== String(updated.id));
+          }
+
+          if (idx !== -1) {
+            const next = [...prev];
+            next[idx] = { ...next[idx], ...updated };
+            return next.sort((a, b) => {
+              const aTime = new Date(a.pinnedAt || a.createdAt).getTime();
+              const bTime = new Date(b.pinnedAt || b.createdAt).getTime();
+              return bTime - aTime;
+            });
+          }
+
+          // Newly pinned message may not be in current history slice -> refetch pinned list.
+          void fetchPinnedMessages();
+          return prev;
+        });
+      }),
+    ];
+
+    return () => {
+      unsubs.forEach((unsub) => unsub());
+    };
+  }, [dispatch, fetchPinnedMessages, roomId, router, userSession?.id]);
+
   // ── Merge history + redux, apply recalls + updates ────────
   const messages = useMemo(() => {
     const recalledIds = new Set(recalledMessageIds);
@@ -331,13 +506,41 @@ export default function ChatRoomScreen() {
     return merged;
   }, [historyMessages, reduxMessages, recalledMessageIds]);
 
+  useEffect(() => {
+    if (room?.roomType !== "GROUP") return;
+    setPinnedMessages((prev) => {
+      const map = new Map(prev.map((msg) => [String(msg.id), msg]));
+      let hasChanges = false;
+
+      messages.forEach((msg) => {
+        const id = String(msg.id);
+        if (!msg.isActive || !msg.isPinned) {
+          if (map.delete(id)) hasChanges = true;
+          return;
+        }
+        const current = map.get(id);
+        if (!current || JSON.stringify(current) !== JSON.stringify(msg)) {
+          map.set(id, { ...(current || {}), ...msg });
+          hasChanges = true;
+        }
+      });
+
+      if (!hasChanges) return prev;
+      return Array.from(map.values()).sort((a, b) => {
+        const aTime = new Date(a.pinnedAt || a.createdAt).getTime();
+        const bTime = new Date(b.pinnedAt || b.createdAt).getTime();
+        return bTime - aTime;
+      });
+    });
+  }, [messages, room?.roomType]);
+
   // ── Mark as read ──────────────────────────────────────────
   useEffect(() => {
     if (messages.length > 0) {
       const lastMsg = messages[messages.length - 1];
       markAsReadApi({ lastReadMessageId: lastMsg.id, roomId }).catch(() => {});
     }
-  }, [messages.length, roomId]);
+  }, [messages, roomId]);
 
   const handleLoadMore = () => {
     if (hasMoreMessages && !isLoadingMore && messages.length > 0) {
@@ -421,6 +624,11 @@ export default function ChatRoomScreen() {
 
   // ── Attachments ───────────────────────────────────────────
   const uploadAttachment = async (type: AttachmentAction) => {
+    if (type === "poll") {
+      setShowCreatePollModal(true);
+      return;
+    }
+
     try {
       if (type === "image") {
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -539,7 +747,7 @@ export default function ChatRoomScreen() {
           }
         }
       }
-    } catch (e) {
+    } catch {
       Alert.alert("Lỗi", "Không thể mở bộ chọn tệp.");
     }
   };
@@ -568,6 +776,68 @@ export default function ChatRoomScreen() {
   };
 
   const getSenderName = (senderId: number) => getSenderInfo(senderId).name;
+
+  const getMessagePreview = (message: MessageResponse): string => {
+    if (!message.isActive) return "Tin nhắn đã thu hồi";
+    switch (message.type) {
+      case "IMAGE":
+        return "📷 Hình ảnh";
+      case "VIDEO":
+        return "🎬 Video";
+      case "FILE":
+        return "📎 Tệp đính kèm";
+      case "WEATHER":
+        return "🌤 Thời tiết";
+      case "POLL":
+        return `📊 ${message.poll?.question || "Bình chọn"}`;
+      case "TEXT":
+      default:
+        return message.content || "";
+    }
+  };
+
+  const updateMessageLocally = (updated: MessageResponse) => {
+    setHistoryMessages((prev) =>
+      prev.map((msg) => (String(msg.id) === String(updated.id) ? { ...msg, ...updated } : msg))
+    );
+    dispatch(messageUpdated({ chatEventType: "MESSAGE_UPDATED", messageResponse: updated }));
+  };
+
+  const scrollToPinnedMessage = (messageId: string) => {
+    const index = messages.findIndex((msg) => String(msg.id) === String(messageId));
+    if (index === -1) {
+      Alert.alert("Thông báo", "Tin nhắn ghim chưa có trong vùng lịch sử đã tải.");
+      return;
+    }
+    flatListRef.current?.scrollToIndex({ index, animated: true });
+    setShowPinnedList(false);
+  };
+
+  const handleCreatePoll = async (
+    question: string,
+    options: string[],
+    allowMultiple: boolean
+  ) => {
+    if (isCreatingPoll) return;
+    setIsCreatingPoll(true);
+    try {
+      const res = await createPollMessageApi({
+        roomId,
+        clientMsgId: generateUUID(),
+        question,
+        options,
+        allowMultiple,
+        repliedMessageId: replyTarget?.id ?? null,
+      });
+      setHistoryMessages((prev) => addUniqueMessage(prev, res.data.data as MessageResponse));
+      setReplyTarget(null);
+      setShowCreatePollModal(false);
+    } catch (error: any) {
+      Alert.alert("Lỗi", error?.response?.data?.errorMessage || "Không thể tạo bình chọn.");
+    } finally {
+      setIsCreatingPoll(false);
+    }
+  };
 
   const handleMessageAction = async (action: MessageAction) => {
     const msg = actionTarget;
@@ -638,6 +908,26 @@ export default function ChatRoomScreen() {
           },
         ]);
         break;
+
+      case "pin":
+        try {
+          const res = await pinMessageApi(msg.id);
+          updateMessageLocally(res.data.data);
+          fetchPinnedMessages();
+        } catch (error: any) {
+          Alert.alert("Lỗi", error?.response?.data?.errorMessage || "Không thể ghim tin nhắn.");
+        }
+        break;
+
+      case "unpin":
+        try {
+          const res = await unpinMessageApi(msg.id);
+          updateMessageLocally(res.data.data);
+          setPinnedMessages((prev) => prev.filter((item) => String(item.id) !== String(msg.id)));
+        } catch (error: any) {
+          Alert.alert("Lỗi", error?.response?.data?.errorMessage || "Không thể bỏ ghim tin nhắn.");
+        }
+        break;
     }
     setActionTarget(null);
   };
@@ -650,6 +940,7 @@ export default function ChatRoomScreen() {
   const roomName = room ? getRoomDisplayName(room, userSession) : "...";
   const roomAvatar = room ? getRoomAvatar(room, userSession) : undefined;
   const isOnline = room ? isOtherParticipantOnline(room, userSession) : false;
+  const latestPinned = pinnedMessages[0];
 
   const openCall = (callType: "AUDIO" | "VIDEO") => {
     // GROUP room: gọi cả phòng, không gửi targetUserId
@@ -689,6 +980,7 @@ export default function ChatRoomScreen() {
     const isMine = isCurrentUser(item.senderId);
     const sender = getSenderInfo(item.senderId);
     const time = formatMessageTime(item.createdAt);
+    const bubbleMaxWidthClass = item.type === "POLL" ? "max-w-[92%]" : "max-w-[75%]";
 
     // SYSTEM
     if (item.type === "SYSTEM") {
@@ -771,6 +1063,15 @@ export default function ChatRoomScreen() {
           </Text>
         </TouchableOpacity>
       );
+    } else if (item.type === "POLL") {
+      bubbleContent = (
+        <MessagePoll
+          message={item}
+          currentUserId={userSession?.id}
+          isMine={isMine}
+          onMessageUpdated={updateMessageLocally}
+        />
+      );
     } else {
       bubbleContent = (
         <Text
@@ -808,7 +1109,7 @@ export default function ChatRoomScreen() {
           </View>
         )}
 
-        <View className={`max-w-[75%] ${isMine ? "items-end" : "items-start"}`}>
+        <View className={`${bubbleMaxWidthClass} ${isMine ? "items-end" : "items-start"}`}>
           {forwardedLabel}
 
         <View
@@ -832,6 +1133,11 @@ export default function ChatRoomScreen() {
 
           {/* Timestamp */}
           <View className={`flex-row items-center mt-1.5 ${isMine ? "justify-end" : "justify-start px-2"}`}>
+            {item.isPinned && (
+              <Text className="text-[11px] mr-1" style={{ color: "#F59E0B" }}>
+                📌
+              </Text>
+            )}
             <Text className="text-[11px] font-medium text-muted-foreground mr-1">{time}</Text>
             {isMine && <Text className="text-[10px] text-primary font-bold">✓✓</Text>}
           </View>
@@ -869,7 +1175,9 @@ export default function ChatRoomScreen() {
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        enabled={!showCreatePollModal}
       >
         {/* ── Header ── */}
         <View className="flex-row items-center px-4 py-3 bg-card border-b border-border shadow-sm">
@@ -903,7 +1211,108 @@ export default function ChatRoomScreen() {
           <TouchableOpacity className="p-2" onPress={() => openCall("VIDEO")}>
             <Video size={22} color={GRAY} />
           </TouchableOpacity>
+          {room?.roomType === "GROUP" && (
+            <TouchableOpacity
+              className="p-2"
+              onPress={() => setShowGroupManagementModal(true)}
+            >
+              <Settings size={22} color={GRAY} />
+            </TouchableOpacity>
+          )}
         </View>
+
+        {room?.roomType === "GROUP" && pinnedMessages.length > 0 && (
+          <View style={{ borderBottomWidth: 1, borderBottomColor: "#E5E7EB", backgroundColor: "#FFFFFF" }}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setShowPinnedList((prev) => !prev)}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingHorizontal: 14,
+                paddingVertical: 9,
+              }}
+            >
+              <Pin size={16} color="#F59E0B" />
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                {pinnedMessages.length > 1 ? (
+                  <Text style={{ fontSize: 13, fontWeight: "700", color: "#111827" }}>
+                    {pinnedMessages.length} tin nhắn đã ghim
+                  </Text>
+                ) : null}
+                <Text style={{ fontSize: 12, color: "#6B7280" }} numberOfLines={1}>
+                  {latestPinned ? getMessagePreview(latestPinned) : ""}
+                </Text>
+              </View>
+              {showPinnedList ? (
+                <ChevronUp size={16} color="#6B7280" />
+              ) : (
+                <ChevronDown size={16} color="#6B7280" />
+              )}
+            </TouchableOpacity>
+
+            {showPinnedList && (
+              <View style={{ borderTopWidth: 1, borderTopColor: "#F3F4F6", maxHeight: 220 }}>
+                <FlatList
+                  data={pinnedMessages}
+                  keyExtractor={(item) => `pinned-${item.id}`}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      onPress={() => scrollToPinnedMessage(item.id)}
+                      style={{
+                        paddingHorizontal: 14,
+                        paddingVertical: 10,
+                        borderBottomWidth: StyleSheet.hairlineWidth,
+                        borderBottomColor: "#F3F4F6",
+                        flexDirection: "row",
+                        alignItems: "center",
+                      }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 12, fontWeight: "600", color: "#111827" }} numberOfLines={1}>
+                          {getSenderName(item.senderId)}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: "#6B7280" }} numberOfLines={1}>
+                          {getMessagePreview(item)}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={async (event) => {
+                          event.stopPropagation();
+                          try {
+                            const res = await unpinMessageApi(item.id);
+                            updateMessageLocally(res.data.data);
+                            setPinnedMessages((prev) =>
+                              prev.filter((entry) => String(entry.id) !== String(item.id))
+                            );
+                          } catch (error: any) {
+                            Alert.alert(
+                              "Lỗi",
+                              error?.response?.data?.errorMessage ||
+                                "Không thể bỏ ghim tin nhắn."
+                            );
+                          }
+                        }}
+                        style={{
+                          marginLeft: 8,
+                          paddingHorizontal: 8,
+                          paddingVertical: 6,
+                          borderRadius: 8,
+                          backgroundColor: "#FEF2F2",
+                        }}
+                      >
+                        <Text style={{ color: "#DC2626", fontSize: 12, fontWeight: "600" }}>
+                          Bỏ ghim
+                        </Text>
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+            )}
+          </View>
+        )}
 
         {/* ── Messages ── */}
         {isLoadingMessages ? (
@@ -981,6 +1390,7 @@ export default function ChatRoomScreen() {
               value={messageText}
               onChangeText={handleTextChange}
               multiline
+              blurOnSubmit={false}
               textAlignVertical="center"
             />
 
@@ -1015,6 +1425,7 @@ export default function ChatRoomScreen() {
         visible={!!actionTarget}
         message={actionTarget}
         isOwnMessage={actionTarget ? isCurrentUser(actionTarget.senderId) : false}
+        isGroupRoom={room?.roomType === "GROUP"}
         onAction={handleMessageAction}
         onClose={() => setActionTarget(null)}
       />
@@ -1034,9 +1445,38 @@ export default function ChatRoomScreen() {
       {/* ── Attachment Sheet ── */}
       <AttachmentActionSheet
         visible={isAttachmentSheetVisible}
+        allowPoll={room?.roomType === "GROUP"}
         onClose={() => setIsAttachmentSheetVisible(false)}
         onAction={(action) => uploadAttachment(action)}
       />
+
+      <CreatePollModal
+        visible={showCreatePollModal}
+        loading={isCreatingPoll}
+        onClose={() => {
+          if (!isCreatingPoll) setShowCreatePollModal(false);
+        }}
+        onSubmit={handleCreatePoll}
+      />
+
+      {room?.roomType === "GROUP" && userSession?.id ? (
+        <GroupManagementModal
+          visible={showGroupManagementModal}
+          room={room}
+          currentUserId={userSession.id}
+          onClose={() => setShowGroupManagementModal(false)}
+          onRoomUpdated={(updatedRoom) => {
+            if (!updatedRoom || typeof updatedRoom.roomId !== "number") {
+              return;
+            }
+            setRoom(updatedRoom);
+          }}
+          onLeftOrDissolved={() => {
+            setShowGroupManagementModal(false);
+            router.replace("/(app)/messages");
+          }}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

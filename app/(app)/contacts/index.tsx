@@ -296,7 +296,7 @@ export default function ContactsScreen() {
     sent: "Chưa gửi lời mời nào",
   };
   
-  const iconColor = "#c026d3";
+  const iconColor = "#DF40A3";
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
@@ -304,7 +304,6 @@ export default function ContactsScreen() {
         avatarUrl={userSession?.avatarUrl}
         totalFriends={stats.totalFriends}
         onToggleAddFriend={() => setShowAddFriend((p) => !p)}
-        iconColor={iconColor}
       />
 
       <AddFriendPanel
@@ -327,11 +326,11 @@ export default function ContactsScreen() {
       />
 
       {/* Search */}
-      <View className="px-6 mb-2">
-        <View className="flex-row items-center h-[42px] px-3.5 rounded-[16px] bg-muted/60 border border-border">
+      <View className="px-5 mb-2.5">
+        <View className="flex-row items-center h-12 px-4 rounded-2xl bg-card border border-border">
           <Search size={16} className="text-muted-foreground" color="#71717A" />
           <TextInput
-            className="flex-1 ml-2.5 text-[13px] text-foreground"
+            className="flex-1 ml-2.5 text-[14px] text-foreground"
             placeholder="Tìm kiếm..."
             placeholderTextColor="#71717A"
             value={searchQuery}

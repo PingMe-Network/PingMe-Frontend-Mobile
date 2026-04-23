@@ -7,18 +7,20 @@ import {
   TouchableWithoutFeedback,
   StyleSheet,
 } from "react-native";
-import { ImageIcon, FileIcon, X } from "lucide-react-native";
+import { ImageIcon, FileIcon, BarChart3, X } from "lucide-react-native";
 
-export type AttachmentAction = "image" | "file";
+export type AttachmentAction = "image" | "file" | "poll";
 
 interface AttachmentActionSheetProps {
   visible: boolean;
+  allowPoll?: boolean;
   onAction: (action: AttachmentAction) => void;
   onClose: () => void;
 }
 
 export default function AttachmentActionSheet({
   visible,
+  allowPoll = false,
   onAction,
   onClose,
 }: AttachmentActionSheetProps) {
@@ -56,6 +58,19 @@ export default function AttachmentActionSheet({
                 <FileIcon size={24} color="#10B981" />
                 <Text style={styles.actionText}>Chọn Tệp (Tin nhắn file)</Text>
               </TouchableOpacity>
+
+              {allowPoll && (
+                <TouchableOpacity
+                  style={[styles.actionRow, styles.actionBorder]}
+                  onPress={() => {
+                    onClose();
+                    onAction("poll");
+                  }}
+                >
+                  <BarChart3 size={24} color="#DF40A3" />
+                  <Text style={styles.actionText}>Tạo bình chọn</Text>
+                </TouchableOpacity>
+              )}
               
               <View style={styles.spacer} />
 

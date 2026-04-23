@@ -25,6 +25,7 @@ export type {
   RoomMemberAddedEventPayload,
   RoomMemberRemovedEventPayload,
   RoomMemberRoleChangedEventPayload,
+  RoomDeletedEventPayload,
   TypingSignalPayload,
   TypingUser,
 } from "./chatSlice";

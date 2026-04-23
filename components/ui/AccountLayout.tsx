@@ -33,7 +33,7 @@ export const AccountLayout: React.FC<AccountLayoutProps> = ({
 
   React.useEffect(() => {
     setColorScheme(mode);
-  }, [mode]);
+  }, [mode, setColorScheme]);
 
   const handleBack = () => {
     if (onBackPress) {
