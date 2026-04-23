@@ -29,6 +29,7 @@ import {
   ChevronDown,
   ChevronUp,
   Settings,
+  Sparkles,
 } from "lucide-react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAppSelector, useAppDispatch } from "@/features/store";
@@ -64,12 +65,14 @@ import {
   unpinMessageApi,
   getPinnedMessagesApi,
   createPollMessageApi,
+  getGroupMessageSummaryApi,
 } from "@/services/chat";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import AttachmentActionSheet, { AttachmentAction } from "@/components/chat/AttachmentActionSheet";
 import type { RoomResponse } from "@/types/chat/room";
 import type {
+  GroupMessageSummaryResponse,
   MessageResponse,
   RepliedMessageSnapshot,
 } from "@/types/chat/message";
@@ -243,6 +246,9 @@ export default function ChatRoomScreen() {
   const [showCreatePollModal, setShowCreatePollModal] = useState(false);
   const [isCreatingPoll, setIsCreatingPoll] = useState(false);
   const [showGroupManagementModal, setShowGroupManagementModal] = useState(false);
+  const [groupSummary, setGroupSummary] = useState<GroupMessageSummaryResponse | null>(null);
+  const [isLoadingGroupSummary, setIsLoadingGroupSummary] = useState(false);
+  const [isSummaryDismissed, setIsSummaryDismissed] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
   const isInitialLoad = useRef(true);
@@ -380,6 +386,42 @@ export default function ChatRoomScreen() {
   useEffect(() => {
     fetchPinnedMessages();
   }, [fetchPinnedMessages]);
+
+  useEffect(() => {
+    setIsSummaryDismissed(false);
+  }, [roomId]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (room?.roomType !== "GROUP") {
+      setGroupSummary(null);
+      setIsLoadingGroupSummary(false);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    setIsLoadingGroupSummary(true);
+    getGroupMessageSummaryApi(roomId)
+      .then((res) => {
+        if (!isMounted) return;
+        const payload = res.data?.data ?? null;
+        setGroupSummary(payload);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setGroupSummary(null);
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setIsLoadingGroupSummary(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [room?.roomType, roomId]);
 
   useEffect(() => {
     return () => {
@@ -1310,6 +1352,65 @@ export default function ChatRoomScreen() {
                   )}
                 />
               </View>
+            )}
+          </View>
+        )}
+
+        {room?.roomType === "GROUP" &&
+          !isSummaryDismissed &&
+          (isLoadingGroupSummary || groupSummary?.summary) && (
+          <View
+            style={{
+              marginHorizontal: 12,
+              marginTop: 10,
+              marginBottom: 4,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: "#F5D0FE",
+              backgroundColor: "#FDF4FF",
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
+              <Sparkles size={14} color="#C026D3" />
+              <Text
+                style={{
+                  marginLeft: 6,
+                  fontSize: 12,
+                  fontWeight: "700",
+                  color: "#A21CAF",
+                  flex: 1,
+                }}
+              >
+                Tóm tắt AI (20 tin nhắn gần nhất)
+              </Text>
+              <TouchableOpacity
+                onPress={() => setIsSummaryDismissed(true)}
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 11,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: "#F5D0FE",
+                }}
+              >
+                <X size={13} color="#A21CAF" />
+              </TouchableOpacity>
+            </View>
+
+            {isLoadingGroupSummary ? (
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <ActivityIndicator size="small" color="#C026D3" />
+                <Text style={{ marginLeft: 8, fontSize: 12, color: "#6B7280" }}>
+                  AI đang tóm tắt cuộc trò chuyện...
+                </Text>
+              </View>
+            ) : (
+              <Text style={{ fontSize: 13, lineHeight: 19, color: "#3F3F46" }}>
+                {groupSummary?.summary}
+              </Text>
             )}
           </View>
         )}

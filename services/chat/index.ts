@@ -9,6 +9,7 @@ import type {
   CreatePollMessageRequest,
   EditMessageRequest,
   ForwardMessageRequest,
+  GroupMessageSummaryResponse,
   HistoryMessageResponse,
   MarkReadRequest,
   MessageResponse,
@@ -230,5 +231,11 @@ export const votePollApi = (messageId: string, data: VotePollRequest) => {
   return axiosClient.patch<ApiResponse<MessageResponse>>(
     `/core-service/messages/${messageId}/poll/vote`,
     data
+  );
+};
+
+export const getGroupMessageSummaryApi = (roomId: number) => {
+  return axiosClient.get<ApiResponse<GroupMessageSummaryResponse>>(
+    `/core-service/messages/summary?roomId=${roomId}`
   );
 };
