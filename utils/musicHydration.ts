@@ -85,7 +85,7 @@ export const hydrateSongs = async (
                     }
                     return normalizeTopSong(item);
                 }
-                return item as SongResponseWithAllAlbum;
+                return item;
             })
         );
     } catch (error) {

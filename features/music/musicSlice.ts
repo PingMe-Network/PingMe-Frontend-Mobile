@@ -11,7 +11,6 @@ import type {
   SongResponseWithAllAlbum,
   ArtistResponse,
   AlbumResponse,
-  TopSongPlayCounter,
   RankingData,
 } from "@/types/music";
 import type { Genre } from "@/types/music/genre";

@@ -2,7 +2,7 @@ import type { SongResponseWithAllAlbum, TopSongPlayCounter } from "@/types/music
 
 export function normalizeTopSong(item: TopSongPlayCounter | SongResponseWithAllAlbum): SongResponseWithAllAlbum {
     if ('songId' in item) {
-        const topSong = item as TopSongPlayCounter;
+        const topSong = item;
         // It's a TopSongPlayCounter - Map to SongResponseWithAllAlbum structure
         return {
             id: topSong.songId,
