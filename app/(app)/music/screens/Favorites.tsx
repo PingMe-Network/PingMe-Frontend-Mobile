@@ -7,22 +7,24 @@ import { useSongActions } from "@/hooks/useSongActions";
 import { usePlaylists } from "@/hooks/usePlaylists";
 import { SongList, FavoritesHeader, MusicScreenHeader, SongOptionsModal, AddToPlaylistModal, AddSongToPlaylistModal, CreatePlaylistModal } from "@/components/music";
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
-import { fetchSongCached } from "@/utils/musicHydration";
 import type { SongResponseWithAllAlbum } from "@/types/music";
 import { loadAndPlaySong, setQueue, setPlayerMinimized } from "@/features/music/playerSlice";
 import { useAlert } from "@/components/ui/AlertProvider";
 
 
-const fetchFavoriteSongs = async (favorites: { songId: number }[]) => {
-    if (favorites.length === 0) return [];
-
-    const songs: SongResponseWithAllAlbum[] = [];
-    for (const fav of favorites) {
-        const song = await fetchSongCached(fav.songId);
-        songs.push(song as SongResponseWithAllAlbum);
-    }
-
-    return songs;
+const mapFavoritesToSongs = (favorites: any[]): SongResponseWithAllAlbum[] => {
+    return favorites.map(fav => ({
+        id: fav.songId,
+        title: fav.title,
+        duration: fav.duration || 0,
+        playCount: fav.playCount || 0,
+        songUrl: fav.songUrl || '',
+        coverImageUrl: fav.coverImageUrl || '',
+        mainArtist: fav.mainArtist,
+        otherArtists: fav.otherArtists || [],
+        genres: fav.genres || [],
+        albums: fav.albums || []
+    }));
 };
 
 export default function FavoritesScreen() {
@@ -69,11 +71,10 @@ export default function FavoritesScreen() {
         extrapolate: "clamp",
     });
 
-    const loadFavoriteSongs = useCallback(async () => {
+    const loadFavoriteSongs = useCallback(() => {
         try {
             setLoadingSongs(true);
-
-            const songs = await fetchFavoriteSongs(favorites);
+            const songs = mapFavoritesToSongs(favorites);
             setFavoriteSongs(songs);
         } catch {
             showAlert({

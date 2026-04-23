@@ -16,7 +16,7 @@ export default function MusicScreen() {
   const isDark = mode === "dark";
   const tabBarHeight = useTabBarHeight();
 
-  const { topSongs, popularAlbums, popularArtists, loading } =
+  const { topSongs, popularAlbums, popularArtists, rankings, loading } =
     useAppSelector((state) => state.music);
 
   const [refreshing, setRefreshing] = useState(false);
@@ -138,6 +138,7 @@ export default function MusicScreen() {
             playlistsLoading={false}
             popularAlbums={popularAlbums}
             popularArtists={popularArtists}
+            rankings={rankings}
             onSongPress={handleSongPress}
           />
 

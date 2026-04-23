@@ -64,11 +64,12 @@ export default function SearchMusicScreen() {
         setVisibleCounts({ songs: 5, artists: 5, albums: 5 });
 
         try {
-            const [songs, albums, artists] = await Promise.all([
-                searchService.searchSongs(searchQuery),
-                searchService.searchAlbums(searchQuery),
-                searchService.searchArtists(searchQuery),
-            ]);
+            // Execute sequentially to avoid 429 errors from bursting requests
+            const songs = await searchService.searchSongs(searchQuery);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            const albums = await searchService.searchAlbums(searchQuery);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            const artists = await searchService.searchArtists(searchQuery);
 
             setSearchResults({ songs, albums, artists });
         } catch (error) {
