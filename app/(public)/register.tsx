@@ -10,15 +10,12 @@ import {
 } from "react-native";
 import { Link, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useAppDispatch, useAppSelector } from "@/features/store";
-import { registerThunk } from "@/features/auth/authThunk";
 import { checkEmailExistsApi, registerLocalApi } from "@/services/auth";
 import { InputField } from "@/components/ui/InputField";
 import { Button } from "@/components/ui/Button";
 import { TurnstileWidget } from "@/components/ui/TurnstileWidget";
 
 export default function RegisterScreen() {
-  const dispatch = useAppDispatch();
   const [isRegistering, setIsRegistering] = useState(false);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");

@@ -61,6 +61,12 @@ export const getLastMessagePreview = (
     case "WEATHER":
       messageContent = "🌤 Thời tiết";
       break;
+    case "POLL":
+      messageContent = "📊 Bình chọn";
+      break;
+    case "SYSTEM":
+      messageContent = room.lastMessage.preview;
+      break;
     case "TEXT":
     default:
       messageContent = room.lastMessage.preview;

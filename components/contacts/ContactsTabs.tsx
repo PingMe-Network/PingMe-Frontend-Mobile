@@ -23,7 +23,7 @@ export function ContactsTabs({
   ];
 
   return (
-    <View className="flex-row mx-6 mb-2.5">
+    <View className="flex-row mx-5 mb-2.5 bg-card border border-border rounded-2xl p-1">
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
         const Icon = tab.icon;
@@ -32,8 +32,8 @@ export function ContactsTabs({
           <TouchableOpacity
             key={tab.id}
             onPress={() => onChangeTab(tab.id)}
-            className={`flex-1 flex-row items-center justify-center py-2.5 mx-0.5 rounded-xl border ${
-              isActive ? "bg-primary/10 border-primary/30" : "bg-card border-transparent"
+            className={`flex-1 flex-row items-center justify-center py-2.5 mx-0.5 rounded-xl ${
+              isActive ? "bg-primary/10" : "bg-transparent"
             }`}
           >
             <Icon
@@ -42,7 +42,7 @@ export function ContactsTabs({
               color={isActive ? iconColor : "#71717A"}
             />
             <Text
-              className={`ml-1.5 text-[12px] font-bold ${
+              className={`ml-1.5 text-[12px] font-semibold ${
                 isActive ? "text-primary" : "text-muted-foreground"
               }`}
             >

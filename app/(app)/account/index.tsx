@@ -309,7 +309,7 @@ export default function AccountScreen() {
   // Sync Redux theme with NativeWind colorscheme
   useEffect(() => {
     setColorScheme(mode);
-  }, [mode]);
+  }, [mode, setColorScheme]);
 
   useEffect(() => {
     let mounted = true;

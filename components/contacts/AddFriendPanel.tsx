@@ -37,10 +37,10 @@ export function AddFriendPanel({
     searchResult.id !== currentUserId;
 
   return (
-    <View className="mx-6 mb-2.5 p-4 rounded-xl bg-card border border-border shadow-sm">
-      <Text className="text-[14px] font-bold text-foreground mb-3">Thêm bạn bè</Text>
+    <View className="mx-5 mb-2.5 p-4 rounded-2xl bg-card border border-border">
+      <Text className="text-[14px] font-semibold text-foreground mb-3">Thêm bạn bè</Text>
       <View className="flex-row gap-2">
-        <View className="flex-1 flex-row items-center h-[42px] px-3.5 rounded-[16px] bg-muted/60 border border-border">
+        <View className="flex-1 flex-row items-center h-11 px-3.5 rounded-2xl bg-muted/60 border border-border">
           <Search size={16} className="text-muted-foreground" color="#71717A" />
           <TextInput
             className="flex-1 ml-2 text-[13px] text-foreground"
@@ -56,7 +56,7 @@ export function AddFriendPanel({
         <TouchableOpacity
           onPress={onSearch}
           disabled={isSearching || !searchEmail.trim()}
-          className={`h-[42px] px-4.5 rounded-xl items-center justify-center ${
+          className={`h-11 px-5 rounded-2xl items-center justify-center ${
             searchEmail.trim() ? "bg-primary" : "bg-primary/50"
           }`}
         >

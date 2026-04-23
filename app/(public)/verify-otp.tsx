@@ -5,7 +5,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
-  Image,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";

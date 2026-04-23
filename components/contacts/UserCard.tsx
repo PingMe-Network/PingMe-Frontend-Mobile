@@ -30,12 +30,12 @@ export function UserCard({
   const isOnline = item.status === "ONLINE";
 
   return (
-    <View className="flex-row items-center py-3 px-4 mb-2 mx-4 bg-card border border-border rounded-custom shadow-sm">
+    <View className="flex-row items-center py-3.5 px-3.5 mb-2.5 mx-4 bg-card border border-border rounded-2xl">
       <View className="relative">
         {item.avatarUrl ? (
           <Image
             source={{ uri: item.avatarUrl }}
-            className="w-12 h-12 rounded-full border-[1.5px] border-primary/20"
+            className="w-12 h-12 rounded-full border border-primary/20"
           />
         ) : (
           <View className="w-12 h-12 rounded-full bg-primary/10 items-center justify-center border border-primary/10">
@@ -48,7 +48,7 @@ export function UserCard({
       </View>
 
       <View className="flex-1 ml-3">
-        <Text className="font-bold text-[14px] text-foreground" numberOfLines={1}>
+        <Text className="font-semibold text-[15px] text-foreground" numberOfLines={1}>
           {item.name}
         </Text>
         <Text className="text-[12px] text-muted-foreground mt-0.5" numberOfLines={1}>
@@ -61,7 +61,7 @@ export function UserCard({
           <>
             <TouchableOpacity
               onPress={() => onStartChat(item.id)}
-              className="w-8 h-8 rounded-full bg-primary/10 items-center justify-center border border-primary/20"
+              className="h-8 px-2.5 rounded-full bg-primary/10 items-center justify-center border border-primary/20 flex-row"
             >
               <MessageCircle size={15} className="text-primary" color={iconColor} />
             </TouchableOpacity>

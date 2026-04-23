@@ -84,11 +84,9 @@ export default function ReelCard({
   }, [isActive, isVideoPaused]);
 
   // Sync mute state
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     player.muted = isMuted;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMuted]);
+  }, [isMuted, player]);
 
   // Listen to playback status for loading indicator — run once on mount
   useEffect(() => {
