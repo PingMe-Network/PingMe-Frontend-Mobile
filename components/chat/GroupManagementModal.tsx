@@ -300,16 +300,22 @@ export default function GroupManagementModal({
           text: "Xóa",
           style: "destructive",
           onPress: () => {
-            void runWithLoading(async () => {
-              const response = await removeGroupMemberApi(room.roomId, participant.userId);
-              const nextRoom = resolveRoomFromApiResponse(response);
-              if (!nextRoom) {
-                Alert.alert("Lỗi", "Dữ liệu phòng chat trả về không hợp lệ.");
-                return;
+            void (async () => {
+              try {
+                await runWithLoading(async () => {
+                  const response = await removeGroupMemberApi(room.roomId, participant.userId);
+                  const nextRoom = resolveRoomFromApiResponse(response);
+                  if (!nextRoom) {
+                    Alert.alert("Lỗi", "Dữ liệu phòng chat trả về không hợp lệ.");
+                    return;
+                  }
+                  onRoomUpdated(nextRoom);
+                  Alert.alert("Thành công", "Đã xóa thành viên khỏi nhóm.");
+                });
+              } catch (error: any) {
+                Alert.alert("Lỗi", error?.response?.data?.errorMessage || "Không thể xóa thành viên.");
               }
-              onRoomUpdated(nextRoom);
-              Alert.alert("Thành công", "Đã xóa thành viên khỏi nhóm.");
-            });
+            })();
           },
         },
       ]
