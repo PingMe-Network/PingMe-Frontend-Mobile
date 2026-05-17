@@ -1,5 +1,9 @@
 import type { RoomResponse } from "@/types/chat/room";
 import type { CurrentUserSessionResponse } from "@/types/auth";
+import {
+  ENCRYPTED_TEXT_PREVIEW,
+  isEncryptedTextContent,
+} from "@/utils/textMessageCrypto";
 
 export const getRoomDisplayName = (
   room: RoomResponse,
@@ -69,7 +73,9 @@ export const getLastMessagePreview = (
       break;
     case "TEXT":
     default:
-      messageContent = room.lastMessage.preview;
+      messageContent = isEncryptedTextContent(room.lastMessage.preview)
+        ? ENCRYPTED_TEXT_PREVIEW
+        : room.lastMessage.preview;
       break;
   }
 

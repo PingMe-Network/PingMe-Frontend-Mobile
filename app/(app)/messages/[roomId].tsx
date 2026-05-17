@@ -87,6 +87,16 @@ import MultiImageGrid from "@/components/chat/MultiImageGrid";
 import MessagePoll from "@/components/chat/MessagePoll";
 import CreatePollModal from "@/components/chat/CreatePollModal";
 import GroupManagementModal from "@/components/chat/GroupManagementModal";
+import {
+  DECRYPT_TEXT_FAILURE,
+  ENCRYPTED_TEXT_PREVIEW,
+  MAX_ENCRYPTED_TEXT_CONTENT_LENGTH,
+  decryptTextMessageForRoom,
+  decryptTextMessagesForRoom,
+  encryptTextMessageContent,
+  getRoomTextEncryptionMaterial,
+  isEncryptedTextContent,
+} from "@/utils/textMessageCrypto";
 
 // ─── UUID ────────────────────────────────────────────────────────────
 type CryptoLike = {
@@ -222,6 +232,7 @@ export default function ChatRoomScreen() {
   // ── Core state ────────────────────────────────────────────
   const [room, setRoom] = useState<RoomResponse | null>(null);
   const [historyMessages, setHistoryMessages] = useState<MessageResponse[]>([]);
+  const [liveMessages, setLiveMessages] = useState<MessageResponse[]>([]);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -253,6 +264,26 @@ export default function ChatRoomScreen() {
   const flatListRef = useRef<FlatList>(null);
   const isInitialLoad = useRef(true);
   const pinnedRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const roomCryptoMaterial = useMemo(
+    () => (room ? getRoomTextEncryptionMaterial(room) : ""),
+    [room]
+  );
+
+  const decryptMessageForCurrentRoom = useCallback(
+    async (message: MessageResponse) => {
+      if (!room) return message;
+      return decryptTextMessageForRoom(message, room);
+    },
+    [room, roomCryptoMaterial]
+  );
+
+  const addMessageFromServer = useCallback(
+    async (message: MessageResponse) => {
+      const decrypted = await decryptMessageForCurrentRoom(message);
+      setHistoryMessages((prev) => addUniqueMessage(prev, decrypted));
+    },
+    [decryptMessageForCurrentRoom]
+  );
 
   // ── Fetch room info ───────────────────────────────────────
   const fetchRoom = useCallback(async () => {
@@ -312,15 +343,18 @@ export default function ChatRoomScreen() {
 
         const response = await getHistoryMessagesApi(roomId, beforeId, 20);
         const hist = response.data.data;
+        const newMessages = room
+          ? await decryptTextMessagesForRoom(hist.messageResponses, room)
+          : hist.messageResponses;
 
         if (append) {
           setHistoryMessages((prev) => {
             const ids = new Set(prev.map((m) => String(m.id)));
-            const unique = hist.messageResponses.filter((m) => !ids.has(String(m.id)));
+            const unique = newMessages.filter((m) => !ids.has(String(m.id)));
             return [...prev, ...unique];
           });
         } else {
-          setHistoryMessages(hist.messageResponses);
+          setHistoryMessages(newMessages);
         }
         setHasMoreMessages(hist.hasMore);
       } catch (err) {
@@ -330,7 +364,7 @@ export default function ChatRoomScreen() {
         setIsLoadingMore(false);
       }
     },
-    [roomId]
+    [roomId, room, roomCryptoMaterial]
   );
 
   useEffect(() => {
@@ -360,7 +394,8 @@ export default function ChatRoomScreen() {
           clearTimeout(pinnedRetryTimeoutRef.current);
           pinnedRetryTimeoutRef.current = null;
         }
-        setPinnedMessages(res.data.data || []);
+        const pinned = res.data.data || [];
+        setPinnedMessages(room ? await decryptTextMessagesForRoom(pinned, room) : pinned);
         return;
       } catch (err: any) {
         const status = err?.response?.status;
@@ -381,11 +416,32 @@ export default function ChatRoomScreen() {
         return;
       }
     }
-  }, [room?.roomType, roomId]);
+  }, [room, room?.roomType, roomCryptoMaterial, roomId]);
 
   useEffect(() => {
     fetchPinnedMessages();
   }, [fetchPinnedMessages]);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!room) {
+      setLiveMessages(reduxMessages);
+      return () => {
+        active = false;
+      };
+    }
+
+    decryptTextMessagesForRoom(reduxMessages, room).then((decrypted) => {
+      if (active) {
+        setLiveMessages(decrypted);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [reduxMessages, room, roomCryptoMaterial]);
 
   useEffect(() => {
     setIsSummaryDismissed(false);
@@ -482,27 +538,29 @@ export default function ChatRoomScreen() {
         const updated = ev.messageResponse as MessageResponse | undefined;
         if (!updated || Number(updated.roomId) !== roomId) return;
 
-        setPinnedMessages((prev) => {
-          const idx = prev.findIndex((msg) => String(msg.id) === String(updated.id));
+        void decryptMessageForCurrentRoom(updated).then((decryptedUpdated) => {
+          setPinnedMessages((prev) => {
+            const idx = prev.findIndex((msg) => String(msg.id) === String(decryptedUpdated.id));
 
-          if (!updated.isActive || !updated.isPinned) {
-            if (idx === -1) return prev;
-            return prev.filter((msg) => String(msg.id) !== String(updated.id));
-          }
+            if (!decryptedUpdated.isActive || !decryptedUpdated.isPinned) {
+              if (idx === -1) return prev;
+              return prev.filter((msg) => String(msg.id) !== String(decryptedUpdated.id));
+            }
 
-          if (idx !== -1) {
-            const next = [...prev];
-            next[idx] = { ...next[idx], ...updated };
-            return next.sort((a, b) => {
-              const aTime = new Date(a.pinnedAt || a.createdAt).getTime();
-              const bTime = new Date(b.pinnedAt || b.createdAt).getTime();
-              return bTime - aTime;
-            });
-          }
+            if (idx !== -1) {
+              const next = [...prev];
+              next[idx] = { ...next[idx], ...decryptedUpdated };
+              return next.sort((a, b) => {
+                const aTime = new Date(a.pinnedAt || a.createdAt).getTime();
+                const bTime = new Date(b.pinnedAt || b.createdAt).getTime();
+                return bTime - aTime;
+              });
+            }
 
-          // Newly pinned message may not be in current history slice -> refetch pinned list.
-          void fetchPinnedMessages();
-          return prev;
+            // Newly pinned message may not be in current history slice -> refetch pinned list.
+            void fetchPinnedMessages();
+            return prev;
+          });
         });
       }),
     ];
@@ -510,7 +568,14 @@ export default function ChatRoomScreen() {
     return () => {
       unsubs.forEach((unsub) => unsub());
     };
-  }, [dispatch, fetchPinnedMessages, roomId, router, userSession?.id]);
+  }, [
+    decryptMessageForCurrentRoom,
+    dispatch,
+    fetchPinnedMessages,
+    roomId,
+    router,
+    userSession?.id,
+  ]);
 
   // ── Merge history + redux, apply recalls + updates ────────
   const messages = useMemo(() => {
@@ -523,14 +588,14 @@ export default function ChatRoomScreen() {
       historyMessages.map((m) => (m.clientMsgId ? String(m.clientMsgId) : ""))
     );
 
-    const newFromRedux = reduxMessages.filter(
+    const newFromRedux = liveMessages.filter(
       (m) =>
         !historyIds.has(String(m.id)) &&
         (!m.clientMsgId || !historyClientIds.has(String(m.clientMsgId)))
     );
 
     // Apply MESSAGE_UPDATED from redux into history
-    const reduxById = new Map(reduxMessages.map((m) => [String(m.id), m]));
+    const reduxById = new Map(liveMessages.map((m) => [String(m.id), m]));
     const merged = updatedHistory.map((m) => {
       const updated = reduxById.get(String(m.id));
       return updated ? { ...m, ...updated } : m;
@@ -546,7 +611,7 @@ export default function ChatRoomScreen() {
     });
 
     return merged;
-  }, [historyMessages, reduxMessages, recalledMessageIds]);
+  }, [historyMessages, liveMessages, recalledMessageIds]);
 
   useEffect(() => {
     if (room?.roomType !== "GROUP") return;
@@ -598,6 +663,10 @@ export default function ChatRoomScreen() {
       Alert.alert("Lỗi", "Room chat không hợp lệ.");
       return;
     }
+    if (!room) {
+      Alert.alert("Thông báo", "Đang tải thông tin phòng chat, vui lòng thử lại.");
+      return;
+    }
 
     // ── EDIT MODE ──
     if (editTarget) {
@@ -606,8 +675,16 @@ export default function ChatRoomScreen() {
       const snapshot = editTarget;
       setEditTarget(null);
       try {
-        const res = await editMessageApi(snapshot.id, { content: text });
-        const updated = res.data.data;
+        const encryptedContent = await encryptTextMessageContent(text, room);
+        if (encryptedContent.length > MAX_ENCRYPTED_TEXT_CONTENT_LENGTH) {
+          Alert.alert("Lỗi", "Tin nhắn quá dài để mã hóa, vui lòng rút ngắn nội dung.");
+          setMessageText(text);
+          setEditTarget(snapshot);
+          return;
+        }
+
+        const res = await editMessageApi(snapshot.id, { content: encryptedContent });
+        const updated = await decryptMessageForCurrentRoom(res.data.data);
         // update history
         setHistoryMessages((prev) =>
           prev.map((m) => (String(m.id) === String(snapshot.id) ? { ...m, ...updated } : m))
@@ -615,7 +692,10 @@ export default function ChatRoomScreen() {
         // update redux
         dispatch(messageUpdated({ chatEventType: "MESSAGE_UPDATED", messageResponse: updated }));
       } catch (err: any) {
-        Alert.alert("Lỗi", err?.response?.data?.errorMessage || "Không thể chỉnh sửa.");
+        Alert.alert(
+          "Lỗi",
+          err?.response?.data?.errorMessage || "Không thể mã hóa hoặc chỉnh sửa tin nhắn."
+        );
         setMessageText(text);
         setEditTarget(snapshot);
       } finally {
@@ -625,8 +705,21 @@ export default function ChatRoomScreen() {
     }
 
     // ── SEND MODE ──
+    let encryptedContent: string;
+    try {
+      encryptedContent = await encryptTextMessageContent(text, room);
+      if (encryptedContent.length > MAX_ENCRYPTED_TEXT_CONTENT_LENGTH) {
+        Alert.alert("Lỗi", "Tin nhắn quá dài để mã hóa, vui lòng rút ngắn nội dung.");
+        return;
+      }
+    } catch (err) {
+      console.error("[ChatRoom] Failed to encrypt text message:", err);
+      Alert.alert("Lỗi", "Thiết bị hiện chưa hỗ trợ mã hóa tin nhắn.");
+      return;
+    }
+
     const payload = {
-      content: text,
+      content: encryptedContent,
       clientMsgId: generateUUID(),
       type: "TEXT" as const,
       roomId,
@@ -651,7 +744,7 @@ export default function ChatRoomScreen() {
         }
       }
       const res = await sendMessageApi(payload);
-      setHistoryMessages((prev) => addUniqueMessage(prev, res.data.data as MessageResponse));
+      await addMessageFromServer(res.data.data as MessageResponse);
     } catch (error: any) {
       const apiMessage =
         error?.response?.data?.message ||
@@ -708,7 +801,7 @@ export default function ChatRoomScreen() {
               } as any);
 
               const res = await sendFileMessageApi(formData);
-              setHistoryMessages((prev) => addUniqueMessage(prev, res.data.data as MessageResponse));
+              await addMessageFromServer(res.data.data as MessageResponse);
             }
 
             // Upload images in batch
@@ -736,7 +829,7 @@ export default function ChatRoomScreen() {
               });
 
               const res = await sendImageBatchMessageApi(formData);
-              setHistoryMessages((prev) => addUniqueMessage(prev, res.data.data as MessageResponse));
+              await addMessageFromServer(res.data.data as MessageResponse);
             }
 
             setReplyTarget(null);
@@ -779,7 +872,7 @@ export default function ChatRoomScreen() {
             } as any);
 
             const res = await sendFileMessageApi(formData);
-            setHistoryMessages((prev) => addUniqueMessage(prev, res.data.data as MessageResponse));
+            await addMessageFromServer(res.data.data as MessageResponse);
             setReplyTarget(null);
           } catch (err: any) {
             const errMsg = err?.response?.data?.errorMessage || "Không thể gửi file.";
@@ -834,15 +927,20 @@ export default function ChatRoomScreen() {
         return `📊 ${message.poll?.question || "Bình chọn"}`;
       case "TEXT":
       default:
-        return message.content || "";
+        return isEncryptedTextContent(message.content)
+          ? ENCRYPTED_TEXT_PREVIEW
+          : message.content || "";
     }
   };
 
-  const updateMessageLocally = (updated: MessageResponse) => {
+  const updateMessageLocally = async (updated: MessageResponse) => {
+    const decrypted = await decryptMessageForCurrentRoom(updated);
     setHistoryMessages((prev) =>
-      prev.map((msg) => (String(msg.id) === String(updated.id) ? { ...msg, ...updated } : msg))
+      prev.map((msg) =>
+        String(msg.id) === String(decrypted.id) ? { ...msg, ...decrypted } : msg
+      )
     );
-    dispatch(messageUpdated({ chatEventType: "MESSAGE_UPDATED", messageResponse: updated }));
+    dispatch(messageUpdated({ chatEventType: "MESSAGE_UPDATED", messageResponse: decrypted }));
   };
 
   const scrollToPinnedMessage = (messageId: string) => {
@@ -871,7 +969,7 @@ export default function ChatRoomScreen() {
         allowMultiple,
         repliedMessageId: replyTarget?.id ?? null,
       });
-      setHistoryMessages((prev) => addUniqueMessage(prev, res.data.data as MessageResponse));
+      await addMessageFromServer(res.data.data as MessageResponse);
       setReplyTarget(null);
       setShowCreatePollModal(false);
     } catch (error: any) {
@@ -954,8 +1052,8 @@ export default function ChatRoomScreen() {
       case "pin":
         try {
           const res = await pinMessageApi(msg.id);
-          updateMessageLocally(res.data.data);
-          fetchPinnedMessages();
+          await updateMessageLocally(res.data.data);
+          await fetchPinnedMessages();
         } catch (error: any) {
           Alert.alert("Lỗi", error?.response?.data?.errorMessage || "Không thể ghim tin nhắn.");
         }
@@ -964,7 +1062,7 @@ export default function ChatRoomScreen() {
       case "unpin":
         try {
           const res = await unpinMessageApi(msg.id);
-          updateMessageLocally(res.data.data);
+          await updateMessageLocally(res.data.data);
           setPinnedMessages((prev) => prev.filter((item) => String(item.id) !== String(msg.id)));
         } catch (error: any) {
           Alert.alert("Lỗi", error?.response?.data?.errorMessage || "Không thể bỏ ghim tin nhắn.");
@@ -1111,7 +1209,9 @@ export default function ChatRoomScreen() {
           message={item}
           currentUserId={userSession?.id}
           isMine={isMine}
-          onMessageUpdated={updateMessageLocally}
+          onMessageUpdated={(message) => {
+            void updateMessageLocally(message);
+          }}
         />
       );
     } else {
@@ -1119,7 +1219,7 @@ export default function ChatRoomScreen() {
         <Text
           className={`text-[15px] ${isMine ? "text-primary-foreground font-medium" : "text-foreground font-medium"}`}
         >
-          {item.content}
+          {isEncryptedTextContent(item.content) ? DECRYPT_TEXT_FAILURE : item.content}
         </Text>
       );
     }
@@ -1324,7 +1424,7 @@ export default function ChatRoomScreen() {
                           event.stopPropagation();
                           try {
                             const res = await unpinMessageApi(item.id);
-                            updateMessageLocally(res.data.data);
+                            await updateMessageLocally(res.data.data);
                             setPinnedMessages((prev) =>
                               prev.filter((entry) => String(entry.id) !== String(item.id))
                             );

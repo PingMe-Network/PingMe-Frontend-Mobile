@@ -1,6 +1,10 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import type { RepliedMessageSnapshot } from "@/types/chat/message";
+import {
+  ENCRYPTED_TEXT_PREVIEW,
+  isEncryptedTextContent,
+} from "@/utils/textMessageCrypto";
 
 interface RepliedMessageBubbleProps {
   replied: RepliedMessageSnapshot;
@@ -15,7 +19,8 @@ function getPreviewText(msg: RepliedMessageSnapshot): string {
     case "VIDEO": return "🎥 Video";
     case "FILE": return `📎 Tệp${msg.fileFormat ? `.${msg.fileFormat}` : ""}`;
     case "WEATHER": return "🌤 Thời tiết";
-    default: return msg.content ?? "";
+    default:
+      return isEncryptedTextContent(msg.content) ? ENCRYPTED_TEXT_PREVIEW : msg.content ?? "";
   }
 }
 

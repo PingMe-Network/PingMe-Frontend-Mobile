@@ -33,6 +33,7 @@
     "expo": "^55.0.9",
     "expo-audio": "~55.0.14",
     "expo-constants": "~55.0.9",
+    "expo-crypto": "~55.0.15",
     "expo-dev-client": "~55.0.19",
     "expo-device": "~55.0.10",
     "expo-document-picker": "^55.0.13",

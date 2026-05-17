@@ -33,6 +33,10 @@ import type {
   RoomMemberRoleChangedEventPayload,
   RoomDeletedEventPayload,
 } from "@/features/chat";
+import {
+  ENCRYPTED_TEXT_PREVIEW,
+  isEncryptedTextContent,
+} from "@/utils/textMessageCrypto";
 
 type MessageEventRoomPayload = MessageCreatedEventPayload["messageResponse"];
 
@@ -59,7 +63,10 @@ const applyMessageToRoomList = (
     lastMessage: {
       messageId: message.id,
       senderId: message.senderId,
-      preview: message.content ?? "",
+      preview:
+        message.type === "TEXT" && isEncryptedTextContent(message.content)
+          ? ENCRYPTED_TEXT_PREVIEW
+          : message.content ?? "",
       messageType: message.type as any,
       createdAt: message.createdAt,
     },
@@ -155,7 +162,10 @@ export default function MessagesScreen() {
                 senderId: existingLastMsg.senderId,
                 messageType: existingLastMsg.messageType,
                 createdAt: existingLastMsg.createdAt,
-                preview: (msg.content as string | null) ?? existingLastMsg.preview,
+                preview:
+                  msg.type === "TEXT" && isEncryptedTextContent(msg.content)
+                    ? ENCRYPTED_TEXT_PREVIEW
+                    : (msg.content as string | null) ?? existingLastMsg.preview,
               },
             };
             return [updatedRoom, ...removeRoomById(prev, targetRoom.roomId)] as RoomResponse[];

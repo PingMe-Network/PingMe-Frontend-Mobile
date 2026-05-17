@@ -52,6 +52,7 @@ export interface MessageResponse {
   isEdited?: boolean;
   editedAt?: string | null;
   poll?: PollResponse | null;
+  isEncryptedText?: boolean;
 }
 
 export interface PollOptionResponse {

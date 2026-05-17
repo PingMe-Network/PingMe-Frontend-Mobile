@@ -19,6 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react-native";
 import type { MessageResponse } from "@/types/chat/message";
+import { isEncryptedTextContent } from "@/utils/textMessageCrypto";
 
 export type MessageAction =
   | "reply"
@@ -49,6 +50,7 @@ const ACTION_ITEMS: {
   requiresActive?: boolean;
   requiresGroupRoom?: boolean;
   hideForPoll?: boolean;
+  hideForEncryptedText?: boolean;
   dynamic?: (message: MessageResponse) => {
     label: string;
     icon: LucideIcon;
@@ -76,6 +78,7 @@ const ACTION_ITEMS: {
     iconColor: "#0891B2",
     requiresActive: true,
     hideForPoll: true,
+    hideForEncryptedText: true,
   },
   {
     key: "pin",
@@ -119,6 +122,8 @@ export default function MessageActionSheet({
 
   const isActive = message.isActive;
   const isText = message.type === "TEXT";
+  const isEncryptedText =
+    isText && (message.isEncryptedText || isEncryptedTextContent(message.content));
 
   const visibleActions = ACTION_ITEMS.filter((item) => {
     if (item.requiresOwnText && !(isOwnMessage && isText)) return false;
@@ -129,6 +134,7 @@ export default function MessageActionSheet({
       return true;
     }
     if (item.hideForPoll && message.type === "POLL") return false;
+    if (item.hideForEncryptedText && isEncryptedText) return false;
     return true;
   }).map((item) => ({
     ...item,
