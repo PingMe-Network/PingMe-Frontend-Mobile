@@ -19,14 +19,23 @@ interface CreatePollModalProps {
 
 const MIN_OPTIONS = 2;
 const MAX_OPTIONS = 10;
+const createInitialOptions = (): PollOption[] => [
+  { id: 1, value: "" },
+  { id: 2, value: "" },
+];
+
+interface PollOption {
+  id: number;
+  value: string;
+}
 
 interface PollOptionRowProps {
   index: number;
-  option: string;
+  option: PollOption;
   canRemove: boolean;
   loading: boolean;
-  onChangeOption: (index: number, value: string) => void;
-  onRemoveOption: (index: number) => void;
+  onChangeOption: (id: number, value: string) => void;
+  onRemoveOption: (id: number) => void;
 }
 
 function PollOptionRow({
@@ -38,18 +47,18 @@ function PollOptionRow({
   onRemoveOption,
 }: Readonly<PollOptionRowProps>) {
   const handleChangeText = (value: string) => {
-    onChangeOption(index, value);
+    onChangeOption(option.id, value);
   };
 
   const handleRemove = () => {
-    onRemoveOption(index);
+    onRemoveOption(option.id);
   };
 
   return (
     <View style={styles.optionRow}>
       <TextInput
         style={[styles.input, styles.optionInput]}
-        value={option}
+        value={option.value}
         onChangeText={handleChangeText}
         placeholder={`Lựa chọn ${index + 1}`}
         placeholderTextColor="#9CA3AF"
@@ -71,18 +80,18 @@ export default function CreatePollModal({
   onSubmit,
 }: CreatePollModalProps) {
   const [question, setQuestion] = useState("");
-  const [options, setOptions] = useState<string[]>(["", ""]);
+  const [options, setOptions] = useState<PollOption[]>(createInitialOptions);
   const [allowMultiple, setAllowMultiple] = useState(false);
 
   useEffect(() => {
     if (!visible) return;
     setQuestion("");
-    setOptions(["", ""]);
+    setOptions(createInitialOptions());
     setAllowMultiple(false);
   }, [visible]);
 
   const sanitizedOptions = useMemo(
-    () => options.map((item) => item.trim()).filter((item) => item.length > 0),
+    () => options.map((item) => item.value.trim()).filter((item) => item.length > 0),
     [options]
   );
 
@@ -97,20 +106,19 @@ export default function CreatePollModal({
     !hasDuplicateOptions &&
     !loading;
 
-  const updateOption = (index: number, value: string) => {
-    setOptions((prev) => {
-      const next = [...prev];
-      next[index] = value;
-      return next;
-    });
+  const updateOption = (id: number, value: string) => {
+    setOptions((prev) => prev.map((option) => (option.id === id ? { ...option, value } : option)));
   };
 
-  const removeOption = (index: number) => {
-    setOptions((prev) => prev.filter((_, idx) => idx !== index));
+  const removeOption = (id: number) => {
+    setOptions((prev) => prev.filter((option) => option.id !== id));
   };
 
   const addOption = () => {
-    setOptions((prev) => [...prev, ""]);
+    setOptions((prev) => {
+      const lastId = prev.at(-1)?.id ?? 0;
+      return [...prev, { id: lastId + 1, value: "" }];
+    });
   };
 
   const submit = () => {
@@ -139,7 +147,7 @@ export default function CreatePollModal({
       <Text style={styles.label}>Lựa chọn</Text>
       {options.map((option, index) => (
         <PollOptionRow
-          key={`poll-option-${index}`}
+          key={`poll-option-${option.id}`}
           index={index}
           option={option}
           canRemove={options.length > MIN_OPTIONS}

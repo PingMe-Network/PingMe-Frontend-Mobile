@@ -705,7 +705,7 @@ export default function GroupManagementModal({
       setGroupSettings(groupSettings);
       Alert.alert("Lá»—i", error?.response?.data?.errorMessage || "KhÃ´ng thá»ƒ cáº­p nháº­t cÃ i Ä‘áº·t.");
     } finally {
-      setPendingSettingKey(null);
+      setPendingSettingKey(() => null);
     }
   };
 
