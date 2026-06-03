@@ -691,8 +691,9 @@ export default function GroupManagementModal({
 
   const handleToggleSetting = async (key: keyof UpdateGroupSettingsRequest) => {
     if (!groupSettings || !canManageGroup || pendingSettingKey) return;
-    const previousValue = Boolean(groupSettings[key]);
-    const nextSettings = { ...groupSettings, [key]: !previousValue };
+    const previousSettings = groupSettings;
+    const previousValue = Boolean(previousSettings[key]);
+    const nextSettings = { ...previousSettings, [key]: !previousValue };
     setPendingSettingKey(key);
     setGroupSettings(nextSettings);
 
@@ -702,10 +703,10 @@ export default function GroupManagementModal({
       });
       setGroupSettings(response.data.data);
     } catch (error: any) {
-      setGroupSettings(groupSettings);
+      setGroupSettings(previousSettings);
       Alert.alert("Lá»—i", error?.response?.data?.errorMessage || "KhÃ´ng thá»ƒ cáº­p nháº­t cÃ i Ä‘áº·t.");
     } finally {
-      setPendingSettingKey(() => null);
+      setPendingSettingKey(null);
     }
   };
 
