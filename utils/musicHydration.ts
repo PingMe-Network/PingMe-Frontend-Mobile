@@ -58,6 +58,40 @@ export async function fetchSongCached(id: number): Promise<Song | null> {
     return fetchPromise;
 }
 
+async function fetchSongsCached(ids: number[]): Promise<Map<number, Song>> {
+    const songsById = new Map<number, Song>();
+    const missingIds: number[] = [];
+
+    ids.forEach((id) => {
+        const cached = getCachedSong(id);
+        if (cached) {
+            songsById.set(id, cached);
+            return;
+        }
+        missingIds.push(id);
+    });
+
+    const uniqueMissingIds = [...new Set(missingIds)];
+    if (uniqueMissingIds.length === 0) {
+        return songsById;
+    }
+
+    try {
+        const fetchedSongs = await songApi.getSongsByIds(uniqueMissingIds);
+        fetchedSongs.forEach((song) => {
+            songCache.set(song.id, { song, fetchedAt: Date.now() });
+            songsById.set(song.id, song);
+        });
+    } catch {
+        const fallbackSongs = await Promise.all(uniqueMissingIds.map(fetchSongCached));
+        fallbackSongs.forEach((song) => {
+            if (song) songsById.set(song.id, song);
+        });
+    }
+
+    return songsById;
+}
+
 /** Clear the song cache (e.g. on logout) */
 export function clearSongHydrationCache(): void {
     songCache.clear();
@@ -70,24 +104,25 @@ export const hydrateSongs = async (
     items: (TopSongPlayCounter | SongResponseWithAllAlbum)[]
 ): Promise<SongResponseWithAllAlbum[]> => {
     try {
-        // Use Promise.all to fire requests. 
-        // The global axios queue will automatically space them out by 600ms.
-        return await Promise.all(
-            items.map(async (item) => {
-                if ('songId' in item) {
-                    const fullSong = await fetchSongCached(item.songId);
-                    if (fullSong) {
-                        return {
-                            ...fullSong,
-                            albums: fullSong.album ? [fullSong.album] : [],
-                            playCount: Math.max(fullSong.playCount || 0, item.playCount),
-                        } as unknown as SongResponseWithAllAlbum;
-                    }
-                    return normalizeTopSong(item);
+        const songIds = items
+            .filter((item): item is TopSongPlayCounter => 'songId' in item)
+            .map((item) => item.songId);
+        const songsById = await fetchSongsCached(songIds);
+
+        return items.map((item) => {
+            if ('songId' in item) {
+                const fullSong = songsById.get(item.songId);
+                if (fullSong) {
+                    return {
+                        ...fullSong,
+                        albums: fullSong.album ? [fullSong.album] : [],
+                        playCount: Math.max(fullSong.playCount || 0, item.playCount),
+                    } as unknown as SongResponseWithAllAlbum;
                 }
-                return item;
-            })
-        );
+                return normalizeTopSong(item);
+            }
+            return item;
+        });
     } catch (error) {
         console.error("Hydration failed", error);
         return items.map(normalizeTopSong);

@@ -1,3 +1,14 @@
+export type ChatMessageType =
+  | "TEXT"
+  | "IMAGE"
+  | "VIDEO"
+  | "FILE"
+  | "SYSTEM"
+  | "WEATHER"
+  | "POLL"
+  | "NOTE"
+  | "REMINDER";
+
 // ======================================================
 // REPLIED MESSAGE (nested, not full MessageResponse)
 // ======================================================
@@ -5,7 +16,7 @@ export interface RepliedMessageSnapshot {
   id: string;
   senderId: number;
   content: string | null;
-  type: "TEXT" | "IMAGE" | "VIDEO" | "FILE" | "SYSTEM" | "WEATHER" | "POLL";
+  type: ChatMessageType;
   isActive: boolean;
   fileFormat?: string | null;
   mediaUrls?: string[] | null;
@@ -30,7 +41,7 @@ export interface MessageResponse {
   clientMsgId: string;
   senderId: number;
   content: string | null;
-  type: "TEXT" | "IMAGE" | "VIDEO" | "FILE" | "SYSTEM" | "WEATHER" | "POLL";
+  type: ChatMessageType;
   createdAt: string;
   isActive: boolean;
   isPinned?: boolean;
@@ -52,6 +63,8 @@ export interface MessageResponse {
   isEdited?: boolean;
   editedAt?: string | null;
   poll?: PollResponse | null;
+  note?: NoteResponse | null;
+  reminder?: ReminderResponse | null;
   isEncryptedText?: boolean;
 }
 
@@ -69,6 +82,33 @@ export interface PollResponse {
   expired: boolean;
   totalVotes: number;
   options: PollOptionResponse[];
+}
+
+export interface NoteResponse {
+  id: number;
+  messageId: string;
+  roomId: number;
+  createdByUserId: number;
+  title: string;
+  body: string;
+}
+
+export type ReminderStatus = "PENDING" | "TRIGGERED" | "DONE" | "CANCELED";
+
+export interface ReminderResponse {
+  id: number;
+  messageId: string;
+  roomId: number;
+  createdByUserId: number;
+  title: string;
+  body: string;
+  remindAt: string;
+  timezone: string;
+  repeatRule: string;
+  status: ReminderStatus;
+  triggeredAt?: string | null;
+  completedAt?: string | null;
+  canceledAt?: string | null;
 }
 
 export interface MessageRecalledResponse {
@@ -131,6 +171,27 @@ export interface CreatePollMessageRequest {
   options: string[];
   allowMultiple?: boolean;
   expiresAt?: string | null;
+  repliedMessageId?: string | null;
+}
+
+export interface CreateNoteMessageRequest {
+  roomId: number;
+  clientMsgId: string;
+  title: string;
+  body: string;
+  pinToTop?: boolean;
+  repliedMessageId?: string | null;
+}
+
+export interface CreateReminderMessageRequest {
+  roomId: number;
+  clientMsgId: string;
+  title: string;
+  body: string;
+  remindAt: string;
+  timezone: string;
+  repeatRule?: string;
+  pinToTop?: boolean;
   repliedMessageId?: string | null;
 }
 

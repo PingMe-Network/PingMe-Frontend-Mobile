@@ -7,8 +7,10 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  Share,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -16,14 +18,25 @@ import {
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import type { RoomParticipantResponse, RoomResponse } from "@/types/chat/room";
+import type {
+  GroupJoinRequestResponse,
+  GroupSettingsResponse,
+  RoomParticipantResponse,
+  RoomResponse,
+  UpdateGroupSettingsRequest,
+} from "@/types/chat/room";
 import {
   addGroupMembersApi,
   changeMemberRoleApi,
   dissolveGroupApi,
+  getGroupJoinRequestsApi,
+  getGroupSettingsApi,
   leaveGroupApi,
+  regenerateGroupJoinLinkApi,
   removeGroupMemberApi,
   renameGroupApi,
+  reviewGroupJoinRequestApi,
+  updateGroupSettingsApi,
   updateGroupImageApi,
 } from "@/services/chat";
 import { getAcceptedFriendshipHistoryListApi } from "@/services/friendship";
@@ -81,6 +94,10 @@ export default function GroupManagementModal({
 
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [selectedNewOwnerId, setSelectedNewOwnerId] = useState<number | null>(null);
+  const [groupSettings, setGroupSettings] = useState<GroupSettingsResponse | null>(null);
+  const [pendingJoinRequests, setPendingJoinRequests] = useState<GroupJoinRequestResponse[]>([]);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(false);
+  const [pendingSettingKey, setPendingSettingKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible) return;
@@ -96,6 +113,9 @@ export default function GroupManagementModal({
     setSelectedFriendIds([]);
     setShowLeaveModal(false);
     setSelectedNewOwnerId(null);
+    setGroupSettings(null);
+    setPendingJoinRequests([]);
+    setPendingSettingKey(null);
   }, [visible, room.name, room.roomImgUrl]);
 
   const myParticipant = useMemo(
@@ -105,6 +125,89 @@ export default function GroupManagementModal({
   const myRole = myParticipant?.role || "MEMBER";
   const isOwner = myRole === "OWNER";
   const canManageGroup = myRole === "OWNER" || myRole === "ADMIN";
+
+  const loadGroupSettings = async () => {
+    if (!visible) return;
+    setIsLoadingSettings(true);
+    try {
+      const settingsResponse = await getGroupSettingsApi(room.roomId);
+      setGroupSettings(settingsResponse.data.data);
+
+      if (canManageGroup) {
+        const requestsResponse = await getGroupJoinRequestsApi(room.roomId, "PENDING");
+        setPendingJoinRequests(requestsResponse.data.data ?? []);
+      } else {
+        setPendingJoinRequests([]);
+      }
+    } catch (error: any) {
+      Alert.alert("Lá»—i", error?.response?.data?.errorMessage || "KhÃ´ng thá»ƒ táº£i cÃ i Ä‘áº·t nhÃ³m.");
+    } finally {
+      setIsLoadingSettings(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!visible) return;
+    void loadGroupSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, room.roomId, canManageGroup]);
+
+  const handleToggleSetting = async (key: keyof UpdateGroupSettingsRequest) => {
+    if (!groupSettings || !canManageGroup || pendingSettingKey) return;
+    const previousValue = Boolean(groupSettings[key as keyof GroupSettingsResponse]);
+    const nextSettings = { ...groupSettings, [key]: !previousValue };
+    setPendingSettingKey(key);
+    setGroupSettings(nextSettings);
+
+    try {
+      const response = await updateGroupSettingsApi(room.roomId, {
+        [key]: !previousValue,
+      });
+      setGroupSettings(response.data.data);
+    } catch (error: any) {
+      setGroupSettings(groupSettings);
+      Alert.alert("Lá»—i", error?.response?.data?.errorMessage || "KhÃ´ng thá»ƒ cáº­p nháº­t cÃ i Ä‘áº·t.");
+    } finally {
+      setPendingSettingKey(null);
+    }
+  };
+
+  const handleShareJoinLink = async () => {
+    if (!groupSettings?.joinLink) return;
+    try {
+      await Share.share({
+        message: groupSettings.joinLink,
+        url: groupSettings.joinLink,
+        title: room.name || "PingMe Group",
+      });
+    } catch {
+      Alert.alert("Lá»—i", "KhÃ´ng thá»ƒ chia sáº» link nhÃ³m.");
+    }
+  };
+
+  const handleRegenerateJoinLink = async () => {
+    if (!canManageGroup) return;
+    setIsLoadingSettings(true);
+    try {
+      const response = await regenerateGroupJoinLinkApi(room.roomId);
+      setGroupSettings(response.data.data);
+      Alert.alert("ThÃ nh cÃ´ng", "ÄÃ£ táº¡o láº¡i link nhÃ³m.");
+    } catch (error: any) {
+      Alert.alert("Lá»—i", error?.response?.data?.errorMessage || "KhÃ´ng thá»ƒ táº¡o láº¡i link nhÃ³m.");
+    } finally {
+      setIsLoadingSettings(false);
+    }
+  };
+
+  const handleReviewJoinRequest = async (requestId: number, approved: boolean) => {
+    if (!canManageGroup) return;
+    try {
+      await reviewGroupJoinRequestApi(room.roomId, requestId, approved);
+      setPendingJoinRequests((prev) => prev.filter((request) => request.id !== requestId));
+    } catch (error: any) {
+      Alert.alert("Lá»—i", error?.response?.data?.errorMessage || "KhÃ´ng thá»ƒ xá»­ lÃ½ yÃªu cáº§u.");
+    }
+  };
 
   const sortedParticipants = useMemo(() => {
     const roleOrder: Record<MemberRole, number> = { OWNER: 0, ADMIN: 1, MEMBER: 2 };
@@ -570,6 +673,98 @@ export default function GroupManagementModal({
                   </View>
 
                   <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Cài đặt nhóm</Text>
+                    {isLoadingSettings && !groupSettings ? (
+                      <View style={styles.emptyBlock}>
+                        <ActivityIndicator size="small" color="#DF40A3" />
+                      </View>
+                    ) : (
+                      <>
+                        {[
+                          ["allowMemberEditGroupProfile", "Cho phép thành viên đổi tên/ảnh nhóm"],
+                          ["allowMemberPinMessage", "Cho phép thành viên ghim tin"],
+                          ["allowMemberCreateNote", "Cho phép thành viên tạo ghi chú/nhắc hẹn"],
+                          ["allowMemberCreatePoll", "Cho phép thành viên tạo bình chọn"],
+                          ["allowMemberSendMessage", "Cho phép thành viên gửi tin"],
+                          ["joinApprovalEnabled", "Yêu cầu duyệt khi vào nhóm"],
+                          ["allowNewMemberReadRecent", "Thành viên mới đọc tin gần đây"],
+                          ["joinLinkEnabled", "Bật link tham gia nhóm"],
+                        ].map(([key, label]) => {
+                          const settingKey = key as keyof UpdateGroupSettingsRequest;
+                          return (
+                            <View key={key} style={styles.settingRow}>
+                              <Text style={styles.settingLabel}>{label}</Text>
+                              <Switch
+                                value={Boolean(groupSettings?.[settingKey as keyof GroupSettingsResponse])}
+                                onValueChange={() => handleToggleSetting(settingKey)}
+                                disabled={!canManageGroup || pendingSettingKey !== null || isLoadingSettings}
+                              />
+                            </View>
+                          );
+                        })}
+
+                        {groupSettings?.joinLinkEnabled && groupSettings.joinLink ? (
+                          <View style={styles.joinLinkBox}>
+                            <Text style={styles.joinLinkText} numberOfLines={2}>
+                              {groupSettings.joinLink}
+                            </Text>
+                            <View style={styles.joinLinkActions}>
+                              <TouchableOpacity style={styles.secondaryBtn} onPress={handleShareJoinLink}>
+                                <Text style={styles.secondaryBtnText}>Chia sẻ</Text>
+                              </TouchableOpacity>
+                              {canManageGroup && (
+                                <TouchableOpacity
+                                  style={styles.secondaryBtn}
+                                  onPress={handleRegenerateJoinLink}
+                                  disabled={isLoadingSettings}
+                                >
+                                  <Text style={styles.secondaryBtnText}>Tạo lại</Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          </View>
+                        ) : null}
+
+                        {canManageGroup ? (
+                          <View style={styles.joinRequestBox}>
+                            <Text style={styles.sectionTitle}>Yêu cầu vào nhóm</Text>
+                            {pendingJoinRequests.length === 0 ? (
+                              <Text style={styles.emptyText}>Không có yêu cầu chờ duyệt.</Text>
+                            ) : (
+                              pendingJoinRequests.map((request) => (
+                                <View key={request.id} style={styles.joinRequestRow}>
+                                  <View style={styles.memberTextBox}>
+                                    <Text style={styles.memberName}>{request.requesterName}</Text>
+                                    <Text style={styles.memberRole}>
+                                      {new Date(request.createdAt).toLocaleString("vi-VN")}
+                                    </Text>
+                                  </View>
+                                  <View style={styles.memberActions}>
+                                    <TouchableOpacity
+                                      style={[styles.memberActionBtn, styles.approveActionBtn]}
+                                      onPress={() => handleReviewJoinRequest(request.id, true)}
+                                    >
+                                      <Text style={[styles.memberActionText, styles.approveActionText]}>Duyệt</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                      style={[styles.memberActionBtn, styles.dangerActionBtn]}
+                                      onPress={() => handleReviewJoinRequest(request.id, false)}
+                                    >
+                                      <Text style={[styles.memberActionText, styles.dangerActionText]}>Từ chối</Text>
+                                    </TouchableOpacity>
+                                  </View>
+                                </View>
+                              ))
+                            )}
+                          </View>
+                        ) : (
+                          <Text style={styles.emptyText}>Chỉ quản trị viên mới có thể thay đổi cài đặt.</Text>
+                        )}
+                      </>
+                    )}
+                  </View>
+
+                  <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Nhóm</Text>
                     <TouchableOpacity
                       style={[styles.secondaryBtn, styles.fullWidthBtn]}
@@ -949,6 +1144,57 @@ const styles = StyleSheet.create({
   },
   dangerActionText: {
     color: "#B91C1C",
+  },
+  approveActionBtn: {
+    borderColor: "#BBF7D0",
+    backgroundColor: "#F0FDF4",
+  },
+  approveActionText: {
+    color: "#15803D",
+  },
+  settingRow: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#F3F4F6",
+    gap: 12,
+  },
+  settingLabel: {
+    flex: 1,
+    color: "#374151",
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
+  },
+  joinLinkBox: {
+    borderWidth: 1,
+    borderColor: "#E9D5FF",
+    backgroundColor: "#FAF5FF",
+    borderRadius: 10,
+    padding: 10,
+    gap: 8,
+  },
+  joinLinkText: {
+    color: "#6D28D9",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  joinLinkActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  joinRequestBox: {
+    gap: 8,
+    marginTop: 4,
+  },
+  joinRequestRow: {
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+    borderRadius: 10,
+    padding: 8,
+    gap: 8,
   },
   fullWidthBtn: {
     width: "100%",

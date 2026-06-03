@@ -62,10 +62,8 @@ export const useRanking = () => {
 
             setLoading(false); // unblock UI immediately with raw data
 
-            // ─── Step 3: Hydrate SEQUENTIALLY (one list at a time) ───
-            // This is the key fix: previously all 3 hydrations ran in parallel,
-            // causing up to 15 concurrent getSongById requests → 429.
-            // Now they run one after the other through the shared rate limiter.
+            // Hydrate one preview list at a time. hydrateSongs batches cache misses
+            // into a single request, then falls back to cached single-song requests if needed.
 
             await handleRankingHydration(todayResult, setTopSongToday, "today's");
             await handleRankingHydration(weeklyResult, setTopSongWeekly, "weekly");

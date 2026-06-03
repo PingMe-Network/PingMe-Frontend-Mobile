@@ -1,3 +1,5 @@
+import type { ChatMessageType } from "@/types/chat/message";
+
 // =====================================================================
 // RESPONSE
 // =====================================================================
@@ -29,7 +31,7 @@ export interface LastMessage {
   messageId: string;
   senderId: number;
   preview: string;
-  messageType: "TEXT" | "IMAGE" | "VIDEO" | "FILE" | "WEATHER" | "SYSTEM" | "POLL";
+  messageType: ChatMessageType;
   createdAt: string;
 }
 
@@ -57,10 +59,65 @@ export interface LeaveGroupRequest {
 
 export interface LeaveGroupResponse {
   roomId: number;
-  ownerChanged: boolean;
-  newOwnerId: number | null;
+  leftUserId?: number;
+  newOwnerId?: number | null;
+  ownerChanged?: boolean;
+  dissolved?: boolean;
 }
 
 export interface DissolveGroupResponse {
   roomId: number;
+  dissolvedByUserId?: number;
+  dissolved?: boolean;
+}
+
+export interface GroupSettingsResponse {
+  roomId: number;
+  allowMemberEditGroupProfile: boolean;
+  allowMemberPinMessage: boolean;
+  allowMemberCreateNote: boolean;
+  allowMemberCreatePoll: boolean;
+  allowMemberSendMessage: boolean;
+  joinApprovalEnabled: boolean;
+  highlightAdminMessageOnly: boolean;
+  allowNewMemberReadRecent: boolean;
+  joinLinkEnabled: boolean;
+  joinLink: string | null;
+}
+
+export interface UpdateGroupSettingsRequest {
+  allowMemberEditGroupProfile?: boolean;
+  allowMemberPinMessage?: boolean;
+  allowMemberCreateNote?: boolean;
+  allowMemberCreatePoll?: boolean;
+  allowMemberSendMessage?: boolean;
+  joinApprovalEnabled?: boolean;
+  highlightAdminMessageOnly?: boolean;
+  allowNewMemberReadRecent?: boolean;
+  joinLinkEnabled?: boolean;
+}
+
+export type GroupJoinRequestStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELED";
+
+export interface GroupJoinRequestResponse {
+  id: number;
+  roomId: number;
+  requesterId: number;
+  requesterName: string;
+  requesterAvatarUrl: string | null;
+  status: GroupJoinRequestStatus;
+  reviewedByUserId: number | null;
+  reviewedAt: string | null;
+  createdAt: string;
+}
+
+export interface JoinGroupByLinkRequest {
+  joinLinkToken: string;
+}
+
+export interface JoinGroupByLinkResponse {
+  approvedImmediately: boolean;
+  message: string;
+  room: RoomResponse | null;
+  joinRequest: GroupJoinRequestResponse | null;
 }

@@ -68,6 +68,12 @@ export const getLastMessagePreview = (
     case "POLL":
       messageContent = "📊 Bình chọn";
       break;
+    case "NOTE":
+      messageContent = `Ghi chú${room.lastMessage.preview ? `: ${room.lastMessage.preview}` : ""}`;
+      break;
+    case "REMINDER":
+      messageContent = `Nhắc hẹn${room.lastMessage.preview ? `: ${room.lastMessage.preview}` : ""}`;
+      break;
     case "SYSTEM":
       messageContent = room.lastMessage.preview;
       break;
