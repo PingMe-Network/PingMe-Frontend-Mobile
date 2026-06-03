@@ -65,6 +65,8 @@ import {
   unpinMessageApi,
   getPinnedMessagesApi,
   createPollMessageApi,
+  createNoteMessageApi,
+  createReminderMessageApi,
   getGroupMessageSummaryApi,
 } from "@/services/chat";
 import * as ImagePicker from "expo-image-picker";
@@ -86,6 +88,10 @@ import RepliedMessageBubble from "@/components/chat/RepliedMessageBubble";
 import MultiImageGrid from "@/components/chat/MultiImageGrid";
 import MessagePoll from "@/components/chat/MessagePoll";
 import CreatePollModal from "@/components/chat/CreatePollModal";
+import CreateNoteReminderModal, {
+  type NoteReminderSubmitPayload,
+} from "@/components/chat/CreateNoteReminderModal";
+import MessageNoteReminder from "@/components/chat/MessageNoteReminder";
 import GroupManagementModal from "@/components/chat/GroupManagementModal";
 import {
   DECRYPT_TEXT_FAILURE,
@@ -256,6 +262,8 @@ export default function ChatRoomScreen() {
   const [showPinnedList, setShowPinnedList] = useState(false);
   const [showCreatePollModal, setShowCreatePollModal] = useState(false);
   const [isCreatingPoll, setIsCreatingPoll] = useState(false);
+  const [noteReminderMode, setNoteReminderMode] = useState<"NOTE" | "REMINDER" | null>(null);
+  const [isCreatingNoteReminder, setIsCreatingNoteReminder] = useState(false);
   const [showGroupManagementModal, setShowGroupManagementModal] = useState(false);
   const [groupSummary, setGroupSummary] = useState<GroupMessageSummaryResponse | null>(null);
   const [isLoadingGroupSummary, setIsLoadingGroupSummary] = useState(false);
@@ -763,6 +771,14 @@ export default function ChatRoomScreen() {
       setShowCreatePollModal(true);
       return;
     }
+    if (type === "note") {
+      setNoteReminderMode("NOTE");
+      return;
+    }
+    if (type === "reminder") {
+      setNoteReminderMode("REMINDER");
+      return;
+    }
 
     try {
       if (type === "image") {
@@ -925,6 +941,10 @@ export default function ChatRoomScreen() {
         return "🌤 Thời tiết";
       case "POLL":
         return `📊 ${message.poll?.question || "Bình chọn"}`;
+      case "NOTE":
+        return `Ghi chú: ${message.note?.title || message.content || ""}`;
+      case "REMINDER":
+        return `Nhắc hẹn: ${message.reminder?.title || message.content || ""}`;
       case "TEXT":
       default:
         return isEncryptedTextContent(message.content)
@@ -976,6 +996,54 @@ export default function ChatRoomScreen() {
       Alert.alert("Lỗi", error?.response?.data?.errorMessage || "Không thể tạo bình chọn.");
     } finally {
       setIsCreatingPoll(false);
+    }
+  };
+
+  const toBackendLocalDateTime = (value: string) => {
+    const date = new Date(value);
+    const pad = (num: number) => String(num).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
+  };
+
+  const getNoteReminderTitle = (body: string) => {
+    const firstLine = body.split(/\r?\n/)[0]?.trim() || body.trim();
+    return firstLine.length > 80 ? `${firstLine.slice(0, 77)}...` : firstLine;
+  };
+
+  const handleCreateNoteReminder = async (payload: NoteReminderSubmitPayload) => {
+    if (isCreatingNoteReminder) return;
+    setIsCreatingNoteReminder(true);
+    try {
+      const title = getNoteReminderTitle(payload.body);
+      const common = {
+        roomId,
+        clientMsgId: generateUUID(),
+        title,
+        body: payload.body,
+        pinToTop: payload.type === "NOTE" ? payload.pinToTop : false,
+        repliedMessageId: replyTarget?.id ?? null,
+      };
+
+      const res =
+        payload.type === "NOTE"
+          ? await createNoteMessageApi(common)
+          : await createReminderMessageApi({
+              ...common,
+              remindAt: toBackendLocalDateTime(payload.remindAt),
+              timezone: payload.timezone,
+              repeatRule: payload.repeatRule,
+            });
+
+      await addMessageFromServer(res.data.data as MessageResponse);
+      setReplyTarget(null);
+      setNoteReminderMode(null);
+    } catch (error: any) {
+      Alert.alert(
+        "Lá»—i",
+        error?.response?.data?.errorMessage || "KhÃ´ng thá»ƒ táº¡o ghi chÃº hoáº·c nháº¯c háº¹n."
+      );
+    } finally {
+      setIsCreatingNoteReminder(false);
     }
   };
 
@@ -1120,7 +1188,10 @@ export default function ChatRoomScreen() {
     const isMine = isCurrentUser(item.senderId);
     const sender = getSenderInfo(item.senderId);
     const time = formatMessageTime(item.createdAt);
-    const bubbleMaxWidthClass = item.type === "POLL" ? "max-w-[92%]" : "max-w-[75%]";
+    const bubbleMaxWidthClass =
+      item.type === "POLL" || item.type === "NOTE" || item.type === "REMINDER"
+        ? "max-w-[92%]"
+        : "max-w-[75%]";
 
     // SYSTEM
     if (item.type === "SYSTEM") {
@@ -1214,6 +1285,8 @@ export default function ChatRoomScreen() {
           }}
         />
       );
+    } else if (item.type === "NOTE" || item.type === "REMINDER") {
+      bubbleContent = <MessageNoteReminder message={item} isMine={isMine} />;
     } else {
       bubbleContent = (
         <Text
@@ -1319,7 +1392,7 @@ export default function ChatRoomScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
-        enabled={!showCreatePollModal}
+        enabled={!showCreatePollModal && !noteReminderMode}
       >
         {/* ── Header ── */}
         <View className="flex-row items-center px-4 py-3 bg-card border-b border-border shadow-sm">
@@ -1647,6 +1720,7 @@ export default function ChatRoomScreen() {
       <AttachmentActionSheet
         visible={isAttachmentSheetVisible}
         allowPoll={room?.roomType === "GROUP"}
+        allowNoteReminder={room?.roomType === "GROUP"}
         onClose={() => setIsAttachmentSheetVisible(false)}
         onAction={(action) => uploadAttachment(action)}
       />
@@ -1658,6 +1732,16 @@ export default function ChatRoomScreen() {
           if (!isCreatingPoll) setShowCreatePollModal(false);
         }}
         onSubmit={handleCreatePoll}
+      />
+
+      <CreateNoteReminderModal
+        visible={!!noteReminderMode}
+        mode={noteReminderMode || "NOTE"}
+        loading={isCreatingNoteReminder}
+        onClose={() => {
+          if (!isCreatingNoteReminder) setNoteReminderMode(null);
+        }}
+        onSubmit={handleCreateNoteReminder}
       />
 
       {room?.roomType === "GROUP" && userSession?.id ? (

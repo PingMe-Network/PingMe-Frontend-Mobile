@@ -7,8 +7,10 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  Share,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -16,14 +18,25 @@ import {
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import type { RoomParticipantResponse, RoomResponse } from "@/types/chat/room";
+import type {
+  GroupJoinRequestResponse,
+  GroupSettingsResponse,
+  RoomParticipantResponse,
+  RoomResponse,
+  UpdateGroupSettingsRequest,
+} from "@/types/chat/room";
 import {
   addGroupMembersApi,
   changeMemberRoleApi,
   dissolveGroupApi,
+  getGroupJoinRequestsApi,
+  getGroupSettingsApi,
   leaveGroupApi,
+  regenerateGroupJoinLinkApi,
   removeGroupMemberApi,
   renameGroupApi,
+  reviewGroupJoinRequestApi,
+  updateGroupSettingsApi,
   updateGroupImageApi,
 } from "@/services/chat";
 import { getAcceptedFriendshipHistoryListApi } from "@/services/friendship";
@@ -39,12 +52,558 @@ interface GroupManagementModalProps {
 }
 
 type MemberRole = "OWNER" | "ADMIN" | "MEMBER";
+type RoleAction = { role: MemberRole; label: string };
 
 const roleLabel: Record<MemberRole, string> = {
   OWNER: "Trưởng nhóm",
   ADMIN: "Quản trị viên",
   MEMBER: "Thành viên",
 };
+
+const groupSettingItems: [keyof UpdateGroupSettingsRequest, string][] = [
+  ["allowMemberEditGroupProfile", "Cho phép thành viên đổi tên/ảnh nhóm"],
+  ["allowMemberPinMessage", "Cho phép thành viên ghim tin"],
+  ["allowMemberCreateNote", "Cho phép thành viên tạo ghi chú/nhắc hẹn"],
+  ["allowMemberCreatePoll", "Cho phép thành viên tạo bình chọn"],
+  ["allowMemberSendMessage", "Cho phép thành viên gửi tin"],
+  ["joinApprovalEnabled", "Yêu cầu duyệt khi vào nhóm"],
+  ["allowNewMemberReadRecent", "Thành viên mới đọc tin gần đây"],
+  ["joinLinkEnabled", "Bật link tham gia nhóm"],
+];
+
+const isRoomResponse = (value: unknown): value is RoomResponse => {
+  if (!value || typeof value !== "object") return false;
+  return typeof Reflect.get(value, "roomId") === "number" && Array.isArray(Reflect.get(value, "participants"));
+};
+
+const resolveRoomFromApiResponse = (response: any): RoomResponse | null => {
+  const payload = response?.data?.data;
+  const candidate = payload?.roomId ? payload : payload?.roomResponse;
+  return isRoomResponse(candidate) ? candidate : null;
+};
+
+interface AddMembersModalProps {
+  visible: boolean;
+  isFriendSearchFocused: boolean;
+  friendSearch: string;
+  availableFriends: UserSummaryResponse[];
+  selectedFriendIds: number[];
+  friendHasMore: boolean;
+  isLoadingFriends: boolean;
+  isSubmitting: boolean;
+  friendList: UserSummaryResponse[];
+  onClose: () => void;
+  onChangeFriendSearch: (value: string) => void;
+  onFocusFriendSearch: () => void;
+  onBlurFriendSearch: () => void;
+  onLoadFriends: (beforeId?: number) => void;
+  onToggleSelectedFriend: (friendId: number) => void;
+  onAddMembers: () => void;
+}
+
+function FriendRow({
+  friend,
+  selected,
+  onToggleSelectedFriend,
+}: Readonly<{
+  friend: UserSummaryResponse;
+  selected: boolean;
+  onToggleSelectedFriend: (friendId: number) => void;
+}>) {
+  return (
+    <TouchableOpacity
+      style={[styles.friendRow, selected && styles.friendRowSelected]}
+      onPress={() => onToggleSelectedFriend(friend.id)}
+    >
+      {friend.avatarUrl ? (
+        <Image source={{ uri: friend.avatarUrl }} style={styles.memberAvatar} />
+      ) : (
+        <View style={[styles.memberAvatar, styles.memberAvatarFallback]}>
+          <Text style={styles.memberAvatarText}>{friend.name.charAt(0).toUpperCase()}</Text>
+        </View>
+      )}
+      <Text style={styles.friendName} numberOfLines={1}>
+        {friend.name}
+      </Text>
+      <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
+        {selected && <Text style={styles.checkboxTick}>✓</Text>}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function AddMembersModal({
+  visible,
+  isFriendSearchFocused,
+  friendSearch,
+  availableFriends,
+  selectedFriendIds,
+  friendHasMore,
+  isLoadingFriends,
+  isSubmitting,
+  friendList,
+  onClose,
+  onChangeFriendSearch,
+  onFocusFriendSearch,
+  onBlurFriendSearch,
+  onLoadFriends,
+  onToggleSelectedFriend,
+  onAddMembers,
+}: Readonly<AddMembersModalProps>) {
+  const handleEndReached = () => {
+    if (!friendHasMore || isLoadingFriends || friendList.length === 0) return;
+    const last = friendList.at(-1);
+    if (last) {
+      onLoadFriends(last.id);
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={styles.overlay}>
+          <TouchableWithoutFeedback>
+            <KeyboardAvoidingView
+              style={styles.keyboardAvoidingContainer}
+              behavior={Platform.OS === "ios" ? "padding" : "padding"}
+              keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
+              enabled={isFriendSearchFocused}
+            >
+              <View style={styles.container}>
+                <View style={styles.header}>
+                  <Text style={styles.title}>Thêm thành viên</Text>
+                  <TouchableOpacity onPress={onClose}>
+                    <Text style={styles.closeText}>Đóng</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TextInput
+                  style={styles.input}
+                  value={friendSearch}
+                  onChangeText={onChangeFriendSearch}
+                  onFocus={onFocusFriendSearch}
+                  onBlur={onBlurFriendSearch}
+                  placeholder="Tìm bạn bè..."
+                  placeholderTextColor="#9CA3AF"
+                />
+
+                <FlatList
+                  data={availableFriends}
+                  keyExtractor={(item) => `friend-${item.id}`}
+                  keyboardShouldPersistTaps="handled"
+                  onEndReachedThreshold={0.2}
+                  onEndReached={handleEndReached}
+                  renderItem={({ item }) => (
+                    <FriendRow
+                      friend={item}
+                      selected={selectedFriendIds.includes(item.id)}
+                      onToggleSelectedFriend={onToggleSelectedFriend}
+                    />
+                  )}
+                  ListEmptyComponent={
+                    isLoadingFriends ? (
+                      <View style={styles.emptyBlock}>
+                        <ActivityIndicator size="small" color="#DF40A3" />
+                      </View>
+                    ) : (
+                      <View style={styles.emptyBlock}>
+                        <Text style={styles.emptyText}>Không có bạn bè khả dụng để thêm.</Text>
+                      </View>
+                    )
+                  }
+                  ListFooterComponent={
+                    isLoadingFriends ? (
+                      <View style={styles.footerLoader}>
+                        <ActivityIndicator size="small" color="#DF40A3" />
+                      </View>
+                    ) : null
+                  }
+                />
+
+                <TouchableOpacity style={styles.primaryBtn} onPress={onAddMembers} disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.primaryBtnText}>Thêm thành viên đã chọn</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </KeyboardAvoidingView>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+}
+
+interface LeaveGroupModalProps {
+  visible: boolean;
+  requiresNewOwner: boolean;
+  eligibleNewOwners: RoomParticipantResponse[];
+  selectedNewOwnerId: number | null;
+  isSubmitting: boolean;
+  onClose: () => void;
+  onSelectNewOwner: (userId: number) => void;
+  onLeaveGroup: () => void;
+}
+
+function LeaveGroupModal({
+  visible,
+  requiresNewOwner,
+  eligibleNewOwners,
+  selectedNewOwnerId,
+  isSubmitting,
+  onClose,
+  onSelectNewOwner,
+  onLeaveGroup,
+}: Readonly<LeaveGroupModalProps>) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={styles.overlay}>
+          <TouchableWithoutFeedback>
+            <View style={styles.leaveContainer}>
+              <Text style={styles.leaveTitle}>Rời nhóm</Text>
+              <Text style={styles.leaveDesc}>
+                {requiresNewOwner
+                  ? "Bạn là trưởng nhóm, hãy chọn trưởng nhóm mới trước khi rời."
+                  : "Bạn có chắc muốn rời nhóm chat này?"}
+              </Text>
+
+              {requiresNewOwner && (
+                <View style={styles.newOwnerList}>
+                  {eligibleNewOwners.map((participant) => (
+                    <TouchableOpacity
+                      key={`new-owner-${participant.userId}`}
+                      style={[
+                        styles.newOwnerRow,
+                        selectedNewOwnerId === participant.userId && styles.newOwnerRowSelected,
+                      ]}
+                      onPress={() => onSelectNewOwner(participant.userId)}
+                    >
+                      <Text style={styles.newOwnerName} numberOfLines={1}>
+                        {participant.name}
+                      </Text>
+                      <Text style={styles.newOwnerRole}>{roleLabel[participant.role]}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              <View style={styles.leaveActions}>
+                <TouchableOpacity style={styles.secondaryBtn} onPress={onClose}>
+                  <Text style={styles.secondaryBtnText}>Hủy</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.primaryBtn, styles.leaveConfirmBtn]} onPress={onLeaveGroup}>
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.primaryBtnText}>Xác nhận rời nhóm</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+}
+
+interface GroupInfoSectionProps {
+  roomName?: string | null;
+  previewImage: string | null;
+  isSubmitting: boolean;
+  newGroupName: string;
+  onPickGroupImage: () => void;
+  onRemoveGroupImage: () => void;
+  onSaveGroupImage: () => void;
+  onChangeGroupName: (value: string) => void;
+  onFocusGroupName: () => void;
+  onBlurGroupName: () => void;
+  onRenameGroup: () => void;
+}
+
+function GroupInfoSection({
+  roomName,
+  previewImage,
+  isSubmitting,
+  newGroupName,
+  onPickGroupImage,
+  onRemoveGroupImage,
+  onSaveGroupImage,
+  onChangeGroupName,
+  onFocusGroupName,
+  onBlurGroupName,
+  onRenameGroup,
+}: Readonly<GroupInfoSectionProps>) {
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Thông tin nhóm</Text>
+      <View style={styles.imageRow}>
+        {previewImage ? (
+          <Image source={{ uri: previewImage }} style={styles.groupImage} />
+        ) : (
+          <View style={[styles.groupImage, styles.groupImagePlaceholder]}>
+            <Text style={styles.groupImageFallback}>{(roomName || "G").charAt(0).toUpperCase()}</Text>
+          </View>
+        )}
+        <View style={styles.imageActions}>
+          <TouchableOpacity style={styles.secondaryBtn} onPress={onPickGroupImage} disabled={isSubmitting}>
+            <Text style={styles.secondaryBtnText}>Chọn ảnh</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.secondaryBtn} onPress={onRemoveGroupImage} disabled={isSubmitting}>
+            <Text style={styles.secondaryBtnText}>Xóa ảnh</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <TouchableOpacity style={styles.primaryBtn} onPress={onSaveGroupImage} disabled={isSubmitting}>
+        {isSubmitting ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <Text style={styles.primaryBtnText}>Lưu ảnh nhóm</Text>
+        )}
+      </TouchableOpacity>
+
+      <TextInput
+        style={styles.input}
+        value={newGroupName}
+        onChangeText={onChangeGroupName}
+        onFocus={onFocusGroupName}
+        onBlur={onBlurGroupName}
+        editable={!isSubmitting}
+        placeholder="Nhập tên nhóm mới"
+        placeholderTextColor="#9CA3AF"
+      />
+      <TouchableOpacity style={styles.primaryBtn} onPress={onRenameGroup} disabled={isSubmitting}>
+        {isSubmitting ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <Text style={styles.primaryBtnText}>Đổi tên nhóm</Text>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+interface MembersSectionProps {
+  participants: RoomParticipantResponse[];
+  currentUserId: number;
+  canManageGroup: boolean;
+  isSubmitting: boolean;
+  onOpenAddMembers: () => void;
+  getRoleActions: (participant: RoomParticipantResponse) => RoleAction[];
+  canRemoveMember: (participant: RoomParticipantResponse) => boolean;
+  onChangeRole: (participant: RoomParticipantResponse, role: MemberRole) => void;
+  onRemoveMember: (participant: RoomParticipantResponse) => void;
+}
+
+function MembersSection({
+  participants,
+  currentUserId,
+  canManageGroup,
+  isSubmitting,
+  onOpenAddMembers,
+  getRoleActions,
+  canRemoveMember,
+  onChangeRole,
+  onRemoveMember,
+}: Readonly<MembersSectionProps>) {
+  return (
+    <View style={styles.section}>
+      <View style={styles.membersHeader}>
+        <Text style={styles.sectionTitle}>Thành viên ({participants.length})</Text>
+        {canManageGroup && (
+          <TouchableOpacity style={styles.smallActionBtn} onPress={onOpenAddMembers} disabled={isSubmitting}>
+            <Text style={styles.smallActionBtnText}>+ Thêm</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {participants.map((participant) => (
+        <View key={participant.userId} style={styles.memberCard}>
+          <View style={styles.memberInfo}>
+            {participant.avatarUrl ? (
+              <Image source={{ uri: participant.avatarUrl }} style={styles.memberAvatar} />
+            ) : (
+              <View style={[styles.memberAvatar, styles.memberAvatarFallback]}>
+                <Text style={styles.memberAvatarText}>{participant.name.charAt(0).toUpperCase()}</Text>
+              </View>
+            )}
+            <View style={styles.memberTextBox}>
+              <Text style={styles.memberName} numberOfLines={1}>
+                {participant.name}
+                {participant.userId === currentUserId ? " (Bạn)" : ""}
+              </Text>
+              <Text style={styles.memberRole}>{roleLabel[participant.role]}</Text>
+            </View>
+          </View>
+
+          <View style={styles.memberActions}>
+            {getRoleActions(participant).map((action) => (
+              <TouchableOpacity
+                key={`${participant.userId}-${action.role}`}
+                style={styles.memberActionBtn}
+                onPress={() => onChangeRole(participant, action.role)}
+                disabled={isSubmitting}
+              >
+                <Text style={styles.memberActionText}>{action.label}</Text>
+              </TouchableOpacity>
+            ))}
+            {canRemoveMember(participant) && (
+              <TouchableOpacity
+                style={[styles.memberActionBtn, styles.dangerActionBtn]}
+                onPress={() => onRemoveMember(participant)}
+                disabled={isSubmitting}
+              >
+                <Text style={[styles.memberActionText, styles.dangerActionText]}>Xóa khỏi nhóm</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+interface GroupSettingsSectionProps {
+  isLoadingSettings: boolean;
+  groupSettings: GroupSettingsResponse | null;
+  canManageGroup: boolean;
+  pendingSettingKey: keyof UpdateGroupSettingsRequest | null;
+  pendingJoinRequests: GroupJoinRequestResponse[];
+  onToggleSetting: (key: keyof UpdateGroupSettingsRequest) => void;
+  onShareJoinLink: () => void;
+  onRegenerateJoinLink: () => void;
+  onReviewJoinRequest: (requestId: number, approved: boolean) => void;
+}
+
+function GroupSettingsSection({
+  isLoadingSettings,
+  groupSettings,
+  canManageGroup,
+  pendingSettingKey,
+  pendingJoinRequests,
+  onToggleSetting,
+  onShareJoinLink,
+  onRegenerateJoinLink,
+  onReviewJoinRequest,
+}: Readonly<GroupSettingsSectionProps>) {
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Cài đặt nhóm</Text>
+      {isLoadingSettings && !groupSettings ? (
+        <View style={styles.emptyBlock}>
+          <ActivityIndicator size="small" color="#DF40A3" />
+        </View>
+      ) : (
+        <>
+          {groupSettingItems.map(([settingKey, label]) => (
+            <View key={settingKey} style={styles.settingRow}>
+              <Text style={styles.settingLabel}>{label}</Text>
+              <Switch
+                value={Boolean(groupSettings?.[settingKey])}
+                onValueChange={() => onToggleSetting(settingKey)}
+                disabled={!canManageGroup || pendingSettingKey !== null || isLoadingSettings}
+              />
+            </View>
+          ))}
+
+          {groupSettings?.joinLinkEnabled && groupSettings.joinLink ? (
+            <View style={styles.joinLinkBox}>
+              <Text style={styles.joinLinkText} numberOfLines={2}>
+                {groupSettings.joinLink}
+              </Text>
+              <View style={styles.joinLinkActions}>
+                <TouchableOpacity style={styles.secondaryBtn} onPress={onShareJoinLink}>
+                  <Text style={styles.secondaryBtnText}>Chia sẻ</Text>
+                </TouchableOpacity>
+                {canManageGroup && (
+                  <TouchableOpacity
+                    style={styles.secondaryBtn}
+                    onPress={onRegenerateJoinLink}
+                    disabled={isLoadingSettings}
+                  >
+                    <Text style={styles.secondaryBtnText}>Tạo lại</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          ) : null}
+
+          {canManageGroup ? (
+            <View style={styles.joinRequestBox}>
+              <Text style={styles.sectionTitle}>Yêu cầu vào nhóm</Text>
+              {pendingJoinRequests.length === 0 ? (
+                <Text style={styles.emptyText}>Không có yêu cầu chờ duyệt.</Text>
+              ) : (
+                pendingJoinRequests.map((request) => (
+                  <View key={request.id} style={styles.joinRequestRow}>
+                    <View style={styles.memberTextBox}>
+                      <Text style={styles.memberName}>{request.requesterName}</Text>
+                      <Text style={styles.memberRole}>{new Date(request.createdAt).toLocaleString("vi-VN")}</Text>
+                    </View>
+                    <View style={styles.memberActions}>
+                      <TouchableOpacity
+                        style={[styles.memberActionBtn, styles.approveActionBtn]}
+                        onPress={() => onReviewJoinRequest(request.id, true)}
+                      >
+                        <Text style={[styles.memberActionText, styles.approveActionText]}>Duyệt</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.memberActionBtn, styles.dangerActionBtn]}
+                        onPress={() => onReviewJoinRequest(request.id, false)}
+                      >
+                        <Text style={[styles.memberActionText, styles.dangerActionText]}>Từ chối</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
+              )}
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>Chỉ quản trị viên mới có thể thay đổi cài đặt.</Text>
+          )}
+        </>
+      )}
+    </View>
+  );
+}
+
+function GroupActionsSection({
+  isOwner,
+  isSubmitting,
+  onOpenLeaveModal,
+  onDissolveGroup,
+}: Readonly<{
+  isOwner: boolean;
+  isSubmitting: boolean;
+  onOpenLeaveModal: () => void;
+  onDissolveGroup: () => void;
+}>) {
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Nhóm</Text>
+      <TouchableOpacity
+        style={[styles.secondaryBtn, styles.fullWidthBtn]}
+        onPress={onOpenLeaveModal}
+        disabled={isSubmitting}
+      >
+        <Text style={styles.secondaryBtnText}>Rời nhóm</Text>
+      </TouchableOpacity>
+      {isOwner && (
+        <TouchableOpacity
+          style={[styles.secondaryBtn, styles.fullWidthBtn, styles.dissolveBtn]}
+          onPress={onDissolveGroup}
+          disabled={isSubmitting}
+        >
+          <Text style={styles.dissolveBtnText}>Giải tán nhóm</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
 
 export default function GroupManagementModal({
   visible,
@@ -54,15 +613,6 @@ export default function GroupManagementModal({
   onRoomUpdated,
   onLeftOrDissolved,
 }: GroupManagementModalProps) {
-  const resolveRoomFromApiResponse = (response: any): RoomResponse | null => {
-    const payload = response?.data?.data;
-    const candidate = payload?.roomId ? payload : payload?.roomResponse;
-    if (!candidate || typeof candidate.roomId !== "number" || !Array.isArray(candidate.participants)) {
-      return null;
-    }
-    return candidate as RoomResponse;
-  };
-
   const [newGroupName, setNewGroupName] = useState(room.name || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingImage, setPendingImage] = useState<
@@ -81,6 +631,10 @@ export default function GroupManagementModal({
 
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [selectedNewOwnerId, setSelectedNewOwnerId] = useState<number | null>(null);
+  const [groupSettings, setGroupSettings] = useState<GroupSettingsResponse | null>(null);
+  const [pendingJoinRequests, setPendingJoinRequests] = useState<GroupJoinRequestResponse[]>([]);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(false);
+  const [pendingSettingKey, setPendingSettingKey] = useState<keyof UpdateGroupSettingsRequest | null>(null);
 
   useEffect(() => {
     if (!visible) return;
@@ -96,6 +650,9 @@ export default function GroupManagementModal({
     setSelectedFriendIds([]);
     setShowLeaveModal(false);
     setSelectedNewOwnerId(null);
+    setGroupSettings(null);
+    setPendingJoinRequests([]);
+    setPendingSettingKey(null);
   }, [visible, room.name, room.roomImgUrl]);
 
   const myParticipant = useMemo(
@@ -106,10 +663,94 @@ export default function GroupManagementModal({
   const isOwner = myRole === "OWNER";
   const canManageGroup = myRole === "OWNER" || myRole === "ADMIN";
 
+  const loadGroupSettings = async () => {
+    if (!visible) return;
+    setIsLoadingSettings(true);
+    try {
+      const settingsResponse = await getGroupSettingsApi(room.roomId);
+      setGroupSettings(settingsResponse.data.data);
+
+      if (canManageGroup) {
+        const requestsResponse = await getGroupJoinRequestsApi(room.roomId, "PENDING");
+        setPendingJoinRequests(requestsResponse.data.data ?? []);
+      } else {
+        setPendingJoinRequests([]);
+      }
+    } catch (error: any) {
+      Alert.alert("Lá»—i", error?.response?.data?.errorMessage || "KhÃ´ng thá»ƒ táº£i cÃ i Ä‘áº·t nhÃ³m.");
+    } finally {
+      setIsLoadingSettings(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!visible) return;
+    void loadGroupSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, room.roomId, canManageGroup]);
+
+  const handleToggleSetting = async (key: keyof UpdateGroupSettingsRequest) => {
+    if (!groupSettings || !canManageGroup || pendingSettingKey) return;
+    const previousSettings = groupSettings;
+    const previousValue = Boolean(previousSettings[key]);
+    const nextSettings = { ...previousSettings, [key]: !previousValue };
+    setPendingSettingKey(key);
+    setGroupSettings(nextSettings);
+
+    try {
+      const response = await updateGroupSettingsApi(room.roomId, {
+        [key]: !previousValue,
+      });
+      setGroupSettings(response.data.data);
+    } catch (error: any) {
+      setGroupSettings(previousSettings);
+      Alert.alert("Lá»—i", error?.response?.data?.errorMessage || "KhÃ´ng thá»ƒ cáº­p nháº­t cÃ i Ä‘áº·t.");
+    } finally {
+      setPendingSettingKey(null);
+    }
+  };
+
+  const handleShareJoinLink = async () => {
+    if (!groupSettings?.joinLink) return;
+    try {
+      await Share.share({
+        message: groupSettings.joinLink,
+        url: groupSettings.joinLink,
+        title: room.name || "PingMe Group",
+      });
+    } catch {
+      Alert.alert("Lá»—i", "KhÃ´ng thá»ƒ chia sáº» link nhÃ³m.");
+    }
+  };
+
+  const handleRegenerateJoinLink = async () => {
+    if (!canManageGroup) return;
+    setIsLoadingSettings(true);
+    try {
+      const response = await regenerateGroupJoinLinkApi(room.roomId);
+      setGroupSettings(response.data.data);
+      Alert.alert("ThÃ nh cÃ´ng", "ÄÃ£ táº¡o láº¡i link nhÃ³m.");
+    } catch (error: any) {
+      Alert.alert("Lá»—i", error?.response?.data?.errorMessage || "KhÃ´ng thá»ƒ táº¡o láº¡i link nhÃ³m.");
+    } finally {
+      setIsLoadingSettings(false);
+    }
+  };
+
+  const handleReviewJoinRequest = async (requestId: number, approved: boolean) => {
+    if (!canManageGroup) return;
+    try {
+      await reviewGroupJoinRequestApi(room.roomId, requestId, approved);
+      setPendingJoinRequests((prev) => prev.filter((request) => request.id !== requestId));
+    } catch (error: any) {
+      Alert.alert("Lá»—i", error?.response?.data?.errorMessage || "KhÃ´ng thá»ƒ xá»­ lÃ½ yÃªu cáº§u.");
+    }
+  };
+
   const sortedParticipants = useMemo(() => {
     const roleOrder: Record<MemberRole, number> = { OWNER: 0, ADMIN: 1, MEMBER: 2 };
     return [...room.participants].sort(
-      (a, b) => roleOrder[a.role as MemberRole] - roleOrder[b.role as MemberRole]
+      (a, b) => roleOrder[a.role] - roleOrder[b.role]
     );
   }, [room.participants]);
 
@@ -117,6 +758,7 @@ export default function GroupManagementModal({
     () => room.participants.filter((participant) => participant.userId !== currentUserId),
     [room.participants, currentUserId]
   );
+  const requiresNewOwner = isOwner && eligibleNewOwners.length > 0;
 
   const loadFriends = async (beforeId?: number) => {
     if (isLoadingFriends || !friendHasMore) return;
@@ -239,18 +881,18 @@ export default function GroupManagementModal({
     return myRole === "ADMIN" && participant.role === "MEMBER";
   };
 
-  const getRoleActions = (participant: RoomParticipantResponse) => {
+  const getRoleActions = (participant: RoomParticipantResponse): RoleAction[] => {
     if (!isOwner || participant.userId === currentUserId) return [];
     if (participant.role === "MEMBER") {
       return [
-        { role: "ADMIN" as MemberRole, label: "Nâng lên Admin" },
-        { role: "OWNER" as MemberRole, label: "Chuyển quyền Owner" },
+        { role: "ADMIN", label: "Nâng lên Admin" },
+        { role: "OWNER", label: "Chuyển quyền Owner" },
       ];
     }
     if (participant.role === "ADMIN") {
       return [
-        { role: "MEMBER" as MemberRole, label: "Hạ xuống Member" },
-        { role: "OWNER" as MemberRole, label: "Chuyển quyền Owner" },
+        { role: "MEMBER", label: "Hạ xuống Member" },
+        { role: "OWNER", label: "Chuyển quyền Owner" },
       ];
     }
     return [];
@@ -356,7 +998,7 @@ export default function GroupManagementModal({
   };
 
   const handleLeaveGroup = async () => {
-    if (isOwner && eligibleNewOwners.length > 0 && !selectedNewOwnerId) {
+    if (requiresNewOwner && !selectedNewOwnerId) {
       Alert.alert("Thông báo", "Bạn cần chọn trưởng nhóm mới trước khi rời nhóm.");
       return;
     }
@@ -364,7 +1006,7 @@ export default function GroupManagementModal({
     try {
       await runWithLoading(async () => {
         await leaveGroupApi(room.roomId, {
-          newOwnerId: isOwner && eligibleNewOwners.length > 0 ? selectedNewOwnerId : null,
+          newOwnerId: requiresNewOwner ? selectedNewOwnerId : null,
         });
         setShowLeaveModal(false);
         onClose();
@@ -444,150 +1086,49 @@ export default function GroupManagementModal({
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                   >
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Thông tin nhóm</Text>
-                    <View style={styles.imageRow}>
-                      {previewImage ? (
-                        <Image source={{ uri: previewImage }} style={styles.groupImage} />
-                      ) : (
-                        <View style={[styles.groupImage, styles.groupImagePlaceholder]}>
-                          <Text style={styles.groupImageFallback}>
-                            {(room.name || "G").charAt(0).toUpperCase()}
-                          </Text>
-                        </View>
-                      )}
-                      <View style={styles.imageActions}>
-                        <TouchableOpacity
-                          style={styles.secondaryBtn}
-                          onPress={handlePickGroupImage}
-                          disabled={isSubmitting}
-                        >
-                          <Text style={styles.secondaryBtnText}>Chọn ảnh</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.secondaryBtn}
-                          onPress={handleRemoveGroupImage}
-                          disabled={isSubmitting}
-                        >
-                          <Text style={styles.secondaryBtnText}>Xóa ảnh</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-
-                    <TouchableOpacity
-                      style={styles.primaryBtn}
-                      onPress={handleSaveGroupImage}
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? (
-                        <ActivityIndicator size="small" color="#FFFFFF" />
-                      ) : (
-                        <Text style={styles.primaryBtnText}>Lưu ảnh nhóm</Text>
-                      )}
-                    </TouchableOpacity>
-
-                    <TextInput
-                      style={styles.input}
-                      value={newGroupName}
-                      onChangeText={setNewGroupName}
-                      onFocus={() => setIsMainInputFocused(true)}
-                      onBlur={() => setIsMainInputFocused(false)}
-                      editable={!isSubmitting}
-                      placeholder="Nhập tên nhóm mới"
-                      placeholderTextColor="#9CA3AF"
-                    />
-                    <TouchableOpacity
-                      style={styles.primaryBtn}
-                      onPress={handleRenameGroup}
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? (
-                        <ActivityIndicator size="small" color="#FFFFFF" />
-                      ) : (
-                        <Text style={styles.primaryBtnText}>Đổi tên nhóm</Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.section}>
-                    <View style={styles.membersHeader}>
-                      <Text style={styles.sectionTitle}>Thành viên ({room.participants.length})</Text>
-                      {canManageGroup && (
-                        <TouchableOpacity
-                          style={styles.smallActionBtn}
-                          onPress={() => setShowAddMembersModal(true)}
-                          disabled={isSubmitting}
-                        >
-                          <Text style={styles.smallActionBtnText}>+ Thêm</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-
-                    {sortedParticipants.map((participant) => (
-                      <View key={participant.userId} style={styles.memberCard}>
-                        <View style={styles.memberInfo}>
-                          {participant.avatarUrl ? (
-                            <Image source={{ uri: participant.avatarUrl }} style={styles.memberAvatar} />
-                          ) : (
-                            <View style={[styles.memberAvatar, styles.memberAvatarFallback]}>
-                              <Text style={styles.memberAvatarText}>
-                                {participant.name.charAt(0).toUpperCase()}
-                              </Text>
-                            </View>
-                          )}
-                          <View style={styles.memberTextBox}>
-                            <Text style={styles.memberName} numberOfLines={1}>
-                              {participant.name}
-                              {participant.userId === currentUserId ? " (Bạn)" : ""}
-                            </Text>
-                            <Text style={styles.memberRole}>{roleLabel[participant.role as MemberRole]}</Text>
-                          </View>
-                        </View>
-
-                        <View style={styles.memberActions}>
-                          {getRoleActions(participant).map((action) => (
-                            <TouchableOpacity
-                              key={`${participant.userId}-${action.role}`}
-                              style={styles.memberActionBtn}
-                              onPress={() => handleChangeRole(participant, action.role)}
-                              disabled={isSubmitting}
-                            >
-                              <Text style={styles.memberActionText}>{action.label}</Text>
-                            </TouchableOpacity>
-                          ))}
-                          {canRemoveMember(participant) && (
-                            <TouchableOpacity
-                              style={[styles.memberActionBtn, styles.dangerActionBtn]}
-                              onPress={() => handleRemoveMember(participant)}
-                              disabled={isSubmitting}
-                            >
-                              <Text style={[styles.memberActionText, styles.dangerActionText]}>Xóa khỏi nhóm</Text>
-                            </TouchableOpacity>
-                          )}
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Nhóm</Text>
-                    <TouchableOpacity
-                      style={[styles.secondaryBtn, styles.fullWidthBtn]}
-                      onPress={() => setShowLeaveModal(true)}
-                      disabled={isSubmitting}
-                    >
-                      <Text style={styles.secondaryBtnText}>Rời nhóm</Text>
-                    </TouchableOpacity>
-                    {isOwner && (
-                      <TouchableOpacity
-                        style={[styles.secondaryBtn, styles.fullWidthBtn, styles.dissolveBtn]}
-                        onPress={handleDissolveGroup}
-                        disabled={isSubmitting}
-                      >
-                        <Text style={styles.dissolveBtnText}>Giải tán nhóm</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
+                  <GroupInfoSection
+                    roomName={room.name}
+                    previewImage={previewImage}
+                    isSubmitting={isSubmitting}
+                    newGroupName={newGroupName}
+                    onPickGroupImage={handlePickGroupImage}
+                    onRemoveGroupImage={handleRemoveGroupImage}
+                    onSaveGroupImage={handleSaveGroupImage}
+                    onChangeGroupName={setNewGroupName}
+                    onFocusGroupName={() => setIsMainInputFocused(true)}
+                    onBlurGroupName={() => setIsMainInputFocused(false)}
+                    onRenameGroup={handleRenameGroup}
+                  />
+                  <MembersSection
+                    participants={sortedParticipants}
+                    currentUserId={currentUserId}
+                    canManageGroup={canManageGroup}
+                    isSubmitting={isSubmitting}
+                    onOpenAddMembers={() => setShowAddMembersModal(true)}
+                    getRoleActions={getRoleActions}
+                    canRemoveMember={canRemoveMember}
+                    onChangeRole={handleChangeRole}
+                    onRemoveMember={handleRemoveMember}
+                  />
+                  <GroupSettingsSection
+                    isLoadingSettings={isLoadingSettings}
+                    groupSettings={groupSettings}
+                    canManageGroup={canManageGroup}
+                    pendingSettingKey={pendingSettingKey}
+                    pendingJoinRequests={pendingJoinRequests}
+                    onToggleSetting={(settingKey) => void handleToggleSetting(settingKey)}
+                    onShareJoinLink={() => void handleShareJoinLink()}
+                    onRegenerateJoinLink={() => void handleRegenerateJoinLink()}
+                    onReviewJoinRequest={(requestId, approved) =>
+                      void handleReviewJoinRequest(requestId, approved)
+                    }
+                  />
+                  <GroupActionsSection
+                    isOwner={isOwner}
+                    isSubmitting={isSubmitting}
+                    onOpenLeaveModal={() => setShowLeaveModal(true)}
+                    onDissolveGroup={handleDissolveGroup}
+                  />
                   </ScrollView>
                 </View>
               </KeyboardAvoidingView>
@@ -596,166 +1137,35 @@ export default function GroupManagementModal({
         </TouchableWithoutFeedback>
       </Modal>
 
-      <Modal
+      <AddMembersModal
         visible={showAddMembersModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowAddMembersModal(false)}
-      >
-        <TouchableWithoutFeedback onPress={() => setShowAddMembersModal(false)}>
-          <View style={styles.overlay}>
-            <TouchableWithoutFeedback>
-              <KeyboardAvoidingView
-                style={styles.keyboardAvoidingContainer}
-                behavior={Platform.OS === "ios" ? "padding" : "padding"}
-                keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
-                enabled={isFriendSearchFocused}
-              >
-                <View style={styles.container}>
-                  <View style={styles.header}>
-                    <Text style={styles.title}>Thêm thành viên</Text>
-                    <TouchableOpacity onPress={() => setShowAddMembersModal(false)}>
-                      <Text style={styles.closeText}>Đóng</Text>
-                    </TouchableOpacity>
-                  </View>
+        isFriendSearchFocused={isFriendSearchFocused}
+        friendSearch={friendSearch}
+        availableFriends={availableFriends}
+        selectedFriendIds={selectedFriendIds}
+        friendHasMore={friendHasMore}
+        isLoadingFriends={isLoadingFriends}
+        isSubmitting={isSubmitting}
+        friendList={friendList}
+        onClose={() => setShowAddMembersModal(false)}
+        onChangeFriendSearch={setFriendSearch}
+        onFocusFriendSearch={() => setIsFriendSearchFocused(true)}
+        onBlurFriendSearch={() => setIsFriendSearchFocused(false)}
+        onLoadFriends={(beforeId) => void loadFriends(beforeId)}
+        onToggleSelectedFriend={handleToggleSelectedFriend}
+        onAddMembers={handleAddMembers}
+      />
 
-                  <TextInput
-                    style={styles.input}
-                    value={friendSearch}
-                    onChangeText={setFriendSearch}
-                    onFocus={() => setIsFriendSearchFocused(true)}
-                    onBlur={() => setIsFriendSearchFocused(false)}
-                    placeholder="Tìm bạn bè..."
-                    placeholderTextColor="#9CA3AF"
-                  />
-
-                  <FlatList
-                    data={availableFriends}
-                    keyExtractor={(item) => `friend-${item.id}`}
-                    keyboardShouldPersistTaps="handled"
-                    onEndReachedThreshold={0.2}
-                    onEndReached={() => {
-                      if (!friendHasMore || isLoadingFriends || friendList.length === 0) return;
-                      const last = friendList[friendList.length - 1];
-                      if (last) {
-                        void loadFriends(last.id);
-                      }
-                    }}
-                    renderItem={({ item }) => {
-                      const selected = selectedFriendIds.includes(item.id);
-                      return (
-                        <TouchableOpacity
-                          style={[styles.friendRow, selected && styles.friendRowSelected]}
-                          onPress={() => handleToggleSelectedFriend(item.id)}
-                        >
-                          {item.avatarUrl ? (
-                            <Image source={{ uri: item.avatarUrl }} style={styles.memberAvatar} />
-                          ) : (
-                            <View style={[styles.memberAvatar, styles.memberAvatarFallback]}>
-                              <Text style={styles.memberAvatarText}>{item.name.charAt(0).toUpperCase()}</Text>
-                            </View>
-                          )}
-                          <Text style={styles.friendName} numberOfLines={1}>
-                            {item.name}
-                          </Text>
-                          <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
-                            {selected && <Text style={styles.checkboxTick}>✓</Text>}
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    }}
-                    ListEmptyComponent={
-                      isLoadingFriends ? (
-                        <View style={styles.emptyBlock}>
-                          <ActivityIndicator size="small" color="#DF40A3" />
-                        </View>
-                      ) : (
-                        <View style={styles.emptyBlock}>
-                          <Text style={styles.emptyText}>Không có bạn bè khả dụng để thêm.</Text>
-                        </View>
-                      )
-                    }
-                    ListFooterComponent={
-                      isLoadingFriends ? (
-                        <View style={styles.footerLoader}>
-                          <ActivityIndicator size="small" color="#DF40A3" />
-                        </View>
-                      ) : null
-                    }
-                  />
-
-                  <TouchableOpacity
-                    style={styles.primaryBtn}
-                    onPress={handleAddMembers}
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <Text style={styles.primaryBtnText}>Thêm thành viên đã chọn</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </KeyboardAvoidingView>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
-
-      <Modal
+      <LeaveGroupModal
         visible={showLeaveModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowLeaveModal(false)}
-      >
-        <TouchableWithoutFeedback onPress={() => setShowLeaveModal(false)}>
-          <View style={styles.overlay}>
-            <TouchableWithoutFeedback>
-              <View style={styles.leaveContainer}>
-                <Text style={styles.leaveTitle}>Rời nhóm</Text>
-                <Text style={styles.leaveDesc}>
-                  {isOwner && eligibleNewOwners.length > 0
-                    ? "Bạn là trưởng nhóm, hãy chọn trưởng nhóm mới trước khi rời."
-                    : "Bạn có chắc muốn rời nhóm chat này?"}
-                </Text>
-
-                {isOwner && eligibleNewOwners.length > 0 && (
-                  <View style={styles.newOwnerList}>
-                    {eligibleNewOwners.map((participant) => {
-                      const selected = selectedNewOwnerId === participant.userId;
-                      return (
-                        <TouchableOpacity
-                          key={`new-owner-${participant.userId}`}
-                          style={[styles.newOwnerRow, selected && styles.newOwnerRowSelected]}
-                          onPress={() => setSelectedNewOwnerId(participant.userId)}
-                        >
-                          <Text style={styles.newOwnerName} numberOfLines={1}>
-                            {participant.name}
-                          </Text>
-                          <Text style={styles.newOwnerRole}>{roleLabel[participant.role as MemberRole]}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                )}
-
-                <View style={styles.leaveActions}>
-                  <TouchableOpacity style={styles.secondaryBtn} onPress={() => setShowLeaveModal(false)}>
-                    <Text style={styles.secondaryBtnText}>Hủy</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.primaryBtn, styles.leaveConfirmBtn]} onPress={handleLeaveGroup}>
-                    {isSubmitting ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <Text style={styles.primaryBtnText}>Xác nhận rời nhóm</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
+        requiresNewOwner={requiresNewOwner}
+        eligibleNewOwners={eligibleNewOwners}
+        selectedNewOwnerId={selectedNewOwnerId}
+        isSubmitting={isSubmitting}
+        onClose={() => setShowLeaveModal(false)}
+        onSelectNewOwner={setSelectedNewOwnerId}
+        onLeaveGroup={handleLeaveGroup}
+      />
     </>
   );
 }
@@ -949,6 +1359,57 @@ const styles = StyleSheet.create({
   },
   dangerActionText: {
     color: "#B91C1C",
+  },
+  approveActionBtn: {
+    borderColor: "#BBF7D0",
+    backgroundColor: "#F0FDF4",
+  },
+  approveActionText: {
+    color: "#15803D",
+  },
+  settingRow: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#F3F4F6",
+    gap: 12,
+  },
+  settingLabel: {
+    flex: 1,
+    color: "#374151",
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
+  },
+  joinLinkBox: {
+    borderWidth: 1,
+    borderColor: "#E9D5FF",
+    backgroundColor: "#FAF5FF",
+    borderRadius: 10,
+    padding: 10,
+    gap: 8,
+  },
+  joinLinkText: {
+    color: "#6D28D9",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  joinLinkActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  joinRequestBox: {
+    gap: 8,
+    marginTop: 4,
+  },
+  joinRequestRow: {
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+    borderRadius: 10,
+    padding: 8,
+    gap: 8,
   },
   fullWidthBtn: {
     width: "100%",

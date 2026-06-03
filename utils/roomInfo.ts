@@ -5,6 +5,10 @@ import {
   isEncryptedTextContent,
 } from "@/utils/textMessageCrypto";
 
+const formatPreviewLabel = (label: string, preview?: string | null) => {
+  return preview ? `${label}: ${preview}` : label;
+};
+
 export const getRoomDisplayName = (
   room: RoomResponse,
   userSession: CurrentUserSessionResponse | null
@@ -67,6 +71,12 @@ export const getLastMessagePreview = (
       break;
     case "POLL":
       messageContent = "📊 Bình chọn";
+      break;
+    case "NOTE":
+      messageContent = formatPreviewLabel("Ghi chú", room.lastMessage.preview);
+      break;
+    case "REMINDER":
+      messageContent = formatPreviewLabel("Nhắc hẹn", room.lastMessage.preview);
       break;
     case "SYSTEM":
       messageContent = room.lastMessage.preview;

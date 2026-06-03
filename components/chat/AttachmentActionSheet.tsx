@@ -7,13 +7,14 @@ import {
   TouchableWithoutFeedback,
   StyleSheet,
 } from "react-native";
-import { ImageIcon, FileIcon, BarChart3, X } from "lucide-react-native";
+import { Bell, ImageIcon, FileIcon, BarChart3, StickyNote, X } from "lucide-react-native";
 
-export type AttachmentAction = "image" | "file" | "poll";
+export type AttachmentAction = "image" | "file" | "poll" | "note" | "reminder";
 
 interface AttachmentActionSheetProps {
   visible: boolean;
   allowPoll?: boolean;
+  allowNoteReminder?: boolean;
   onAction: (action: AttachmentAction) => void;
   onClose: () => void;
 }
@@ -21,6 +22,7 @@ interface AttachmentActionSheetProps {
 export default function AttachmentActionSheet({
   visible,
   allowPoll = false,
+  allowNoteReminder = false,
   onAction,
   onClose,
 }: AttachmentActionSheetProps) {
@@ -71,7 +73,32 @@ export default function AttachmentActionSheet({
                   <Text style={styles.actionText}>Tạo bình chọn</Text>
                 </TouchableOpacity>
               )}
-              
+              {allowNoteReminder && (
+                <>
+                  <TouchableOpacity
+                    style={[styles.actionRow, styles.actionBorder]}
+                    onPress={() => {
+                      onClose();
+                      onAction("note");
+                    }}
+                  >
+                    <StickyNote size={24} color="#7C3AED" />
+                    <Text style={styles.actionText}>Tạo ghi chú</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.actionRow, styles.actionBorder]}
+                    onPress={() => {
+                      onClose();
+                      onAction("reminder");
+                    }}
+                  >
+                    <Bell size={24} color="#D97706" />
+                    <Text style={styles.actionText}>Tạo nhắc hẹn</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
               <View style={styles.spacer} />
 
               <TouchableOpacity

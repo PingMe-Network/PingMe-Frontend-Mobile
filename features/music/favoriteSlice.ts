@@ -90,9 +90,8 @@ const favoriteSlice = createSlice({
       state,
       action: PayloadAction<{ songId: number; title: string }>,
     ) {
-      const { songId, title } = action.payload;
+      const { songId } = action.payload;
       if (!state.favoriteSongIds.includes(songId)) {
-        state.favorites.push({ id: Date.now(), songId, title });
         state.favoriteSongIds.push(songId);
       }
     },

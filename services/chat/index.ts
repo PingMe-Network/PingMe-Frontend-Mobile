@@ -6,7 +6,9 @@ import type {
 } from "@/types/base/apiResponse";
 import type {
   BulkForwardMessageRequest,
+  CreateNoteMessageRequest,
   CreatePollMessageRequest,
+  CreateReminderMessageRequest,
   EditMessageRequest,
   ForwardMessageRequest,
   GroupMessageSummaryResponse,
@@ -21,9 +23,15 @@ import type {
   CreateOrGetDirectRoomRequest,
   CreateGroupRoomRequest,
   DissolveGroupResponse,
+  GroupJoinRequestResponse,
+  GroupJoinRequestStatus,
+  GroupSettingsResponse,
+  JoinGroupByLinkRequest,
+  JoinGroupByLinkResponse,
   LeaveGroupRequest,
   LeaveGroupResponse,
   RoomResponse,
+  UpdateGroupSettingsRequest,
 } from "@/types/chat/room";
 
 // ==================================================================================
@@ -113,6 +121,62 @@ export const getCurrentUserRoomsApi = ({
 
   return axiosClient.get<ApiResponse<PageResponse<RoomResponse>>>(
     `/core-service/rooms?${params.toString()}`
+  );
+};
+
+export const getGroupSettingsApi = (roomId: number) => {
+  return axiosClient.get<ApiResponse<GroupSettingsResponse>>(
+    `/core-service/rooms/group/${roomId}/settings`
+  );
+};
+
+export const updateGroupSettingsApi = (
+  roomId: number,
+  data: UpdateGroupSettingsRequest
+) => {
+  return axiosClient.patch<ApiResponse<GroupSettingsResponse>>(
+    `/core-service/rooms/group/${roomId}/settings`,
+    data
+  );
+};
+
+export const regenerateGroupJoinLinkApi = (roomId: number) => {
+  return axiosClient.post<ApiResponse<GroupSettingsResponse>>(
+    `/core-service/rooms/group/${roomId}/settings/join-link/regenerate`
+  );
+};
+
+export const joinGroupByLinkApi = (data: JoinGroupByLinkRequest) => {
+  return axiosClient.post<ApiResponse<JoinGroupByLinkResponse>>(
+    "/core-service/rooms/group/join-by-link",
+    data
+  );
+};
+
+export const getGroupJoinRequestsApi = (
+  roomId: number,
+  status?: GroupJoinRequestStatus
+) => {
+  const suffix = status ? `?status=${status}` : "";
+  return axiosClient.get<ApiResponse<GroupJoinRequestResponse[]>>(
+    `/core-service/rooms/group/${roomId}/join-requests${suffix}`
+  );
+};
+
+export const reviewGroupJoinRequestApi = (
+  roomId: number,
+  joinRequestId: number,
+  approved: boolean
+) => {
+  return axiosClient.patch<ApiResponse<GroupJoinRequestResponse>>(
+    `/core-service/rooms/group/${roomId}/join-requests/${joinRequestId}`,
+    { approved }
+  );
+};
+
+export const cancelMyGroupJoinRequestApi = (roomId: number) => {
+  return axiosClient.delete<ApiResponse<GroupJoinRequestResponse>>(
+    `/core-service/rooms/group/${roomId}/join-requests/me`
   );
 };
 
@@ -223,6 +287,20 @@ export const getPinnedMessagesApi = (roomId: number) => {
 export const createPollMessageApi = (data: CreatePollMessageRequest) => {
   return axiosClient.post<ApiResponse<MessageResponse>>(
     "/core-service/messages/polls",
+    data
+  );
+};
+
+export const createNoteMessageApi = (data: CreateNoteMessageRequest) => {
+  return axiosClient.post<ApiResponse<MessageResponse>>(
+    "/core-service/messages/notes",
+    data
+  );
+};
+
+export const createReminderMessageApi = (data: CreateReminderMessageRequest) => {
+  return axiosClient.post<ApiResponse<MessageResponse>>(
+    "/core-service/messages/reminders",
     data
   );
 };

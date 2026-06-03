@@ -1,18 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View,
 } from "react-native";
+import ChatFormModalShell from "@/components/chat/ChatFormModalShell";
 
 interface CreatePollModalProps {
   visible: boolean;
@@ -23,6 +19,59 @@ interface CreatePollModalProps {
 
 const MIN_OPTIONS = 2;
 const MAX_OPTIONS = 10;
+const createInitialOptions = (): PollOption[] => [
+  { id: 1, value: "" },
+  { id: 2, value: "" },
+];
+
+interface PollOption {
+  id: number;
+  value: string;
+}
+
+interface PollOptionRowProps {
+  index: number;
+  option: PollOption;
+  canRemove: boolean;
+  loading: boolean;
+  onChangeOption: (id: number, value: string) => void;
+  onRemoveOption: (id: number) => void;
+}
+
+function PollOptionRow({
+  index,
+  option,
+  canRemove,
+  loading,
+  onChangeOption,
+  onRemoveOption,
+}: Readonly<PollOptionRowProps>) {
+  const handleChangeText = (value: string) => {
+    onChangeOption(option.id, value);
+  };
+
+  const handleRemove = () => {
+    onRemoveOption(option.id);
+  };
+
+  return (
+    <View style={styles.optionRow}>
+      <TextInput
+        style={[styles.input, styles.optionInput]}
+        value={option.value}
+        onChangeText={handleChangeText}
+        placeholder={`Lựa chọn ${index + 1}`}
+        placeholderTextColor="#9CA3AF"
+        editable={!loading}
+      />
+      {canRemove && (
+        <TouchableOpacity onPress={handleRemove} style={styles.removeBtn} disabled={loading}>
+          <Text style={styles.removeBtnText}>Xóa</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
 
 export default function CreatePollModal({
   visible,
@@ -31,18 +80,18 @@ export default function CreatePollModal({
   onSubmit,
 }: CreatePollModalProps) {
   const [question, setQuestion] = useState("");
-  const [options, setOptions] = useState<string[]>(["", ""]);
+  const [options, setOptions] = useState<PollOption[]>(createInitialOptions);
   const [allowMultiple, setAllowMultiple] = useState(false);
 
   useEffect(() => {
     if (!visible) return;
     setQuestion("");
-    setOptions(["", ""]);
+    setOptions(createInitialOptions());
     setAllowMultiple(false);
   }, [visible]);
 
   const sanitizedOptions = useMemo(
-    () => options.map((item) => item.trim()).filter((item) => item.length > 0),
+    () => options.map((item) => item.value.trim()).filter((item) => item.length > 0),
     [options]
   );
 
@@ -57,22 +106,19 @@ export default function CreatePollModal({
     !hasDuplicateOptions &&
     !loading;
 
-  const updateOption = (index: number, value: string) => {
-    setOptions((prev) => {
-      const next = [...prev];
-      next[index] = value;
-      return next;
-    });
+  const updateOption = (id: number, value: string) => {
+    setOptions((prev) => prev.map((option) => (option.id === id ? { ...option, value } : option)));
+  };
+
+  const removeOption = (id: number) => {
+    setOptions((prev) => prev.filter((option) => option.id !== id));
   };
 
   const addOption = () => {
-    if (options.length >= MAX_OPTIONS) return;
-    setOptions((prev) => [...prev, ""]);
-  };
-
-  const removeOption = (index: number) => {
-    if (options.length <= MIN_OPTIONS) return;
-    setOptions((prev) => prev.filter((_, idx) => idx !== index));
+    setOptions((prev) => {
+      const lastId = prev.at(-1)?.id ?? 0;
+      return [...prev, { id: lastId + 1, value: "" }];
+    });
   };
 
   const submit = () => {
@@ -81,138 +127,70 @@ export default function CreatePollModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <KeyboardAvoidingView
-              style={styles.keyboardAvoidingContainer}
-              behavior={Platform.OS === "ios" ? "padding" : "padding"}
-              keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 8}
-            >
-              <View style={styles.container}>
-                <ScrollView
-                  keyboardShouldPersistTaps="handled"
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={styles.scrollContent}
-                >
-                  <View style={styles.header}>
-                    <Text style={styles.title}>Tạo bình chọn</Text>
-                    <TouchableOpacity onPress={onClose} disabled={loading}>
-                      <Text style={styles.closeText}>Đóng</Text>
-                    </TouchableOpacity>
-                  </View>
+    <ChatFormModalShell
+      visible={visible}
+      title="Tạo bình chọn"
+      loading={loading}
+      maxHeight="85%"
+      onClose={onClose}
+    >
+      <Text style={styles.label}>Câu hỏi</Text>
+      <TextInput
+        style={styles.input}
+        value={question}
+        onChangeText={setQuestion}
+        placeholder="Nhập câu hỏi bình chọn"
+        placeholderTextColor="#9CA3AF"
+        editable={!loading}
+      />
 
-                  <Text style={styles.label}>Câu hỏi</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={question}
-                    onChangeText={setQuestion}
-                    placeholder="Nhập câu hỏi bình chọn"
-                    placeholderTextColor="#9CA3AF"
-                    editable={!loading}
-                  />
+      <Text style={styles.label}>Lựa chọn</Text>
+      {options.map((option, index) => (
+        <PollOptionRow
+          key={`poll-option-${option.id}`}
+          index={index}
+          option={option}
+          canRemove={options.length > MIN_OPTIONS}
+          loading={loading}
+          onChangeOption={updateOption}
+          onRemoveOption={removeOption}
+        />
+      ))}
+      {options.length < MAX_OPTIONS && (
+        <TouchableOpacity
+          onPress={addOption}
+          style={styles.addBtn}
+          disabled={loading}
+        >
+          <Text style={styles.addBtnText}>+ Thêm lựa chọn</Text>
+        </TouchableOpacity>
+      )}
 
-                  <Text style={styles.label}>Lựa chọn</Text>
-                  {options.map((option, index) => (
-                    <View key={`poll-option-${index}`} style={styles.optionRow}>
-                      <TextInput
-                        style={[styles.input, styles.optionInput]}
-                        value={option}
-                        onChangeText={(value) => updateOption(index, value)}
-                        placeholder={`Lựa chọn ${index + 1}`}
-                        placeholderTextColor="#9CA3AF"
-                        editable={!loading}
-                      />
-                      {options.length > MIN_OPTIONS && (
-                        <TouchableOpacity
-                          onPress={() => removeOption(index)}
-                          style={styles.removeBtn}
-                          disabled={loading}
-                        >
-                          <Text style={styles.removeBtnText}>Xóa</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  ))}
+      <View style={styles.switchRow}>
+        <Text style={styles.switchLabel}>Cho phép chọn nhiều đáp án</Text>
+        <Switch value={allowMultiple} onValueChange={setAllowMultiple} disabled={loading} />
+      </View>
 
-                  {options.length < MAX_OPTIONS && (
-                    <TouchableOpacity onPress={addOption} style={styles.addBtn} disabled={loading}>
-                      <Text style={styles.addBtnText}>+ Thêm lựa chọn</Text>
-                    </TouchableOpacity>
-                  )}
+      {hasDuplicateOptions && (
+        <Text style={styles.errorText}>Các lựa chọn không được trùng nhau.</Text>
+      )}
 
-                  <View style={styles.switchRow}>
-                    <Text style={styles.switchLabel}>Cho phép chọn nhiều đáp án</Text>
-                    <Switch
-                      value={allowMultiple}
-                      onValueChange={setAllowMultiple}
-                      disabled={loading}
-                    />
-                  </View>
-
-                  {hasDuplicateOptions && (
-                    <Text style={styles.errorText}>Các lựa chọn không được trùng nhau.</Text>
-                  )}
-
-                  <TouchableOpacity
-                    onPress={submit}
-                    disabled={!canSubmit}
-                    style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
-                  >
-                    {loading ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <Text style={styles.submitBtnText}>Tạo bình chọn</Text>
-                    )}
-                  </TouchableOpacity>
-                </ScrollView>
-              </View>
-            </KeyboardAvoidingView>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
-    </Modal>
+      <TouchableOpacity
+        onPress={submit}
+        disabled={!canSubmit}
+        style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
+      >
+        {loading ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <Text style={styles.submitBtnText}>Tạo bình chọn</Text>
+        )}
+      </TouchableOpacity>
+    </ChatFormModalShell>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "flex-end",
-  },
-  keyboardAvoidingContainer: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  container: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: "85%",
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 24,
-  },
-  scrollContent: {
-    gap: 10,
-    paddingBottom: 12,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  closeText: {
-    color: "#6B7280",
-    fontWeight: "600",
-  },
   label: {
     fontSize: 13,
     fontWeight: "600",

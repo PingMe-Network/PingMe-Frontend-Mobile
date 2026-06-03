@@ -29,6 +29,17 @@ export const songApi = {
         return response.data?.data as Song;
   },
 
+  getSongsByIds: async (ids: number[]): Promise<Song[]> => {
+    const uniqueIds = [...new Set(ids.filter((id) => Number.isFinite(id)))];
+    if (uniqueIds.length === 0) return [];
+
+    const response = await axiosClient.get<ApiResponse<Song[]>>(
+      `/music-service/songs/batch`,
+      { params: { ids: uniqueIds.join(",") } }
+    );
+    return response.data?.data || [];
+  },
+
   /**
    * Search songs by title
    * @returns Array of songs (unwrapped from ApiResponse<PageResponse>)
