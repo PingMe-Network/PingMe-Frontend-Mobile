@@ -1,18 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View,
 } from "react-native";
+import ChatFormModalShell from "@/components/chat/ChatFormModalShell";
 
 interface CreatePollModalProps {
   visible: boolean;
@@ -65,154 +61,87 @@ export default function CreatePollModal({
     });
   };
 
-  const addOption = () => {
-    if (options.length >= MAX_OPTIONS) return;
-    setOptions((prev) => [...prev, ""]);
-  };
-
-  const removeOption = (index: number) => {
-    if (options.length <= MIN_OPTIONS) return;
-    setOptions((prev) => prev.filter((_, idx) => idx !== index));
-  };
-
   const submit = () => {
     if (!canSubmit) return;
     onSubmit(question.trim(), sanitizedOptions, allowMultiple);
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <KeyboardAvoidingView
-              style={styles.keyboardAvoidingContainer}
-              behavior={Platform.OS === "ios" ? "padding" : "padding"}
-              keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 8}
+    <ChatFormModalShell
+      visible={visible}
+      title="Tạo bình chọn"
+      loading={loading}
+      maxHeight="85%"
+      onClose={onClose}
+    >
+      <Text style={styles.label}>Câu hỏi</Text>
+      <TextInput
+        style={styles.input}
+        value={question}
+        onChangeText={setQuestion}
+        placeholder="Nhập câu hỏi bình chọn"
+        placeholderTextColor="#9CA3AF"
+        editable={!loading}
+      />
+
+      <Text style={styles.label}>Lựa chọn</Text>
+      {options.map((option, index) => (
+        <View key={`poll-option-${index}`} style={styles.optionRow}>
+          <TextInput
+            style={[styles.input, styles.optionInput]}
+            value={option}
+            onChangeText={(value) => updateOption(index, value)}
+            placeholder={`Lựa chọn ${index + 1}`}
+            placeholderTextColor="#9CA3AF"
+            editable={!loading}
+          />
+          {options.length > MIN_OPTIONS && (
+            <TouchableOpacity
+              onPress={() => setOptions((prev) => prev.filter((_, idx) => idx !== index))}
+              style={styles.removeBtn}
+              disabled={loading}
             >
-              <View style={styles.container}>
-                <ScrollView
-                  keyboardShouldPersistTaps="handled"
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={styles.scrollContent}
-                >
-                  <View style={styles.header}>
-                    <Text style={styles.title}>Tạo bình chọn</Text>
-                    <TouchableOpacity onPress={onClose} disabled={loading}>
-                      <Text style={styles.closeText}>Đóng</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <Text style={styles.label}>Câu hỏi</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={question}
-                    onChangeText={setQuestion}
-                    placeholder="Nhập câu hỏi bình chọn"
-                    placeholderTextColor="#9CA3AF"
-                    editable={!loading}
-                  />
-
-                  <Text style={styles.label}>Lựa chọn</Text>
-                  {options.map((option, index) => (
-                    <View key={`poll-option-${index}`} style={styles.optionRow}>
-                      <TextInput
-                        style={[styles.input, styles.optionInput]}
-                        value={option}
-                        onChangeText={(value) => updateOption(index, value)}
-                        placeholder={`Lựa chọn ${index + 1}`}
-                        placeholderTextColor="#9CA3AF"
-                        editable={!loading}
-                      />
-                      {options.length > MIN_OPTIONS && (
-                        <TouchableOpacity
-                          onPress={() => removeOption(index)}
-                          style={styles.removeBtn}
-                          disabled={loading}
-                        >
-                          <Text style={styles.removeBtnText}>Xóa</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  ))}
-
-                  {options.length < MAX_OPTIONS && (
-                    <TouchableOpacity onPress={addOption} style={styles.addBtn} disabled={loading}>
-                      <Text style={styles.addBtnText}>+ Thêm lựa chọn</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  <View style={styles.switchRow}>
-                    <Text style={styles.switchLabel}>Cho phép chọn nhiều đáp án</Text>
-                    <Switch
-                      value={allowMultiple}
-                      onValueChange={setAllowMultiple}
-                      disabled={loading}
-                    />
-                  </View>
-
-                  {hasDuplicateOptions && (
-                    <Text style={styles.errorText}>Các lựa chọn không được trùng nhau.</Text>
-                  )}
-
-                  <TouchableOpacity
-                    onPress={submit}
-                    disabled={!canSubmit}
-                    style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
-                  >
-                    {loading ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <Text style={styles.submitBtnText}>Tạo bình chọn</Text>
-                    )}
-                  </TouchableOpacity>
-                </ScrollView>
-              </View>
-            </KeyboardAvoidingView>
-          </TouchableWithoutFeedback>
+              <Text style={styles.removeBtnText}>Xóa</Text>
+            </TouchableOpacity>
+          )}
         </View>
-      </TouchableWithoutFeedback>
-    </Modal>
+      ))}
+
+      {options.length < MAX_OPTIONS && (
+        <TouchableOpacity
+          onPress={() => setOptions((prev) => [...prev, ""])}
+          style={styles.addBtn}
+          disabled={loading}
+        >
+          <Text style={styles.addBtnText}>+ Thêm lựa chọn</Text>
+        </TouchableOpacity>
+      )}
+
+      <View style={styles.switchRow}>
+        <Text style={styles.switchLabel}>Cho phép chọn nhiều đáp án</Text>
+        <Switch value={allowMultiple} onValueChange={setAllowMultiple} disabled={loading} />
+      </View>
+
+      {hasDuplicateOptions && (
+        <Text style={styles.errorText}>Các lựa chọn không được trùng nhau.</Text>
+      )}
+
+      <TouchableOpacity
+        onPress={submit}
+        disabled={!canSubmit}
+        style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
+      >
+        {loading ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <Text style={styles.submitBtnText}>Tạo bình chọn</Text>
+        )}
+      </TouchableOpacity>
+    </ChatFormModalShell>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "flex-end",
-  },
-  keyboardAvoidingContainer: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  container: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: "85%",
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 24,
-  },
-  scrollContent: {
-    gap: 10,
-    paddingBottom: 12,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  closeText: {
-    color: "#6B7280",
-    fontWeight: "600",
-  },
   label: {
     fontSize: 13,
     fontWeight: "600",

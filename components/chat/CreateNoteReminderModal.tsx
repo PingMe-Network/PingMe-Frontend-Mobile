@@ -1,18 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View,
 } from "react-native";
+import ChatFormModalShell from "@/components/chat/ChatFormModalShell";
 
 export type NoteReminderSubmitPayload =
   | { type: "NOTE"; body: string; pinToTop: boolean }
@@ -49,6 +45,27 @@ const REPEAT_OPTIONS = [
   { label: "Hằng tháng", value: "MONTHLY" },
 ];
 
+interface ChoiceChipProps {
+  label: string;
+  selected: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+}
+
+function ChoiceChip({ label, selected, disabled = false, onPress }: ChoiceChipProps) {
+  return (
+    <TouchableOpacity
+      style={[styles.quickChip, selected && styles.quickChipSelected]}
+      onPress={onPress}
+      disabled={disabled}
+    >
+      <Text style={[styles.quickChipText, selected && styles.quickChipTextSelected]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
 function toDateTimeLocalValue(date: Date) {
   const pad = (num: number) => String(num).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
@@ -83,7 +100,6 @@ export default function CreateNoteReminderModal({
   const [remindAt, setRemindAt] = useState("");
   const [repeatRule, setRepeatRule] = useState("NONE");
   const [selectedQuickIndex, setSelectedQuickIndex] = useState(1);
-
   const isReminder = mode === "REMINDER";
 
   useEffect(() => {
@@ -123,6 +139,7 @@ export default function CreateNoteReminderModal({
   const submit = () => {
     if (!canSubmit) return;
     const trimmedBody = body.trim();
+
     if (!isReminder) {
       onSubmit({ type: "NOTE", body: trimmedBody, pinToTop });
       return;
@@ -138,177 +155,128 @@ export default function CreateNoteReminderModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <KeyboardAvoidingView
-              style={styles.keyboardAvoidingContainer}
-              behavior={Platform.OS === "ios" ? "padding" : "padding"}
-              keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 8}
-            >
-              <View style={styles.container}>
-                <ScrollView
-                  keyboardShouldPersistTaps="handled"
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={styles.scrollContent}
-                >
-                  <View style={styles.header}>
-                    <Text style={styles.title}>
-                      {isReminder ? "Tạo nhắc hẹn" : "Tạo ghi chú"}
-                    </Text>
-                    <TouchableOpacity onPress={onClose} disabled={loading}>
-                      <Text style={styles.closeText}>Đóng</Text>
-                    </TouchableOpacity>
-                  </View>
+    <ChatFormModalShell
+      visible={visible}
+      title={isReminder ? "Tạo nhắc hẹn" : "Tạo ghi chú"}
+      loading={loading}
+      maxHeight="88%"
+      onClose={onClose}
+    >
+      <Text style={styles.label}>Nội dung</Text>
+      <TextInput
+        style={[styles.input, styles.textArea]}
+        value={body}
+        onChangeText={setBody}
+        placeholder="Nhập nội dung mới hoặc dán link"
+        placeholderTextColor="#9CA3AF"
+        editable={!loading}
+        multiline
+        maxLength={2000}
+        textAlignVertical="top"
+      />
 
-                  <Text style={styles.label}>Nội dung</Text>
-                  <TextInput
-                    style={[styles.input, styles.textArea]}
-                    value={body}
-                    onChangeText={setBody}
-                    placeholder="Nhập nội dung mới hoặc dán link"
-                    placeholderTextColor="#9CA3AF"
-                    editable={!loading}
-                    multiline
-                    maxLength={2000}
-                    textAlignVertical="top"
-                  />
-
-                  {isReminder ? (
-                    <>
-                      <Text style={styles.label}>Chọn thời gian</Text>
-                      <View style={styles.quickRow}>
-                        {QUICK_OPTIONS.map((option, index) => (
-                          <TouchableOpacity
-                            key={option.label}
-                            style={[
-                              styles.quickChip,
-                              selectedQuickIndex === index && styles.quickChipSelected,
-                            ]}
-                            onPress={() => applyQuickOption(option, index)}
-                            disabled={loading}
-                          >
-                            <Text
-                              style={[
-                                styles.quickChipText,
-                                selectedQuickIndex === index && styles.quickChipTextSelected,
-                              ]}
-                            >
-                              {option.label}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-
-                      <TextInput
-                        style={styles.input}
-                        value={remindAt}
-                        onChangeText={(value) => {
-                          setRemindAt(value);
-                          setSelectedQuickIndex(-1);
-                        }}
-                        placeholder="YYYY-MM-DDTHH:mm"
-                        placeholderTextColor="#9CA3AF"
-                        editable={!loading}
-                      />
-                      <Text style={styles.helperText}>{formatReminderDate(remindAt)}</Text>
-
-                      <Text style={styles.label}>Lặp lại</Text>
-                      <View style={styles.quickRow}>
-                        {REPEAT_OPTIONS.map((option) => (
-                          <TouchableOpacity
-                            key={option.value}
-                            style={[
-                              styles.quickChip,
-                              repeatRule === option.value && styles.quickChipSelected,
-                            ]}
-                            onPress={() => setRepeatRule(option.value)}
-                            disabled={loading}
-                          >
-                            <Text
-                              style={[
-                                styles.quickChipText,
-                                repeatRule === option.value && styles.quickChipTextSelected,
-                              ]}
-                            >
-                              {option.label}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </>
-                  ) : (
-                    <View style={styles.switchRow}>
-                      <Text style={styles.switchLabel}>Ghim lên đầu trò chuyện</Text>
-                      <Switch value={pinToTop} onValueChange={setPinToTop} disabled={loading} />
-                    </View>
-                  )}
-
-                  {isReminder && remindAt && new Date(remindAt).getTime() <= Date.now() ? (
-                    <Text style={styles.errorText}>Thời gian nhắc hẹn phải ở tương lai.</Text>
-                  ) : null}
-
-                  <TouchableOpacity
-                    onPress={submit}
-                    disabled={!canSubmit}
-                    style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
-                  >
-                    {loading ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <Text style={styles.submitBtnText}>
-                        {isReminder ? "Tạo nhắc hẹn" : "Tạo ghi chú"}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                </ScrollView>
-              </View>
-            </KeyboardAvoidingView>
-          </TouchableWithoutFeedback>
+      {isReminder ? (
+        <ReminderFields
+          loading={loading}
+          remindAt={remindAt}
+          repeatRule={repeatRule}
+          selectedQuickIndex={selectedQuickIndex}
+          onQuickSelect={applyQuickOption}
+          onReminderDateChange={(value) => {
+            setRemindAt(value);
+            setSelectedQuickIndex(-1);
+          }}
+          onRepeatRuleChange={setRepeatRule}
+        />
+      ) : (
+        <View style={styles.switchRow}>
+          <Text style={styles.switchLabel}>Ghim lên đầu trò chuyện</Text>
+          <Switch value={pinToTop} onValueChange={setPinToTop} disabled={loading} />
         </View>
-      </TouchableWithoutFeedback>
-    </Modal>
+      )}
+
+      {isReminder && remindAt && new Date(remindAt).getTime() <= Date.now() ? (
+        <Text style={styles.errorText}>Thời gian nhắc hẹn phải ở tương lai.</Text>
+      ) : null}
+
+      <TouchableOpacity
+        onPress={submit}
+        disabled={!canSubmit}
+        style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
+      >
+        {loading ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <Text style={styles.submitBtnText}>
+            {isReminder ? "Tạo nhắc hẹn" : "Tạo ghi chú"}
+          </Text>
+        )}
+      </TouchableOpacity>
+    </ChatFormModalShell>
+  );
+}
+
+interface ReminderFieldsProps {
+  loading: boolean;
+  remindAt: string;
+  repeatRule: string;
+  selectedQuickIndex: number;
+  onQuickSelect: (option: QuickOption, index: number) => void;
+  onReminderDateChange: (value: string) => void;
+  onRepeatRuleChange: (value: string) => void;
+}
+
+function ReminderFields({
+  loading,
+  remindAt,
+  repeatRule,
+  selectedQuickIndex,
+  onQuickSelect,
+  onReminderDateChange,
+  onRepeatRuleChange,
+}: ReminderFieldsProps) {
+  return (
+    <>
+      <Text style={styles.label}>Chọn thời gian</Text>
+      <View style={styles.quickRow}>
+        {QUICK_OPTIONS.map((option, index) => (
+          <ChoiceChip
+            key={option.label}
+            label={option.label}
+            selected={selectedQuickIndex === index}
+            onPress={() => onQuickSelect(option, index)}
+            disabled={loading}
+          />
+        ))}
+      </View>
+
+      <TextInput
+        style={styles.input}
+        value={remindAt}
+        onChangeText={onReminderDateChange}
+        placeholder="YYYY-MM-DDTHH:mm"
+        placeholderTextColor="#9CA3AF"
+        editable={!loading}
+      />
+      <Text style={styles.helperText}>{formatReminderDate(remindAt)}</Text>
+
+      <Text style={styles.label}>Lặp lại</Text>
+      <View style={styles.quickRow}>
+        {REPEAT_OPTIONS.map((option) => (
+          <ChoiceChip
+            key={option.value}
+            label={option.label}
+            selected={repeatRule === option.value}
+            onPress={() => onRepeatRuleChange(option.value)}
+            disabled={loading}
+          />
+        ))}
+      </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "flex-end",
-  },
-  keyboardAvoidingContainer: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  container: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: "88%",
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 24,
-  },
-  scrollContent: {
-    gap: 10,
-    paddingBottom: 12,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  closeText: {
-    color: "#6B7280",
-    fontWeight: "600",
-  },
   label: {
     fontSize: 13,
     fontWeight: "700",
