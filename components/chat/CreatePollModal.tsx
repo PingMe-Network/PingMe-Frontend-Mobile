@@ -20,6 +20,50 @@ interface CreatePollModalProps {
 const MIN_OPTIONS = 2;
 const MAX_OPTIONS = 10;
 
+interface PollOptionRowProps {
+  index: number;
+  option: string;
+  canRemove: boolean;
+  loading: boolean;
+  onChangeOption: (index: number, value: string) => void;
+  onRemoveOption: (index: number) => void;
+}
+
+function PollOptionRow({
+  index,
+  option,
+  canRemove,
+  loading,
+  onChangeOption,
+  onRemoveOption,
+}: PollOptionRowProps) {
+  const handleChangeText = (value: string) => {
+    onChangeOption(index, value);
+  };
+
+  const handleRemove = () => {
+    onRemoveOption(index);
+  };
+
+  return (
+    <View style={styles.optionRow}>
+      <TextInput
+        style={[styles.input, styles.optionInput]}
+        value={option}
+        onChangeText={handleChangeText}
+        placeholder={`Lựa chọn ${index + 1}`}
+        placeholderTextColor="#9CA3AF"
+        editable={!loading}
+      />
+      {canRemove && (
+        <TouchableOpacity onPress={handleRemove} style={styles.removeBtn} disabled={loading}>
+          <Text style={styles.removeBtnText}>Xóa</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
 export default function CreatePollModal({
   visible,
   loading = false,
@@ -61,6 +105,14 @@ export default function CreatePollModal({
     });
   };
 
+  const removeOption = (index: number) => {
+    setOptions((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const addOption = () => {
+    setOptions((prev) => [...prev, ""]);
+  };
+
   const submit = () => {
     if (!canSubmit) return;
     onSubmit(question.trim(), sanitizedOptions, allowMultiple);
@@ -86,30 +138,19 @@ export default function CreatePollModal({
 
       <Text style={styles.label}>Lựa chọn</Text>
       {options.map((option, index) => (
-        <View key={`poll-option-${index}`} style={styles.optionRow}>
-          <TextInput
-            style={[styles.input, styles.optionInput]}
-            value={option}
-            onChangeText={(value) => updateOption(index, value)}
-            placeholder={`Lựa chọn ${index + 1}`}
-            placeholderTextColor="#9CA3AF"
-            editable={!loading}
-          />
-          {options.length > MIN_OPTIONS && (
-            <TouchableOpacity
-              onPress={() => setOptions((prev) => prev.filter((_, idx) => idx !== index))}
-              style={styles.removeBtn}
-              disabled={loading}
-            >
-              <Text style={styles.removeBtnText}>Xóa</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        <PollOptionRow
+          key={`poll-option-${index}`}
+          index={index}
+          option={option}
+          canRemove={options.length > MIN_OPTIONS}
+          loading={loading}
+          onChangeOption={updateOption}
+          onRemoveOption={removeOption}
+        />
       ))}
-
       {options.length < MAX_OPTIONS && (
         <TouchableOpacity
-          onPress={() => setOptions((prev) => [...prev, ""])}
+          onPress={addOption}
           style={styles.addBtn}
           disabled={loading}
         >

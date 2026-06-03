@@ -29,7 +29,7 @@ function formatReminderDate(value?: string | null) {
 export default function MessageNoteReminder({
   message,
   isMine,
-}: MessageNoteReminderProps) {
+}: Readonly<MessageNoteReminderProps>) {
   const isReminder = message.type === "REMINDER";
   const note = message.note;
   const reminder = message.reminder;

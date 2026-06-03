@@ -52,7 +52,7 @@ interface ChoiceChipProps {
   onPress: () => void;
 }
 
-function ChoiceChip({ label, selected, disabled = false, onPress }: ChoiceChipProps) {
+function ChoiceChip({ label, selected, disabled = false, onPress }: Readonly<ChoiceChipProps>) {
   return (
     <TouchableOpacity
       style={[styles.quickChip, selected && styles.quickChipSelected]}
@@ -94,7 +94,7 @@ export default function CreateNoteReminderModal({
   loading = false,
   onClose,
   onSubmit,
-}: CreateNoteReminderModalProps) {
+}: Readonly<CreateNoteReminderModalProps>) {
   const [body, setBody] = useState("");
   const [pinToTop, setPinToTop] = useState(false);
   const [remindAt, setRemindAt] = useState("");
@@ -234,7 +234,7 @@ function ReminderFields({
   onQuickSelect,
   onReminderDateChange,
   onRepeatRuleChange,
-}: ReminderFieldsProps) {
+}: Readonly<ReminderFieldsProps>) {
   return (
     <>
       <Text style={styles.label}>Chọn thời gian</Text>

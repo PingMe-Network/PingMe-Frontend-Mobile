@@ -27,7 +27,7 @@ export default function ChatFormModalShell({
   maxHeight = "85%",
   onClose,
   children,
-}: ChatFormModalShellProps) {
+}: Readonly<ChatFormModalShellProps>) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
