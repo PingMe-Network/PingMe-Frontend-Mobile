@@ -35,7 +35,7 @@ export default function ChatFormModalShell({
           <TouchableWithoutFeedback>
             <KeyboardAvoidingView
               style={styles.keyboardAvoidingContainer}
-              behavior={Platform.OS === "ios" ? "padding" : "padding"}
+              behavior="padding"
               keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 8}
             >
               <View style={[styles.container, { maxHeight }]}>

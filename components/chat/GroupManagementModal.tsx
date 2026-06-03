@@ -52,6 +52,7 @@ interface GroupManagementModalProps {
 }
 
 type MemberRole = "OWNER" | "ADMIN" | "MEMBER";
+type RoleAction = { role: MemberRole; label: string };
 
 const roleLabel: Record<MemberRole, string> = {
   OWNER: "Trưởng nhóm",
@@ -70,13 +71,15 @@ const groupSettingItems: [keyof UpdateGroupSettingsRequest, string][] = [
   ["joinLinkEnabled", "Bật link tham gia nhóm"],
 ];
 
+const isRoomResponse = (value: unknown): value is RoomResponse => {
+  if (!value || typeof value !== "object") return false;
+  return typeof Reflect.get(value, "roomId") === "number" && Array.isArray(Reflect.get(value, "participants"));
+};
+
 const resolveRoomFromApiResponse = (response: any): RoomResponse | null => {
   const payload = response?.data?.data;
   const candidate = payload?.roomId ? payload : payload?.roomResponse;
-  if (!candidate || typeof candidate.roomId !== "number" || !Array.isArray(candidate.participants)) {
-    return null;
-  }
-  return candidate as RoomResponse;
+  return isRoomResponse(candidate) ? candidate : null;
 };
 
 interface AddMembersModalProps {
@@ -102,11 +105,11 @@ function FriendRow({
   friend,
   selected,
   onToggleSelectedFriend,
-}: {
+}: Readonly<{
   friend: UserSummaryResponse;
   selected: boolean;
   onToggleSelectedFriend: (friendId: number) => void;
-}) {
+}>) {
   return (
     <TouchableOpacity
       style={[styles.friendRow, selected && styles.friendRowSelected]}
@@ -146,10 +149,10 @@ function AddMembersModal({
   onLoadFriends,
   onToggleSelectedFriend,
   onAddMembers,
-}: AddMembersModalProps) {
+}: Readonly<AddMembersModalProps>) {
   const handleEndReached = () => {
     if (!friendHasMore || isLoadingFriends || friendList.length === 0) return;
-    const last = friendList[friendList.length - 1];
+    const last = friendList.at(-1);
     if (last) {
       onLoadFriends(last.id);
     }
@@ -253,7 +256,7 @@ function LeaveGroupModal({
   onClose,
   onSelectNewOwner,
   onLeaveGroup,
-}: LeaveGroupModalProps) {
+}: Readonly<LeaveGroupModalProps>) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
@@ -281,7 +284,7 @@ function LeaveGroupModal({
                       <Text style={styles.newOwnerName} numberOfLines={1}>
                         {participant.name}
                       </Text>
-                      <Text style={styles.newOwnerRole}>{roleLabel[participant.role as MemberRole]}</Text>
+                      <Text style={styles.newOwnerRole}>{roleLabel[participant.role]}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -333,7 +336,7 @@ function GroupInfoSection({
   onFocusGroupName,
   onBlurGroupName,
   onRenameGroup,
-}: GroupInfoSectionProps) {
+}: Readonly<GroupInfoSectionProps>) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Thông tin nhóm</Text>
@@ -390,7 +393,7 @@ interface MembersSectionProps {
   canManageGroup: boolean;
   isSubmitting: boolean;
   onOpenAddMembers: () => void;
-  getRoleActions: (participant: RoomParticipantResponse) => { role: MemberRole; label: string }[];
+  getRoleActions: (participant: RoomParticipantResponse) => RoleAction[];
   canRemoveMember: (participant: RoomParticipantResponse) => boolean;
   onChangeRole: (participant: RoomParticipantResponse, role: MemberRole) => void;
   onRemoveMember: (participant: RoomParticipantResponse) => void;
@@ -406,7 +409,7 @@ function MembersSection({
   canRemoveMember,
   onChangeRole,
   onRemoveMember,
-}: MembersSectionProps) {
+}: Readonly<MembersSectionProps>) {
   return (
     <View style={styles.section}>
       <View style={styles.membersHeader}>
@@ -433,7 +436,7 @@ function MembersSection({
                 {participant.name}
                 {participant.userId === currentUserId ? " (Bạn)" : ""}
               </Text>
-              <Text style={styles.memberRole}>{roleLabel[participant.role as MemberRole]}</Text>
+              <Text style={styles.memberRole}>{roleLabel[participant.role]}</Text>
             </View>
           </View>
 
@@ -468,7 +471,7 @@ interface GroupSettingsSectionProps {
   isLoadingSettings: boolean;
   groupSettings: GroupSettingsResponse | null;
   canManageGroup: boolean;
-  pendingSettingKey: string | null;
+  pendingSettingKey: keyof UpdateGroupSettingsRequest | null;
   pendingJoinRequests: GroupJoinRequestResponse[];
   onToggleSetting: (key: keyof UpdateGroupSettingsRequest) => void;
   onShareJoinLink: () => void;
@@ -486,7 +489,7 @@ function GroupSettingsSection({
   onShareJoinLink,
   onRegenerateJoinLink,
   onReviewJoinRequest,
-}: GroupSettingsSectionProps) {
+}: Readonly<GroupSettingsSectionProps>) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Cài đặt nhóm</Text>
@@ -500,7 +503,7 @@ function GroupSettingsSection({
             <View key={settingKey} style={styles.settingRow}>
               <Text style={styles.settingLabel}>{label}</Text>
               <Switch
-                value={Boolean(groupSettings?.[settingKey as keyof GroupSettingsResponse])}
+                value={Boolean(groupSettings?.[settingKey])}
                 onValueChange={() => onToggleSetting(settingKey)}
                 disabled={!canManageGroup || pendingSettingKey !== null || isLoadingSettings}
               />
@@ -573,12 +576,12 @@ function GroupActionsSection({
   isSubmitting,
   onOpenLeaveModal,
   onDissolveGroup,
-}: {
+}: Readonly<{
   isOwner: boolean;
   isSubmitting: boolean;
   onOpenLeaveModal: () => void;
   onDissolveGroup: () => void;
-}) {
+}>) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Nhóm</Text>
@@ -631,7 +634,7 @@ export default function GroupManagementModal({
   const [groupSettings, setGroupSettings] = useState<GroupSettingsResponse | null>(null);
   const [pendingJoinRequests, setPendingJoinRequests] = useState<GroupJoinRequestResponse[]>([]);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
-  const [pendingSettingKey, setPendingSettingKey] = useState<string | null>(null);
+  const [pendingSettingKey, setPendingSettingKey] = useState<keyof UpdateGroupSettingsRequest | null>(null);
 
   useEffect(() => {
     if (!visible) return;
@@ -688,7 +691,7 @@ export default function GroupManagementModal({
 
   const handleToggleSetting = async (key: keyof UpdateGroupSettingsRequest) => {
     if (!groupSettings || !canManageGroup || pendingSettingKey) return;
-    const previousValue = Boolean(groupSettings[key as keyof GroupSettingsResponse]);
+    const previousValue = Boolean(groupSettings[key]);
     const nextSettings = { ...groupSettings, [key]: !previousValue };
     setPendingSettingKey(key);
     setGroupSettings(nextSettings);
@@ -746,7 +749,7 @@ export default function GroupManagementModal({
   const sortedParticipants = useMemo(() => {
     const roleOrder: Record<MemberRole, number> = { OWNER: 0, ADMIN: 1, MEMBER: 2 };
     return [...room.participants].sort(
-      (a, b) => roleOrder[a.role as MemberRole] - roleOrder[b.role as MemberRole]
+      (a, b) => roleOrder[a.role] - roleOrder[b.role]
     );
   }, [room.participants]);
 
@@ -877,18 +880,18 @@ export default function GroupManagementModal({
     return myRole === "ADMIN" && participant.role === "MEMBER";
   };
 
-  const getRoleActions = (participant: RoomParticipantResponse) => {
+  const getRoleActions = (participant: RoomParticipantResponse): RoleAction[] => {
     if (!isOwner || participant.userId === currentUserId) return [];
     if (participant.role === "MEMBER") {
       return [
-        { role: "ADMIN" as MemberRole, label: "Nâng lên Admin" },
-        { role: "OWNER" as MemberRole, label: "Chuyển quyền Owner" },
+        { role: "ADMIN", label: "Nâng lên Admin" },
+        { role: "OWNER", label: "Chuyển quyền Owner" },
       ];
     }
     if (participant.role === "ADMIN") {
       return [
-        { role: "MEMBER" as MemberRole, label: "Hạ xuống Member" },
-        { role: "OWNER" as MemberRole, label: "Chuyển quyền Owner" },
+        { role: "MEMBER", label: "Hạ xuống Member" },
+        { role: "OWNER", label: "Chuyển quyền Owner" },
       ];
     }
     return [];

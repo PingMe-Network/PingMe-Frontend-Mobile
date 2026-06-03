@@ -36,7 +36,7 @@ function PollOptionRow({
   loading,
   onChangeOption,
   onRemoveOption,
-}: PollOptionRowProps) {
+}: Readonly<PollOptionRowProps>) {
   const handleChangeText = (value: string) => {
     onChangeOption(index, value);
   };
